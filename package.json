@@ -1,0 +1,26 @@
+{
+  "name": "claudectl",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "claudectl": "./dist/claudectl"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile dist/claudectl",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "blessed": "^0.1.81",
+    "commander": "^13.0.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/blessed": "^0.1.25",
+    "@types/bun": "latest",
+    "typescript": "^5.7.2"
+  }
+}

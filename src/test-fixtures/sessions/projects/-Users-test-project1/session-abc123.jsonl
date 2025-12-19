@@ -1,0 +1,2 @@
+{"type":"user","uuid":"msg1","parentUuid":null,"sessionId":"session-abc123","timestamp":"2025-12-18T10:00:00.000Z","cwd":"/Users/test/project1","gitBranch":"main","message":{"role":"user","content":"Hello"}}
+{"type":"assistant","uuid":"msg2","parentUuid":"msg1","sessionId":"session-abc123","timestamp":"2025-12-18T10:01:00.000Z","cwd":"/Users/test/project1","slug":"first-session","message":{"role":"assistant","model":"claude-opus-4-5-20251101","content":[{"type":"text","text":"Hi!"}],"usage":{"input_tokens":50,"output_tokens":10}}}

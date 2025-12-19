@@ -1,0 +1,6 @@
+[test]
+coverage = false
+coverageDir = "coverage"
+
+[install]
+auto = "fallback"

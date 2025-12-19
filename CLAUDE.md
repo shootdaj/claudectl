@@ -14,6 +14,60 @@ Build a CLI tool that provides **global management** for Claude Code - managing 
 - **UI Library:** `@clack/prompts` (beautiful prompts, similar to Claude Code's UI)
 - **Styling:** `picocolors` (fast, lightweight colors)
 - **CLI Parsing:** `commander`
+- **Testing:** Bun's built-in test runner (`bun test`)
+
+---
+
+## Testing Requirements
+
+**All code must have tests.** Tests are written alongside implementation and run continuously during development.
+
+### Testing Approach
+- Use Bun's built-in test runner (`bun test`)
+- Tests live in `src/**/*.test.ts` (co-located with source files)
+- Test files mirror their source: `paths.ts` → `paths.test.ts`
+- Run tests after implementing each module before moving on
+
+### Test Commands
+```bash
+bun test                    # Run all tests
+bun test --watch            # Watch mode
+bun test src/utils          # Run tests in specific directory
+bun test --coverage         # With coverage report
+```
+
+### Unit Tests (Automated)
+Run with `bun test`. Test pure functions and isolated modules:
+- **Utils:** Path encoding/decoding, JSONL parsing, date formatting
+- **Core:** Session discovery, config loading (use temp directories/fixtures)
+- **Commands:** Output format, error handling (mock dependencies)
+
+### Test Fixtures
+Create `src/test-fixtures/` with sample data:
+- Sample `.jsonl` session files
+- Sample config files (`.claude.json`, `settings.json`)
+- Various edge cases (empty files, malformed data)
+
+### E2E Tests (Manual)
+These tests depend on actual Claude sessions on the machine. Run manually after each feature:
+
+| Command | What to verify |
+|---------|----------------|
+| `claudectl sessions list` | Shows sessions from all projects, sorted by recency |
+| `claudectl sessions list --json` | Outputs valid JSON with correct structure |
+| `claudectl sessions launch <id>` | Opens Claude in the correct working directory |
+| `claudectl sessions launch <id> --dry-run` | Shows what would happen without launching |
+| `claudectl sessions stats` | Shows accurate cost/usage totals |
+| `claudectl mcp list` | Lists all configured MCP servers |
+| `claudectl` (no args) | Shows interactive menu |
+
+**Expected behaviors:**
+- Commands complete without errors
+- Output is properly formatted (colors, tables)
+- Session launch opens Claude in correct `cwd`
+- `--dry-run` shows intended action without executing
+- Invalid session IDs show helpful error messages
+- Empty states (no sessions) show friendly message
 
 ---
 
@@ -229,7 +283,9 @@ claudectl/
 │   │       └── edit.ts
 │   ├── core/
 │   │   ├── config.ts            # Config paths, env vars
+│   │   ├── config.test.ts       # Tests for config
 │   │   ├── sessions.ts          # Session discovery & parsing
+│   │   ├── sessions.test.ts     # Tests for sessions
 │   │   ├── mcp.ts               # MCP config management
 │   │   ├── plugins.ts           # Plugin management
 │   │   └── settings.ts          # Settings management
@@ -238,10 +294,15 @@ claudectl/
 │   │   ├── session-picker.ts    # Session selection UI
 │   │   ├── table.ts             # Table rendering
 │   │   └── spinner.ts           # Loading states
-│   └── utils/
-│       ├── paths.ts             # Path encoding/decoding
-│       ├── jsonl.ts             # JSONL parsing
-│       └── format.ts            # Date/size formatting
+│   ├── utils/
+│   │   ├── paths.ts             # Path encoding/decoding
+│   │   ├── paths.test.ts        # Tests for paths
+│   │   ├── jsonl.ts             # JSONL parsing
+│   │   ├── jsonl.test.ts        # Tests for JSONL
+│   │   └── format.ts            # Date/size formatting
+│   └── test-fixtures/           # Test data
+│       ├── sessions/            # Sample session files
+│       └── config/              # Sample config files
 ├── package.json
 ├── tsconfig.json
 ├── bunfig.toml
@@ -449,7 +510,9 @@ export async function launchSession(session: Session, newPrompt?: string) {
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun build src/index.ts --compile --outfile dist/claudectl",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@clack/prompts": "^0.7.0",
