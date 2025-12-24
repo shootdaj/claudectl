@@ -23,7 +23,7 @@ Global session manager for [Claude Code](https://claude.ai/code). Browse, search
 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 ```
 
-Or download directly from [Releases](https://github.com/shootdaj/claudectl/releases).
+This will install [Bun](https://bun.sh) if needed, then set up claudectl.
 
 ## Usage
 
@@ -64,7 +64,7 @@ claudectl config                     # Show config paths
 ## Requirements
 
 - [Claude Code](https://claude.ai/code) installed
-- macOS (ARM or Intel) or Linux (x64)
+- macOS or Linux
 
 ## How It Works
 
