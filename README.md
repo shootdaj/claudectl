@@ -20,7 +20,7 @@ Global session manager for [Claude Code](https://claude.ai/code). Browse, search
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
+curl -fsSL https://cdn.jsdelivr.net/gh/shootdaj/claudectl@main/install.sh | bash
 ```
 
 This will install [Bun](https://bun.sh) if needed, then set up claudectl.
