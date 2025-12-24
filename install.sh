@@ -4,7 +4,7 @@ set -e
 # claudectl installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 
-REPO_URL="https://github.com/shootdaj/claudectl.git"
+REPO="shootdaj/claudectl"
 INSTALL_DIR="$HOME/.claudectl"
 BUN_BIN="$HOME/.bun/bin"
 
@@ -22,97 +22,48 @@ echo "│     Global Claude Code Manager          │"
 echo "└─────────────────────────────────────────┘"
 echo -e "${NC}"
 
-# Function to get bun path
-get_bun() {
-  if [ -f "$HOME/.bun/bin/bun" ]; then
-    echo "$HOME/.bun/bin/bun"
-  elif command -v bun &> /dev/null; then
-    command -v bun
-  else
-    echo ""
-  fi
-}
-
 # Check if Bun is installed
-BUN=$(get_bun)
-if [ -z "$BUN" ]; then
-  echo -e "${YELLOW}Bun not found. Installing Bun first...${NC}"
-  echo ""
+if [ ! -f "$HOME/.bun/bin/bun" ] && ! command -v bun &> /dev/null; then
+  echo -e "${YELLOW}Installing Bun...${NC}"
   curl -fsSL https://bun.sh/install | bash
-  BUN="$HOME/.bun/bin/bun"
-
-  if [ ! -f "$BUN" ]; then
-    echo -e "${RED}Failed to install Bun. Please install manually: https://bun.sh${NC}"
-    exit 1
-  fi
-  echo ""
-  echo -e "${GREEN}Bun installed!${NC}"
-  echo ""
-
-  # Add to current shell PATH
   export PATH="$BUN_BIN:$PATH"
 fi
 
-echo -e "${CYAN}Installing claudectl...${NC}"
+BUN="$HOME/.bun/bin/bun"
+[ ! -f "$BUN" ] && BUN=$(command -v bun)
 
-# Clone or update the repo
-if [ -d "$INSTALL_DIR" ]; then
-  echo "Updating existing installation..."
-  cd "$INSTALL_DIR"
-  git pull --quiet origin main
-else
-  echo "Cloning repository..."
-  git clone --quiet --depth 1 "$REPO_URL" "$INSTALL_DIR"
-  cd "$INSTALL_DIR"
-fi
+echo -e "${CYAN}Downloading claudectl...${NC}"
 
-# Install dependencies
+# Download and extract tarball (no .git, smaller)
+rm -rf "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR"
+curl -fsSL "https://github.com/$REPO/archive/refs/heads/main.tar.gz" | tar -xz -C "$INSTALL_DIR" --strip-components=1
+
+echo -e "${CYAN}Installing dependencies...${NC}"
+cd "$INSTALL_DIR"
 "$BUN" install --silent
 
-# Create wrapper scripts in ~/.bun/bin
+# Create wrapper script
 mkdir -p "$BUN_BIN"
-
-# Create claudectl wrapper
 cat > "$BUN_BIN/claudectl" << EOF
 #!/bin/bash
 exec "$BUN" run "$INSTALL_DIR/src/index.ts" "\$@"
 EOF
 chmod +x "$BUN_BIN/claudectl"
-
-# Create cctl alias
 ln -sf "$BUN_BIN/claudectl" "$BUN_BIN/cctl"
 
-# Ensure ~/.bun/bin is in shell profile for future sessions
-add_to_path() {
-  local profile="$1"
-  if [ -f "$profile" ]; then
-    if ! grep -q 'BUN_INSTALL' "$profile" 2>/dev/null; then
-      echo '' >> "$profile"
-      echo '# bun' >> "$profile"
-      echo 'export BUN_INSTALL="$HOME/.bun"' >> "$profile"
-      echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> "$profile"
-    fi
-  fi
-}
-
-# Add to common shell profiles if not already there
-add_to_path "$HOME/.bashrc"
-add_to_path "$HOME/.zshrc"
-add_to_path "$HOME/.bash_profile"
+# Add to PATH in shell profiles
+for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile"; do
+  [ -f "$profile" ] && ! grep -q 'BUN_INSTALL' "$profile" 2>/dev/null && {
+    echo -e '\n# bun\nexport BUN_INSTALL="$HOME/.bun"\nexport PATH="$BUN_INSTALL/bin:$PATH"' >> "$profile"
+  }
+done
 
 echo ""
-echo -e "${GREEN}┌─────────────────────────────────────────┐${NC}"
-echo -e "${GREEN}│  Installation complete!                 │${NC}"
-echo -e "${GREEN}└─────────────────────────────────────────┘${NC}"
-echo ""
+echo -e "${GREEN}Installation complete!${NC}"
 echo -e "Run ${CYAN}claudectl${NC} or ${CYAN}cctl${NC} to get started."
 echo ""
 
-# Add to current session PATH if needed
-if [[ ":$PATH:" != *":$BUN_BIN:"* ]]; then
-  export PATH="$BUN_BIN:$PATH"
-fi
-
-# Run it to verify installation works
-echo -e "${CYAN}Verifying installation...${NC}"
+# Verify
+export PATH="$BUN_BIN:$PATH"
 "$BUN_BIN/claudectl" --version
