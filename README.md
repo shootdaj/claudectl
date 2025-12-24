@@ -5,14 +5,6 @@ Global session manager for [Claude Code](https://claude.ai/code). Browse, search
 ![Demo](https://img.shields.io/badge/version-1.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 
-## The Problem
-
-Claude Code organizes sessions by folder. Running `claude --resume` only shows sessions from your current directory, making it hard to find and resume sessions from other projects.
-
-## The Solution
-
-**claudectl** gives you a global view of all your Claude Code sessions with a rich TUI:
-
 ```
 ┌─ claudectl ──────────────────────────────────────────────────────────────────┐
 │ TITLE                              PROJECT          TIME    MSGS   TOK  MOD │
