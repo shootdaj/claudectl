@@ -1,9 +1,10 @@
 {
   "name": "claudectl",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "bin": {
-    "claudectl": "./dist/claudectl"
+    "claudectl": "./dist/claudectl",
+    "cctl": "./dist/claudectl"
   },
   "scripts": {
     "dev": "bun run src/index.ts",

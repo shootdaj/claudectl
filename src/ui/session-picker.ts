@@ -142,7 +142,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {cyan-fg}↑↓{/cyan-fg} Navigate  {cyan-fg}Enter{/cyan-fg} Launch  {cyan-fg}r{/cyan-fg} Rename  {cyan-fg}d{/cyan-fg} Dry-run  {cyan-fg}p{/cyan-fg} Preview  {cyan-fg}/{/cyan-fg} Search  {cyan-fg}q{/cyan-fg} Quit",
+      " {cyan-fg}↑↓{/cyan-fg} Navigate  {cyan-fg}Enter{/cyan-fg} Launch  {cyan-fg}n{/cyan-fg} New  {cyan-fg}N{/cyan-fg} New@sel  {cyan-fg}r{/cyan-fg} Rename  {cyan-fg}p{/cyan-fg} Preview  {cyan-fg}/{/cyan-fg} Search  {cyan-fg}q{/cyan-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -365,6 +365,38 @@ export async function showSessionPicker(
     searchBox.setValue("");
     table.focus();
     screen.render();
+  });
+
+  // New session in current folder
+  table.key(["n"], () => {
+    screen.destroy();
+    const cwd = process.cwd();
+    console.log(`\nStarting new session in: ${cwd}\n`);
+
+    const proc = Bun.spawn(["claude"], {
+      cwd,
+      stdio: ["inherit", "inherit", "inherit"],
+    });
+
+    proc.exited.then((code) => process.exit(code));
+  });
+
+  // New session in selected session's folder
+  table.key(["S-n"], () => {
+    const idx = table.selected;
+    const session = filteredSessions[idx];
+    if (!session) return;
+
+    screen.destroy();
+    const cwd = session.workingDirectory;
+    console.log(`\nStarting new session in: ${cwd}\n`);
+
+    const proc = Bun.spawn(["claude"], {
+      cwd,
+      stdio: ["inherit", "inherit", "inherit"],
+    });
+
+    proc.exited.then((code) => process.exit(code));
   });
 
   screen.key(["q", "C-c"], () => {

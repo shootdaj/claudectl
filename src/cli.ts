@@ -9,7 +9,7 @@ const program = new Command();
 program
   .name("claudectl")
   .description("Global Claude Code session manager with rich TUI")
-  .version("0.1.0");
+  .version("1.0.0");
 
 // Default command - show TUI session picker
 program
