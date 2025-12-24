@@ -105,7 +105,7 @@ jobs:
             ## Installation
 
             ```bash
-            curl -fsSL https://raw.githubusercontent.com/anshulxyz/claudectl/main/install.sh | bash
+            curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
             ```
 
             ## Manual Installation

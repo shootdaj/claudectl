@@ -2,9 +2,9 @@
 set -e
 
 # claudectl installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/anshulxyz/claudectl/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 
-REPO="anshulxyz/claudectl"
+REPO="shootdaj/claudectl"
 INSTALL_DIR="/usr/local/bin"
 
 # Colors
