@@ -18,6 +18,20 @@ interface SessionPickerOptions {
   dryRun?: boolean;
 }
 
+// Dark Midnight with color flare
+const theme = {
+  purple: "#b48ead",      // Soft purple - titles, accents
+  blue: "#81a1c1",        // Steel blue - time, info
+  cyan: "#88c0d0",        // Teal cyan - highlights
+  green: "#a3be8c",       // Sage green - tokens, success
+  yellow: "#ebcb8b",      // Warm yellow - warnings
+  muted: "#5c6773",       // Muted gray
+  fg: "#d8dee9",          // Light foreground
+  border: "#b48ead",      // Purple border
+  selectedBg: "#3b4252",  // Selection background
+  selectedFg: "#a3be8c",  // Selection foreground - green
+};
+
 export async function showSessionPicker(
   options: SessionPickerOptions = {}
 ): Promise<void> {
@@ -30,7 +44,7 @@ export async function showSessionPicker(
 
   const screen = blessed.screen({
     smartCSR: true,
-    title: "claudectl - Session Manager",
+    title: "claudectl",
     fullUnicode: true,
   });
 
@@ -45,7 +59,7 @@ export async function showSessionPicker(
       type: "line",
     },
     style: {
-      border: { fg: "cyan" },
+      border: { fg: theme.purple },
     },
   });
 
@@ -56,11 +70,10 @@ export async function showSessionPicker(
     left: 0,
     width: "100%-2",
     height: 1,
-    content: "{bold}{cyan-fg} ◆ claudectl{/cyan-fg}{/bold} │ Session Manager",
+    content: "{bold}{#b48ead-fg} ◆ claudectl{/#b48ead-fg}{/bold} {#5c6773-fg}│{/#5c6773-fg} {#81a1c1-fg}sessions{/#81a1c1-fg}",
     tags: true,
     style: {
       fg: "white",
-      bg: "black",
     },
   });
 
@@ -69,11 +82,11 @@ export async function showSessionPicker(
     parent: titleBar,
     top: 0,
     right: 1,
-    content: `${sessions.length} sessions`,
-    style: { fg: "gray" },
+    content: `{#a3be8c-fg}${sessions.length}{/#a3be8c-fg} {#5c6773-fg}sessions{/#5c6773-fg}`,
+    tags: true,
   });
 
-  // Header line - use same formatting as rows
+  // Header line
   const titleWidth = getTitleWidth();
   const headerLine = ` ${"TITLE".padEnd(titleWidth)} ${"PROJECT".padEnd(16)} ${"TIME".padEnd(7)} ${"MSGS".padStart(4)} ${"TOK".padStart(5)} ${"MOD".padStart(4)}`;
 
@@ -83,11 +96,11 @@ export async function showSessionPicker(
     left: 1,
     width: "100%-4",
     height: 1,
-    content: `{yellow-fg}${headerLine}{/yellow-fg}`,
+    content: `{#81a1c1-fg}${headerLine}{/#81a1c1-fg}`,
     tags: true,
   });
 
-  // Session list (using list instead of listtable for better control)
+  // Session list
   const table = blessed.list({
     parent: mainBox,
     top: 2,
@@ -99,14 +112,15 @@ export async function showSessionPicker(
     vi: true,
     mouse: true,
     scrollbar: {
-      ch: "┃",
-      style: { fg: "cyan" },
+      ch: "▌",
+      style: { fg: theme.purple },
     },
     style: {
       fg: "white",
       selected: {
-        fg: "black",
-        bg: "cyan",
+        fg: theme.selectedFg,
+        bg: theme.selectedBg,
+        bold: true,
       },
     },
     items: sessions.map(formatSessionRow),
@@ -142,7 +156,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {cyan-fg}↑↓{/cyan-fg} Navigate  {cyan-fg}Enter{/cyan-fg} Launch  {cyan-fg}n{/cyan-fg} New  {cyan-fg}N{/cyan-fg} New@sel  {cyan-fg}r{/cyan-fg} Rename  {cyan-fg}p{/cyan-fg} Preview  {cyan-fg}/{/cyan-fg} Search  {cyan-fg}q{/cyan-fg} Quit",
+      " {#b48ead-fg}↑↓{/#b48ead-fg} Navigate  {#a3be8c-fg}Enter{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#88c0d0-fg}N{/#88c0d0-fg} New@sel  {#b48ead-fg}r{/#b48ead-fg} Rename  {#a3be8c-fg}p{/#a3be8c-fg} Preview  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -159,7 +173,7 @@ export async function showSessionPicker(
     keys: true,
     style: {
       fg: "white",
-      bg: "blue",
+      bg: theme.blue,
     },
   });
 
@@ -173,7 +187,6 @@ export async function showSessionPicker(
   }
 
   function updateDetails() {
-    // list's selected is 0-indexed (no header offset)
     const idx = table.selected;
     const session = filteredSessions[idx];
     if (!session) {
@@ -183,9 +196,9 @@ export async function showSessionPicker(
     }
 
     const lines = [
-      `{bold}{cyan-fg}${session.title}{/cyan-fg}{/bold}  {gray-fg}(${session.id.slice(0, 8)}...){/gray-fg}`,
-      `{gray-fg}Path:{/gray-fg} ${session.workingDirectory}  {gray-fg}Branch:{/gray-fg} ${session.gitBranch || "N/A"}`,
-      `{gray-fg}Created:{/gray-fg} ${session.createdAt.toLocaleString()}  {gray-fg}Model:{/gray-fg} ${session.model || "N/A"}`,
+      `{bold}{#b48ead-fg}${session.title}{/#b48ead-fg}{/bold}  {#5c6773-fg}${session.id.slice(0, 8)}{/#5c6773-fg}`,
+      `{#5c6773-fg}path{/#5c6773-fg} {#d8dee9-fg}${session.workingDirectory}{/#d8dee9-fg}  {#5c6773-fg}branch{/#5c6773-fg} {#a3be8c-fg}${session.gitBranch || "—"}{/#a3be8c-fg}`,
+      `{#5c6773-fg}created{/#5c6773-fg} {#d8dee9-fg}${session.createdAt.toLocaleString()}{/#d8dee9-fg}  {#5c6773-fg}model{/#5c6773-fg} {#81a1c1-fg}${session.model || "—"}{/#81a1c1-fg}`,
     ];
 
     detailsBox.setContent(lines.join("\n"));
@@ -230,7 +243,7 @@ export async function showSessionPicker(
     const result = await launchSession(session, { dryRun: true });
 
     detailsBox.setContent(
-      `{yellow-fg}DRY RUN:{/yellow-fg} Would run: {bold}${result.command}{/bold}\n` +
+      `{#ebcb8b-fg}DRY RUN:{/#ebcb8b-fg} Would run: {bold}${result.command}{/bold}\n` +
         `         In directory: ${result.cwd}`
     );
     screen.render();
@@ -252,17 +265,17 @@ export async function showSessionPicker(
       tags: true,
       border: { type: "line" },
       style: {
-        border: { fg: "cyan" },
+        border: { fg: theme.purple },
         fg: "white",
       },
       scrollable: true,
       keys: true,
       vi: true,
       scrollbar: {
-        ch: "┃",
-        style: { fg: "cyan" },
+        ch: "▌",
+        style: { fg: theme.purple },
       },
-      label: ` ${session.title || session.id} `,
+      label: ` {#b48ead-fg}${session.title || session.id}{/#b48ead-fg} `,
     });
 
     previewBox.key(["escape", "q", "p"], () => {
@@ -286,7 +299,7 @@ export async function showSessionPicker(
     keys: true,
     style: {
       fg: "white",
-      bg: "green",
+      bg: theme.green,
     },
   });
 
@@ -295,7 +308,7 @@ export async function showSessionPicker(
     const session = filteredSessions[idx];
     if (!session) return;
 
-    detailsBox.setContent(`{green-fg}Rename:{/green-fg} Enter new title for "${session.title}"`);
+    detailsBox.setContent(`{#b48ead-fg}rename ›{/#b48ead-fg} {#d8dee9-fg}${session.title}{/#d8dee9-fg}`);
     renameBox.setValue(session.title);
     renameBox.show();
     renameBox.focus();
@@ -320,7 +333,7 @@ export async function showSessionPicker(
     renameBox.hide();
     updateTable();
     table.focus();
-    detailsBox.setContent(`{green-fg}✓ Renamed to:{/green-fg} ${newTitle}`);
+    detailsBox.setContent(`{#a3be8c-fg}✓{/#a3be8c-fg} {#d8dee9-fg}${newTitle}{/#d8dee9-fg}`);
     screen.render();
   });
 
@@ -411,7 +424,6 @@ export async function showSessionPicker(
 // Calculate title width: terminal width minus space for other fixed columns
 function getTitleWidth(): number {
   const termWidth = process.stdout.columns || 120;
-  // Reserve: project(18) + time(8) + msgs(5) + tokens(6) + model(5) + separators(8) + border(4)
   const reserved = 18 + 8 + 5 + 6 + 5 + 8 + 4;
   return Math.max(20, termWidth - reserved);
 }
@@ -427,11 +439,12 @@ function formatSessionRow(session: Session): string {
   const tokens = formatTokens(session.totalInputTokens + session.totalOutputTokens).padStart(5);
   const model = formatModelName(session.model).padStart(4);
 
-  return ` ${title} ${project} ${time} ${msgs} ${tokens} ${model}`;
+  // Add subtle color hints to row data
+  return ` ${title} {#88c0d0-fg}${project}{/#88c0d0-fg} {#81a1c1-fg}${time}{/#81a1c1-fg} ${msgs} {#a3be8c-fg}${tokens}{/#a3be8c-fg} {#b48ead-fg}${model}{/#b48ead-fg}`;
 }
 
 function formatModelName(model?: string): string {
-  if (!model) return "-";
+  if (!model) return "—";
   if (model.includes("opus")) return "opus";
   if (model.includes("sonnet")) return "son";
   if (model.includes("haiku")) return "hai";
@@ -446,23 +459,23 @@ function formatTokens(tokens: number): string {
 
 async function getSessionPreview(session: Session): Promise<string> {
   const lines = [
-    `{bold}{cyan-fg}Session Details{/cyan-fg}{/bold}`,
+    `{bold}{#b48ead-fg}Session Details{/#b48ead-fg}{/bold}`,
     ``,
-    `{yellow-fg}Title:{/yellow-fg}     ${session.title}`,
-    `{yellow-fg}ID:{/yellow-fg}        ${session.id}`,
-    `{yellow-fg}Slug:{/yellow-fg}      ${session.slug || "N/A"}`,
-    `{yellow-fg}Path:{/yellow-fg}      ${session.workingDirectory}`,
-    `{yellow-fg}Branch:{/yellow-fg}    ${session.gitBranch || "N/A"}`,
-    `{yellow-fg}Model:{/yellow-fg}     ${session.model || "N/A"}`,
+    `{#81a1c1-fg}title{/#81a1c1-fg}      ${session.title}`,
+    `{#81a1c1-fg}id{/#81a1c1-fg}         {#5c6773-fg}${session.id}{/#5c6773-fg}`,
+    `{#81a1c1-fg}slug{/#81a1c1-fg}       ${session.slug || "—"}`,
+    `{#81a1c1-fg}path{/#81a1c1-fg}       ${session.workingDirectory}`,
+    `{#81a1c1-fg}branch{/#81a1c1-fg}     {#a3be8c-fg}${session.gitBranch || "—"}{/#a3be8c-fg}`,
+    `{#81a1c1-fg}model{/#81a1c1-fg}      {#b48ead-fg}${session.model || "—"}{/#b48ead-fg}`,
     ``,
-    `{yellow-fg}Created:{/yellow-fg}   ${session.createdAt.toLocaleString()}`,
-    `{yellow-fg}Last Used:{/yellow-fg} ${session.lastAccessedAt.toLocaleString()}`,
+    `{#81a1c1-fg}created{/#81a1c1-fg}    ${session.createdAt.toLocaleString()}`,
+    `{#81a1c1-fg}last used{/#81a1c1-fg}  ${session.lastAccessedAt.toLocaleString()}`,
     ``,
-    `{yellow-fg}Messages:{/yellow-fg}  ${session.messageCount} total`,
-    `            ${session.userMessageCount} user / ${session.assistantMessageCount} assistant`,
-    `{yellow-fg}Tokens:{/yellow-fg}    ${formatTokens(session.totalInputTokens)} in / ${formatTokens(session.totalOutputTokens)} out`,
+    `{#81a1c1-fg}messages{/#81a1c1-fg}   ${session.messageCount} total`,
+    `           {#5c6773-fg}${session.userMessageCount} user / ${session.assistantMessageCount} assistant{/#5c6773-fg}`,
+    `{#81a1c1-fg}tokens{/#81a1c1-fg}     {#a3be8c-fg}${formatTokens(session.totalInputTokens)}{/#a3be8c-fg} in / {#a3be8c-fg}${formatTokens(session.totalOutputTokens)}{/#a3be8c-fg} out`,
     ``,
-    `{gray-fg}Press q or Escape to close{/gray-fg}`,
+    `{#5c6773-fg}press q or esc to close{/#5c6773-fg}`,
   ];
 
   return lines.join("\n");
