@@ -126,8 +126,33 @@ export function extractMetadata(messages: SessionMessage[]): SessionMetadata {
     };
   }
 
-  const firstMsg = conversationMessages[0];
-  const lastMsg = conversationMessages[conversationMessages.length - 1];
+  // Find first message with valid timestamp for createdAt
+  let firstMsgWithTimestamp = conversationMessages.find((m) => m.timestamp);
+  if (!firstMsgWithTimestamp) {
+    // Fall back to any message with timestamp (including internal ones)
+    firstMsgWithTimestamp = messages.find((m) => m.timestamp);
+  }
+  const firstMsg = firstMsgWithTimestamp || conversationMessages[0];
+
+  // Find last message with valid timestamp for lastAccessedAt
+  // Some message types (like 'summary') don't have timestamps
+  let lastMsgWithTimestamp: SessionMessage | undefined;
+  for (let i = conversationMessages.length - 1; i >= 0; i--) {
+    if (conversationMessages[i].timestamp) {
+      lastMsgWithTimestamp = conversationMessages[i];
+      break;
+    }
+  }
+  // Fall back to any message with timestamp if conversation messages don't have one
+  if (!lastMsgWithTimestamp) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].timestamp) {
+        lastMsgWithTimestamp = messages[i];
+        break;
+      }
+    }
+  }
+  const lastMsg = lastMsgWithTimestamp || firstMsg;
 
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
@@ -191,12 +216,30 @@ export function extractMetadata(messages: SessionMessage[]): SessionMetadata {
 
 /**
  * Parse session metadata from a file
+ * Uses file mtime as fallback for invalid timestamps
  */
 export async function parseSessionMetadata(
   filePath: string
 ): Promise<SessionMetadata> {
   const messages = await parseJsonl(filePath);
-  return extractMetadata(messages);
+  const metadata = extractMetadata(messages);
+
+  // Use file mtime as fallback for invalid dates
+  const file = Bun.file(filePath);
+  const stats = await file.stat();
+  const fileMtime = stats?.mtime ? new Date(stats.mtime) : new Date();
+
+  // Fix invalid createdAt
+  if (isNaN(metadata.createdAt.getTime())) {
+    metadata.createdAt = fileMtime;
+  }
+
+  // Fix invalid lastAccessedAt
+  if (isNaN(metadata.lastAccessedAt.getTime())) {
+    metadata.lastAccessedAt = fileMtime;
+  }
+
+  return metadata;
 }
 
 /**
