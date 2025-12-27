@@ -50,7 +50,7 @@ cat > "$BUN_BIN/claudectl" << EOF
 exec "$BUN" run "$INSTALL_DIR/src/index.ts" "\$@"
 EOF
 chmod +x "$BUN_BIN/claudectl"
-ln -sf "$BUN_BIN/claudectl" "$BUN_BIN/cctl"
+ln -sf "$BUN_BIN/claudectl" "$BUN_BIN/ccl"
 
 # Add to PATH in shell profiles
 for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile"; do
@@ -61,7 +61,7 @@ done
 
 echo ""
 echo -e "${GREEN}Installation complete!${NC}"
-echo -e "Run ${CYAN}claudectl${NC} or ${CYAN}cctl${NC} to get started."
+echo -e "Run ${CYAN}claudectl${NC} or ${CYAN}ccl${NC} to get started."
 echo ""
 
 # Verify

@@ -29,7 +29,7 @@ This will install [Bun](https://bun.sh) if needed, then set up claudectl.
 
 ```bash
 claudectl          # Open interactive session picker
-cctl               # Short alias
+ccl                # Short alias
 
 # Commands
 claudectl sessions list              # List all sessions

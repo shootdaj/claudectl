@@ -4,7 +4,7 @@
   "type": "module",
   "bin": {
     "claudectl": "./dist/claudectl",
-    "cctl": "./dist/claudectl"
+    "ccl": "./dist/claudectl"
   },
   "scripts": {
     "dev": "bun run src/index.ts",
