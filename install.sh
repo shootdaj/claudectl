@@ -3,6 +3,11 @@ set -e
 
 # claudectl installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
+#
+# Options:
+#   VERSION=v1.0.0 curl ... | bash   # Install specific version
+#   VERSION=latest curl ... | bash   # Install latest release (default)
+#   VERSION=main curl ... | bash     # Install from main branch (development)
 
 REPO="shootdaj/claudectl"
 INSTALL_DIR="$HOME/.claudectl"
@@ -22,6 +27,25 @@ echo "│     Global Claude Code Manager          │"
 echo "└─────────────────────────────────────────┘"
 echo -e "${NC}"
 
+# Determine version to install
+if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
+  echo -e "${CYAN}Fetching latest release...${NC}"
+  VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+
+  if [ -z "$VERSION" ]; then
+    echo -e "${YELLOW}No releases found, installing from main branch...${NC}"
+    VERSION="main"
+  fi
+fi
+
+if [ "$VERSION" = "main" ]; then
+  DOWNLOAD_URL="https://github.com/$REPO/archive/refs/heads/main.tar.gz"
+  echo -e "${YELLOW}Installing from main branch (development)${NC}"
+else
+  DOWNLOAD_URL="https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz"
+  echo -e "${GREEN}Installing version: $VERSION${NC}"
+fi
+
 # Check if Bun is installed
 if [ ! -f "$HOME/.bun/bin/bun" ] && ! command -v bun &> /dev/null; then
   echo -e "${YELLOW}Installing Bun...${NC}"
@@ -34,10 +58,13 @@ BUN="$HOME/.bun/bin/bun"
 
 echo -e "${CYAN}Downloading claudectl...${NC}"
 
-# Download and extract tarball (no .git, smaller)
+# Download and extract tarball
 rm -rf "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
-curl -fsSL "https://github.com/$REPO/archive/refs/heads/main.tar.gz" | tar -xz -C "$INSTALL_DIR" --strip-components=1
+curl -fsSL "$DOWNLOAD_URL" | tar -xz -C "$INSTALL_DIR" --strip-components=1
+
+# Save installed version
+echo "$VERSION" > "$INSTALL_DIR/.version"
 
 echo -e "${CYAN}Installing dependencies...${NC}"
 cd "$INSTALL_DIR"
@@ -61,6 +88,7 @@ done
 
 echo ""
 echo -e "${GREEN}Installation complete!${NC}"
+echo -e "Installed version: ${CYAN}$VERSION${NC}"
 echo -e "Run ${CYAN}claudectl${NC} or ${CYAN}ccl${NC} to get started."
 echo ""
 
