@@ -43,8 +43,8 @@ function findValidPath(parts: string[]): string {
     const testPath = "/" + firstPart;
 
     if (i === parts.length) {
-      // Last iteration - use whatever we have
-      return firstPart;
+      // Last iteration - no filesystem match found, join all with slashes
+      return parts.join("/");
     }
 
     // Check if this path exists as a directory
