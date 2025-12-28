@@ -10,11 +10,25 @@ Build a CLI tool that provides **global management** for Claude Code - managing 
 
 - **Runtime:** Bun (Claude Code is Bun-based)
 - **Language:** TypeScript
-- **Distribution:** Single binary via `bun build --compile`
-- **UI Library:** `@clack/prompts` (beautiful prompts, similar to Claude Code's UI)
-- **Styling:** `picocolors` (fast, lightweight colors)
+- **Distribution:** Source via install script (see Build Limitation below)
+- **UI Library:** `blessed` (rich TUI with boxes, tables, scrolling)
+- **Styling:** Custom Dark Midnight theme with Nord-inspired colors
 - **CLI Parsing:** `commander`
 - **Testing:** Bun's built-in test runner (`bun test`)
+
+## Build Limitation
+
+**IMPORTANT:** This project cannot be compiled to a single binary using `bun build --compile`.
+
+The `blessed` library uses dynamic `require()` calls and terminal detection at runtime that fail when bundled into a compiled binary. Attempts to compile result in missing terminal capabilities and broken rendering.
+
+**Current distribution method:** Source distribution via install script. The installer downloads source to `~/.claudectl/` and runs via `bun run`.
+
+If we ever need a compiled binary, we'd need to:
+1. Replace `blessed` with a terminal library that supports bundling
+2. Or use a different bundler/compilation approach
+
+This limitation was discovered during v1.0.0 development and is why we switched from compiled binary to source distribution.
 
 ---
 
