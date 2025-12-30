@@ -186,6 +186,11 @@ export async function showSessionPicker(
     screen.render();
   }
 
+  function truncate(text: string, maxLen: number): string {
+    if (text.length <= maxLen) return text;
+    return text.slice(0, maxLen - 1) + "…";
+  }
+
   function updateDetails() {
     const idx = table.selected;
     const session = filteredSessions[idx];
@@ -195,8 +200,12 @@ export async function showSessionPicker(
       return;
     }
 
+    // Calculate max title width: screen width - margins - id suffix (~15 chars)
+    const maxTitleWidth = Math.max(40, (screen.width as number) - 20);
+    const title = truncate(session.title, maxTitleWidth);
+
     const lines = [
-      `{bold}{#b48ead-fg}${session.title}{/#b48ead-fg}{/bold}  {#5c6773-fg}${session.id.slice(0, 8)}{/#5c6773-fg}`,
+      `{bold}{#b48ead-fg}${title}{/#b48ead-fg}{/bold}  {#5c6773-fg}${session.id.slice(0, 8)}{/#5c6773-fg}`,
       `{#5c6773-fg}path{/#5c6773-fg} {#d8dee9-fg}${session.workingDirectory}{/#d8dee9-fg}  {#5c6773-fg}branch{/#5c6773-fg} {#a3be8c-fg}${session.gitBranch || "—"}{/#a3be8c-fg}`,
       `{#5c6773-fg}created{/#5c6773-fg} {#d8dee9-fg}${session.createdAt.toLocaleString()}{/#d8dee9-fg}  {#5c6773-fg}model{/#5c6773-fg} {#81a1c1-fg}${session.model || "—"}{/#81a1c1-fg}`,
     ];
