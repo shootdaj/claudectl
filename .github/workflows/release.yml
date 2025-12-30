@@ -34,69 +34,57 @@ jobs:
     name: Release
     needs: test
     runs-on: ubuntu-latest
-    # Skip if commit message contains [skip release] or is a version bump
-    if: "!contains(github.event.head_commit.message, '[skip release]') && !contains(github.event.head_commit.message, 'chore: bump version')"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Bump version
+      - name: Get next version from git tags
         id: version
         run: |
-          # Get current version
-          CURRENT=$(grep '"version"' package.json | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+          # Get latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
 
-          # Increment patch version
-          IFS='.' read -r major minor patch <<< "$CURRENT"
-          NEW_VERSION="$major.$minor.$((patch + 1))"
+          # Strip 'v' prefix and increment patch
+          VERSION="${LATEST_TAG#v}"
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          NEW_VERSION="v$major.$minor.$((patch + 1))"
 
-          # Update package.json
-          sed -i "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW_VERSION\"/" package.json
-
+          echo "New version: $NEW_VERSION"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Bumping version: $CURRENT -> $NEW_VERSION"
-
-      - name: Commit version bump
-        run: |
-          git add package.json
-          git commit -m "chore: bump version to v${{ steps.version.outputs.version }} [skip release]"
-          git push
+          echo "prev_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
 
       - name: Create tag
         run: |
-          git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.version }}" -m "Release ${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"
 
       - name: Generate release notes
         run: |
-          # Get previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          PREV_TAG="${{ steps.version.outputs.prev_tag }}"
+          NEW_TAG="${{ steps.version.outputs.version }}"
 
           echo "## What's Changed" > notes.md
           echo "" >> notes.md
 
-          if [ -n "$PREV_TAG" ]; then
-            git log --pretty=format:"- %s" "$PREV_TAG"..HEAD~1 >> notes.md
+          if [ "$PREV_TAG" != "v0.0.0" ]; then
+            git log --pretty=format:"- %s" "$PREV_TAG"..HEAD >> notes.md
             echo "" >> notes.md
             echo "" >> notes.md
-            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...v${{ steps.version.outputs.version }}" >> notes.md
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${NEW_TAG}" >> notes.md
           else
-            git log --pretty=format:"- %s" -10 >> notes.md
+            git log --pretty=format:"- %s" -20 >> notes.md
           fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
           body_path: notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
