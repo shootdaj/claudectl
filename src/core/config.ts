@@ -59,10 +59,12 @@ export function getAllConfigPaths() {
 
 export interface ClaudectlSettings {
   skipPermissions: boolean;
+  autoAddAgentExpert: boolean;
 }
 
 const DEFAULT_SETTINGS: ClaudectlSettings = {
   skipPermissions: false,
+  autoAddAgentExpert: true,
 };
 
 /**

@@ -84,11 +84,16 @@ export async function showSessionPicker(
   });
 
   function updateTitleBar() {
-    const skipBadge = settings.skipPermissions
-      ? " {#ebcb8b-fg}[SKIP PERMS]{/#ebcb8b-fg}"
-      : "";
+    const badges: string[] = [];
+    if (settings.skipPermissions) {
+      badges.push("{#ebcb8b-fg}[SKIP PERMS]{/#ebcb8b-fg}");
+    }
+    if (settings.autoAddAgentExpert) {
+      badges.push("{#a3be8c-fg}[AGENT EXPERT]{/#a3be8c-fg}");
+    }
+    const badgeStr = badges.length > 0 ? " " + badges.join(" ") : "";
     titleBar.setContent(
-      `{bold}{#b48ead-fg} ◆ claudectl{/#b48ead-fg}{/bold} {#5c6773-fg}│{/#5c6773-fg} {#81a1c1-fg}sessions{/#81a1c1-fg}${skipBadge}`
+      `{bold}{#b48ead-fg} ◆ claudectl{/#b48ead-fg}{/bold} {#5c6773-fg}│{/#5c6773-fg} {#81a1c1-fg}sessions{/#81a1c1-fg}${badgeStr}`
     );
   }
   updateTitleBar();
@@ -172,7 +177,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {#b48ead-fg}↑↓{/#b48ead-fg} Navigate  {#a3be8c-fg}Enter{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#88c0d0-fg}N{/#88c0d0-fg} New@sel  {#b48ead-fg}r{/#b48ead-fg} Rename  {#a3be8c-fg}p{/#a3be8c-fg} Preview  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#ebcb8b-fg}d{/#ebcb8b-fg} Dangerous  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
+      " {#b48ead-fg}↑↓{/#b48ead-fg} Navigate  {#a3be8c-fg}Enter{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#88c0d0-fg}N{/#88c0d0-fg} New@sel  {#b48ead-fg}r{/#b48ead-fg} Rename  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#a3be8c-fg}a{/#a3be8c-fg} Agent  {#ebcb8b-fg}d{/#ebcb8b-fg} Danger  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -277,6 +282,19 @@ export async function showSessionPicker(
       ? "{#ebcb8b-fg}ON{/#ebcb8b-fg} - launches will use --dangerously-skip-permissions"
       : "{#a3be8c-fg}OFF{/#a3be8c-fg} - normal permission prompts";
     detailsBox.setContent(`{#b48ead-fg}Dangerous Mode:{/#b48ead-fg} ${status}`);
+    screen.render();
+  });
+
+  // Toggle agent-expert auto-add
+  table.key(["a"], async () => {
+    settings.autoAddAgentExpert = !settings.autoAddAgentExpert;
+    await saveClaudectlSettings(settings);
+    updateTitleBar();
+
+    const status = settings.autoAddAgentExpert
+      ? "{#a3be8c-fg}ON{/#a3be8c-fg} - new sessions will auto-install agent-expert"
+      : "{#5c6773-fg}OFF{/#5c6773-fg} - new sessions start without agent-expert";
+    detailsBox.setContent(`{#b48ead-fg}Agent Expert:{/#b48ead-fg} ${status}`);
     screen.render();
   });
 
@@ -411,11 +429,26 @@ export async function showSessionPicker(
     screen.render();
   });
 
+  // Helper to install agent-expert in a directory
+  async function installAgentExpert(cwd: string): Promise<boolean> {
+    console.log(`Installing agent-expert...`);
+    const proc = Bun.spawn(["bash", "-c", "curl -sL https://raw.githubusercontent.com/shootdaj/agent-expert/main/install.sh | bash"], {
+      cwd,
+      stdio: ["inherit", "inherit", "inherit"],
+    });
+    const code = await proc.exited;
+    return code === 0;
+  }
+
   // New session in current folder
-  table.key(["n"], () => {
+  table.key(["n"], async () => {
     screen.destroy();
     const cwd = process.cwd();
     console.log(`\nStarting new session in: ${cwd}\n`);
+
+    if (settings.autoAddAgentExpert) {
+      await installAgentExpert(cwd);
+    }
 
     const proc = Bun.spawn(["claude"], {
       cwd,
@@ -426,7 +459,7 @@ export async function showSessionPicker(
   });
 
   // New session in selected session's folder
-  table.key(["S-n"], () => {
+  table.key(["S-n"], async () => {
     const idx = table.selected;
     const session = filteredSessions[idx];
     if (!session) return;
@@ -434,6 +467,10 @@ export async function showSessionPicker(
     screen.destroy();
     const cwd = session.workingDirectory;
     console.log(`\nStarting new session in: ${cwd}\n`);
+
+    if (settings.autoAddAgentExpert) {
+      await installAgentExpert(cwd);
+    }
 
     const proc = Bun.spawn(["claude"], {
       cwd,
