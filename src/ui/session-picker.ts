@@ -11,6 +11,7 @@ import {
   saveClaudectlSettings,
   type ClaudectlSettings,
 } from "../core/config";
+import { showMcpManager } from "./mcp-manager";
 
 // Extend blessed types to include runtime 'selected' property
 interface ListTableWithSelected extends Widgets.ListElement {
@@ -177,7 +178,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {#b48ead-fg}↑↓{/#b48ead-fg} Navigate  {#a3be8c-fg}Enter{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#88c0d0-fg}N{/#88c0d0-fg} New@sel  {#b48ead-fg}r{/#b48ead-fg} Rename  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#a3be8c-fg}a{/#a3be8c-fg} Agent  {#ebcb8b-fg}d{/#ebcb8b-fg} Danger  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
+      " {#b48ead-fg}↑↓{/#b48ead-fg} Nav  {#a3be8c-fg}↵{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#b48ead-fg}r{/#b48ead-fg} Rename  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#88c0d0-fg}m{/#88c0d0-fg} MCP  {#a3be8c-fg}a{/#a3be8c-fg} Agent  {#ebcb8b-fg}d{/#ebcb8b-fg} Danger  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -296,6 +297,18 @@ export async function showSessionPicker(
       : "{#5c6773-fg}OFF{/#5c6773-fg} - new sessions start without agent-expert";
     detailsBox.setContent(`{#b48ead-fg}Agent Expert:{/#b48ead-fg} ${status}`);
     screen.render();
+  });
+
+  // Open MCP manager
+  table.key(["m"], async () => {
+    screen.destroy();
+    await showMcpManager({
+      projectDir: process.cwd(),
+      onExit: () => {
+        // Re-show session picker after MCP manager closes
+        showSessionPicker(options);
+      },
+    });
   });
 
   table.key(["p"], async () => {
