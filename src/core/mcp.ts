@@ -19,10 +19,12 @@ export interface MCPServerHTTP {
 
 export type MCPServer = MCPServerStdio | MCPServerHTTP;
 
+export type MCPScope = "user" | "local" | "project";
+
 export interface MCPServerWithMeta {
   name: string;
   server: MCPServer;
-  source: "global" | "project";
+  scope: MCPScope;
   projectPath?: string;
 }
 
@@ -75,15 +77,28 @@ export async function loadProjectMcpConfig(projectDir: string): Promise<{ mcpSer
 }
 
 /**
- * Get all global MCP servers
+ * Get user-scope MCP servers (top-level in ~/.claude.json)
  */
-export async function getGlobalMcpServers(): Promise<Record<string, MCPServer>> {
+export async function getUserMcpServers(): Promise<Record<string, MCPServer>> {
   const config = await loadGlobalConfig();
   return config.mcpServers || {};
 }
 
 /**
- * Get all MCP servers from a project's .mcp.json
+ * Get local-scope MCP servers (project-specific in ~/.claude.json)
+ */
+export async function getLocalMcpServers(projectDir: string): Promise<Record<string, MCPServer>> {
+  const config = await loadGlobalConfig();
+  // Local scope servers are stored under the project path key
+  const projectConfig = config[projectDir];
+  if (projectConfig && projectConfig.mcpServers) {
+    return projectConfig.mcpServers;
+  }
+  return {};
+}
+
+/**
+ * Get project-scope MCP servers (from .mcp.json)
  */
 export async function getProjectMcpServers(projectDir: string): Promise<Record<string, MCPServer>> {
   const config = await loadProjectMcpConfig(projectDir);
@@ -91,22 +106,59 @@ export async function getProjectMcpServers(projectDir: string): Promise<Record<s
 }
 
 /**
- * Get all MCP servers (global + project) with metadata
+ * Get all MCP servers across all scopes with metadata
  */
 export async function getAllMcpServers(projectDir?: string): Promise<MCPServerWithMeta[]> {
   const servers: MCPServerWithMeta[] = [];
 
-  // Global servers
-  const globalServers = await getGlobalMcpServers();
-  for (const [name, server] of Object.entries(globalServers)) {
-    servers.push({ name, server, source: "global" });
+  // User scope servers (top-level in ~/.claude.json)
+  const userServers = await getUserMcpServers();
+  for (const [name, server] of Object.entries(userServers)) {
+    servers.push({ name, server, scope: "user" });
   }
 
-  // Project servers (if projectDir provided)
   if (projectDir) {
+    // Local scope servers (project-specific in ~/.claude.json)
+    const localServers = await getLocalMcpServers(projectDir);
+    for (const [name, server] of Object.entries(localServers)) {
+      servers.push({ name, server, scope: "local", projectPath: projectDir });
+    }
+
+    // Project scope servers (from .mcp.json)
     const projectServers = await getProjectMcpServers(projectDir);
     for (const [name, server] of Object.entries(projectServers)) {
-      servers.push({ name, server, source: "project", projectPath: projectDir });
+      servers.push({ name, server, scope: "project", projectPath: projectDir });
+    }
+  }
+
+  return servers;
+}
+
+/**
+ * Get all MCP servers from ALL projects in ~/.claude.json
+ * Useful for showing a global view of all configured servers
+ */
+export async function getAllMcpServersGlobal(): Promise<MCPServerWithMeta[]> {
+  const servers: MCPServerWithMeta[] = [];
+  const config = await loadGlobalConfig();
+
+  // User scope servers
+  if (config.mcpServers) {
+    for (const [name, server] of Object.entries(config.mcpServers as Record<string, MCPServer>)) {
+      servers.push({ name, server, scope: "user" });
+    }
+  }
+
+  // Local scope servers from all projects
+  for (const [key, value] of Object.entries(config)) {
+    // Project paths start with /
+    if (key.startsWith("/") && typeof value === "object" && value !== null) {
+      const projectConfig = value as Record<string, any>;
+      if (projectConfig.mcpServers) {
+        for (const [name, server] of Object.entries(projectConfig.mcpServers as Record<string, MCPServer>)) {
+          servers.push({ name, server, scope: "local", projectPath: key });
+        }
+      }
     }
   }
 
@@ -137,9 +189,9 @@ export async function saveProjectMcpConfig(
 }
 
 /**
- * Add or update a global MCP server
+ * Add or update a user-scope MCP server (top-level in ~/.claude.json)
  */
-export async function setGlobalMcpServer(name: string, server: MCPServer): Promise<void> {
+export async function setUserMcpServer(name: string, server: MCPServer): Promise<void> {
   const config = await loadGlobalConfig();
   if (!config.mcpServers) {
     config.mcpServers = {};
@@ -149,7 +201,26 @@ export async function setGlobalMcpServer(name: string, server: MCPServer): Promi
 }
 
 /**
- * Add or update a project MCP server
+ * Add or update a local-scope MCP server (project-specific in ~/.claude.json)
+ */
+export async function setLocalMcpServer(
+  projectDir: string,
+  name: string,
+  server: MCPServer
+): Promise<void> {
+  const config = await loadGlobalConfig();
+  if (!config[projectDir]) {
+    config[projectDir] = {};
+  }
+  if (!config[projectDir].mcpServers) {
+    config[projectDir].mcpServers = {};
+  }
+  config[projectDir].mcpServers[name] = server;
+  await saveGlobalConfig(config);
+}
+
+/**
+ * Add or update a project-scope MCP server (in .mcp.json)
  */
 export async function setProjectMcpServer(
   projectDir: string,
@@ -162,9 +233,9 @@ export async function setProjectMcpServer(
 }
 
 /**
- * Remove a global MCP server
+ * Remove a user-scope MCP server
  */
-export async function removeGlobalMcpServer(name: string): Promise<boolean> {
+export async function removeUserMcpServer(name: string): Promise<boolean> {
   const config = await loadGlobalConfig();
   if (!config.mcpServers || !config.mcpServers[name]) {
     return false;
@@ -175,7 +246,20 @@ export async function removeGlobalMcpServer(name: string): Promise<boolean> {
 }
 
 /**
- * Remove a project MCP server
+ * Remove a local-scope MCP server
+ */
+export async function removeLocalMcpServer(projectDir: string, name: string): Promise<boolean> {
+  const config = await loadGlobalConfig();
+  if (!config[projectDir]?.mcpServers?.[name]) {
+    return false;
+  }
+  delete config[projectDir].mcpServers[name];
+  await saveGlobalConfig(config);
+  return true;
+}
+
+/**
+ * Remove a project-scope MCP server
  */
 export async function removeProjectMcpServer(projectDir: string, name: string): Promise<boolean> {
   const config = await loadProjectMcpConfig(projectDir);

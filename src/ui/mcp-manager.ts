@@ -1,15 +1,19 @@
 import blessed, { Widgets } from "blessed";
 import {
-  getAllMcpServers,
+  getAllMcpServersGlobal,
+  getProjectMcpServers,
   getServerDisplay,
   getServerType,
-  removeGlobalMcpServer,
+  removeUserMcpServer,
+  removeLocalMcpServer,
   removeProjectMcpServer,
-  setGlobalMcpServer,
+  setUserMcpServer,
+  setLocalMcpServer,
   setProjectMcpServer,
   isStdioServer,
   type MCPServer,
   type MCPServerWithMeta,
+  type MCPScope,
 } from "../core/mcp";
 
 interface ListWithSelected extends Widgets.ListElement {
@@ -35,8 +39,23 @@ const theme = {
   selectedFg: "#a3be8c",
 };
 
+async function loadAllServers(projectDir?: string): Promise<MCPServerWithMeta[]> {
+  // Get user + local scope servers from all projects
+  const servers = await getAllMcpServersGlobal();
+
+  // Also add project-scope servers from .mcp.json if projectDir provided
+  if (projectDir) {
+    const projectServers = await getProjectMcpServers(projectDir);
+    for (const [name, server] of Object.entries(projectServers)) {
+      servers.push({ name, server, scope: "project", projectPath: projectDir });
+    }
+  }
+
+  return servers;
+}
+
 export async function showMcpManager(options: McpManagerOptions = {}): Promise<void> {
-  let servers = await getAllMcpServers(options.projectDir);
+  let servers = await loadAllServers(options.projectDir);
 
   const screen = blessed.screen({
     smartCSR: true,
@@ -156,10 +175,11 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
   function formatServerRow(s: MCPServerWithMeta): string {
     const name = s.name.slice(0, 20).padEnd(20);
     const type = getServerType(s.server).padEnd(6);
-    const source = s.source.padEnd(8);
+    const scope = s.scope.padEnd(8);
     const details = getServerDisplay(s.server).slice(0, 50);
-    const sourceColor = s.source === "global" ? theme.cyan : theme.green;
-    return ` ${name} {#5c6773-fg}${type}{/#5c6773-fg} {${sourceColor}-fg}${source}{/${sourceColor}-fg} {#5c6773-fg}${details}{/#5c6773-fg}`;
+    // Color by scope: user=cyan, local=yellow, project=green
+    const scopeColor = s.scope === "user" ? theme.cyan : s.scope === "local" ? theme.yellow : theme.green;
+    return ` ${name} {#5c6773-fg}${type}{/#5c6773-fg} {${scopeColor}-fg}${scope}{/${scopeColor}-fg} {#5c6773-fg}${details}{/#5c6773-fg}`;
   }
 
   function updateTable() {
@@ -179,7 +199,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     }
 
     const lines: string[] = [];
-    lines.push(`{bold}{#b48ead-fg}${server.name}{/#b48ead-fg}{/bold}  {#5c6773-fg}${server.source}{/#5c6773-fg}`);
+    lines.push(`{bold}{#b48ead-fg}${server.name}{/#b48ead-fg}{/bold}  {#5c6773-fg}${server.scope}${server.projectPath ? ` (${server.projectPath.split("/").pop()})` : ""}{/#5c6773-fg}`);
 
     if (isStdioServer(server.server)) {
       lines.push(`{#5c6773-fg}command{/#5c6773-fg} {#d8dee9-fg}${server.server.command}{/#d8dee9-fg}  {#5c6773-fg}args{/#5c6773-fg} {#a3be8c-fg}${server.server.args?.join(" ") || "—"}{/#a3be8c-fg}`);
@@ -201,7 +221,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
   updateDetails();
 
   // Add server form
-  async function showAddForm(scope: "global" | "project") {
+  async function showAddForm(scope: MCPScope) {
     const formBox = blessed.box({
       parent: screen,
       top: "center",
@@ -297,13 +317,15 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
         });
       }
 
-      if (scope === "global") {
-        await setGlobalMcpServer(name, server);
-      } else if (options.projectDir) {
+      if (scope === "user") {
+        await setUserMcpServer(name, server);
+      } else if (scope === "local" && options.projectDir) {
+        await setLocalMcpServer(options.projectDir, name, server);
+      } else if (scope === "project" && options.projectDir) {
         await setProjectMcpServer(options.projectDir, name, server);
       }
 
-      servers = await getAllMcpServers(options.projectDir);
+      servers = await loadAllServers(options.projectDir);
       formBox.destroy();
       updateTable();
       detailsBox.setContent(`{#a3be8c-fg}✓{/#a3be8c-fg} Added ${name}`);
@@ -336,8 +358,8 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: screen,
       top: "center",
       left: "center",
-      width: 40,
-      height: 8,
+      width: 50,
+      height: 10,
       border: { type: "line" },
       style: { border: { fg: theme.purple } },
       label: ` {#b48ead-fg}Add MCP Server{/#b48ead-fg} `,
@@ -348,7 +370,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: scopeBox,
       top: 1,
       left: 2,
-      content: `{#d8dee9-fg}Where to add the server?{/#d8dee9-fg}`,
+      content: `{#d8dee9-fg}Select scope:{/#d8dee9-fg}`,
       tags: true,
     });
 
@@ -356,7 +378,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: scopeBox,
       top: 3,
       left: 2,
-      content: `{#88c0d0-fg}g{/#88c0d0-fg} Global (~/.claude.json)`,
+      content: `{#88c0d0-fg}u{/#88c0d0-fg} User   - all projects (~/.claude.json)`,
       tags: true,
     });
 
@@ -364,13 +386,33 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: scopeBox,
       top: 4,
       left: 2,
-      content: `{#a3be8c-fg}p{/#a3be8c-fg} Project (.mcp.json)`,
+      content: `{#ebcb8b-fg}l{/#ebcb8b-fg} Local  - this project, private (~/.claude.json)`,
       tags: true,
     });
 
-    scopeBox.key(["g"], () => {
+    blessed.text({
+      parent: scopeBox,
+      top: 5,
+      left: 2,
+      content: `{#a3be8c-fg}p{/#a3be8c-fg} Project - this project, shared (.mcp.json)`,
+      tags: true,
+    });
+
+    scopeBox.key(["u"], () => {
       scopeBox.destroy();
-      showAddForm("global");
+      showAddForm("user");
+    });
+
+    scopeBox.key(["l"], () => {
+      if (!options.projectDir) {
+        detailsBox.setContent(`{#bf616a-fg}No project directory specified{/#bf616a-fg}`);
+        scopeBox.destroy();
+        table.focus();
+        screen.render();
+        return;
+      }
+      scopeBox.destroy();
+      showAddForm("local");
     });
 
     scopeBox.key(["p"], () => {
@@ -430,12 +472,14 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     });
 
     confirmBox.key(["y"], async () => {
-      if (server.source === "global") {
-        await removeGlobalMcpServer(server.name);
-      } else if (server.projectPath) {
+      if (server.scope === "user") {
+        await removeUserMcpServer(server.name);
+      } else if (server.scope === "local" && server.projectPath) {
+        await removeLocalMcpServer(server.projectPath, server.name);
+      } else if (server.scope === "project" && server.projectPath) {
         await removeProjectMcpServer(server.projectPath, server.name);
       }
-      servers = await getAllMcpServers(options.projectDir);
+      servers = await loadAllServers(options.projectDir);
       confirmBox.destroy();
       updateTable();
       detailsBox.setContent(`{#a3be8c-fg}✓{/#a3be8c-fg} Removed ${server.name}`);
