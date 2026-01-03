@@ -172,7 +172,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {#b48ead-fg}↑↓{/#b48ead-fg} Navigate  {#a3be8c-fg}Enter{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#88c0d0-fg}N{/#88c0d0-fg} New@sel  {#b48ead-fg}r{/#b48ead-fg} Rename  {#a3be8c-fg}p{/#a3be8c-fg} Preview  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#ebcb8b-fg}S{/#ebcb8b-fg} SkipPerms  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
+      " {#b48ead-fg}↑↓{/#b48ead-fg} Navigate  {#a3be8c-fg}Enter{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#88c0d0-fg}N{/#88c0d0-fg} New@sel  {#b48ead-fg}r{/#b48ead-fg} Rename  {#a3be8c-fg}p{/#a3be8c-fg} Preview  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#ebcb8b-fg}d{/#ebcb8b-fg} Dangerous  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -267,25 +267,8 @@ export async function showSessionPicker(
     options.onLaunch?.(session);
   });
 
+  // Toggle dangerous mode (skip permissions)
   table.key(["d"], async () => {
-    const idx = table.selected;
-    const session = filteredSessions[idx];
-    if (!session) return;
-
-    const result = await launchSession(session, {
-      dryRun: true,
-      skipPermissions: settings.skipPermissions,
-    });
-
-    detailsBox.setContent(
-      `{#ebcb8b-fg}DRY RUN:{/#ebcb8b-fg} Would run: {bold}${result.command}{/bold}\n` +
-        `         In directory: ${result.cwd}`
-    );
-    screen.render();
-  });
-
-  // Toggle skip permissions mode
-  table.key(["S"], async () => {
     settings.skipPermissions = !settings.skipPermissions;
     await saveClaudectlSettings(settings);
     updateTitleBar();
@@ -293,7 +276,7 @@ export async function showSessionPicker(
     const status = settings.skipPermissions
       ? "{#ebcb8b-fg}ON{/#ebcb8b-fg} - launches will use --dangerously-skip-permissions"
       : "{#a3be8c-fg}OFF{/#a3be8c-fg} - normal permission prompts";
-    detailsBox.setContent(`{#b48ead-fg}Skip Permissions:{/#b48ead-fg} ${status}`);
+    detailsBox.setContent(`{#b48ead-fg}Dangerous Mode:{/#b48ead-fg} ${status}`);
     screen.render();
   });
 
