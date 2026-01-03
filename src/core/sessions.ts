@@ -225,9 +225,16 @@ export async function getSessionsForDirectory(
  */
 export async function launchSession(
   session: Session,
-  options: { dryRun?: boolean; prompt?: string } = {}
+  options: { dryRun?: boolean; prompt?: string; skipPermissions?: boolean } = {}
 ): Promise<{ command: string; cwd: string; exitCode?: number }> {
-  const args = ["--resume", session.id];
+  const args: string[] = [];
+
+  if (options.skipPermissions) {
+    args.push("--dangerously-skip-permissions");
+  }
+
+  args.push("--resume", session.id);
+
   if (options.prompt) {
     args.push(options.prompt);
   }

@@ -1,5 +1,6 @@
 import { homedir } from "os";
 import { join } from "path";
+import { existsSync, mkdirSync } from "fs";
 
 /**
  * Get the Claude configuration directory.
@@ -50,4 +51,65 @@ export function getAllConfigPaths() {
     settings: getSettingsPath(),
     globalClaudeMd: getGlobalClaudeMdPath(),
   };
+}
+
+// ============================================
+// claudectl's own settings (not Claude's)
+// ============================================
+
+export interface ClaudectlSettings {
+  skipPermissions: boolean;
+}
+
+const DEFAULT_SETTINGS: ClaudectlSettings = {
+  skipPermissions: false,
+};
+
+/**
+ * Get the claudectl install/config directory.
+ */
+export function getClaudectlDir(): string {
+  return join(homedir(), ".claudectl");
+}
+
+/**
+ * Get the path to claudectl's settings file.
+ */
+export function getClaudectlSettingsPath(): string {
+  return join(getClaudectlDir(), "settings.json");
+}
+
+/**
+ * Load claudectl settings from disk.
+ */
+export function loadClaudectlSettings(): ClaudectlSettings {
+  const settingsPath = getClaudectlSettingsPath();
+
+  if (!existsSync(settingsPath)) {
+    return { ...DEFAULT_SETTINGS };
+  }
+
+  try {
+    const file = Bun.file(settingsPath);
+    const text = require("fs").readFileSync(settingsPath, "utf-8");
+    const parsed = JSON.parse(text);
+    return { ...DEFAULT_SETTINGS, ...parsed };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+/**
+ * Save claudectl settings to disk.
+ */
+export async function saveClaudectlSettings(settings: ClaudectlSettings): Promise<void> {
+  const dir = getClaudectlDir();
+  const settingsPath = getClaudectlSettingsPath();
+
+  // Ensure directory exists
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  await Bun.write(settingsPath, JSON.stringify(settings, null, 2));
 }
