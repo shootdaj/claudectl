@@ -25,6 +25,25 @@ function getVersion(): string {
   }
 }
 
+// Check for updates in background
+async function checkForUpdate(): Promise<string | null> {
+  try {
+    const currentVersion = getVersion();
+    if (currentVersion === "dev" || currentVersion === "main") return null;
+
+    const response = await fetch("https://api.github.com/repos/shootdaj/claudectl/releases/latest");
+    const data = await response.json() as { tag_name: string };
+    const latestVersion = data.tag_name;
+
+    if (latestVersion && latestVersion !== currentVersion) {
+      return latestVersion;
+    }
+  } catch {
+    // Silently fail - update check is non-critical
+  }
+  return null;
+}
+
 // Extend blessed types to include runtime 'selected' property
 interface ListTableWithSelected extends Widgets.ListElement {
   selected: number;
@@ -99,9 +118,14 @@ export async function showSessionPicker(
     },
   });
 
+  let updateAvailable: string | null = null;
+
   function updateTitleBar() {
     const version = getVersion();
     const badges: string[] = [];
+    if (updateAvailable) {
+      badges.push(`{#ebcb8b-fg}[UPDATE ${updateAvailable}]{/#ebcb8b-fg}`);
+    }
     if (settings.skipPermissions) {
       badges.push("{#ebcb8b-fg}[SKIP PERMS]{/#ebcb8b-fg}");
     }
@@ -114,6 +138,15 @@ export async function showSessionPicker(
     );
   }
   updateTitleBar();
+
+  // Check for updates in background
+  checkForUpdate().then((latest) => {
+    if (latest) {
+      updateAvailable = latest;
+      updateTitleBar();
+      screen.render();
+    }
+  });
 
   // Session count on right
   blessed.text({
@@ -196,7 +229,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {#b48ead-fg}↑↓{/#b48ead-fg} Nav  {#a3be8c-fg}↵{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#b48ead-fg}r{/#b48ead-fg} Rename  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#88c0d0-fg}m{/#88c0d0-fg} MCP  {#a3be8c-fg}a{/#a3be8c-fg} Agent  {#ebcb8b-fg}d{/#ebcb8b-fg} Danger  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
+      " {#b48ead-fg}↑↓{/#b48ead-fg} Nav  {#a3be8c-fg}↵{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#b48ead-fg}r{/#b48ead-fg} Rename  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#88c0d0-fg}m{/#88c0d0-fg} MCP  {#ebcb8b-fg}u{/#ebcb8b-fg} Update  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -344,6 +377,17 @@ export async function showSessionPicker(
         showSessionPicker(options);
       },
     });
+  });
+
+  // Run update
+  table.key(["u"], async () => {
+    screen.destroy();
+    console.log("\nUpdating claudectl...\n");
+    const proc = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
+      stdio: ["inherit", "inherit", "inherit"],
+    });
+    await proc.exited;
+    process.exit(0);
   });
 
   table.key(["p"], async () => {
