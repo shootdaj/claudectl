@@ -133,6 +133,8 @@ export async function showSessionPicker(
     keys: true,
     vi: true,
     mouse: true,
+    scrollable: true,
+    alwaysScroll: true,
     scrollbar: {
       ch: "▌",
       style: { fg: theme.purple },
