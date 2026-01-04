@@ -7,10 +7,23 @@ import pc from "picocolors";
 
 const program = new Command();
 
+// Get version from .version file (set by installer)
+function getVersion(): string {
+  try {
+    const versionFile = `${process.env.HOME}/.claudectl/.version`;
+    const file = Bun.file(versionFile);
+    // Use sync read via Bun.spawnSync for simplicity
+    const result = Bun.spawnSync(["cat", versionFile]);
+    return result.stdout.toString().trim() || "dev";
+  } catch {
+    return "dev";
+  }
+}
+
 program
   .name("claudectl")
   .description("Global Claude Code session manager with rich TUI")
-  .version("1.0.0");
+  .version(getVersion());
 
 // Default command - show TUI session picker
 program

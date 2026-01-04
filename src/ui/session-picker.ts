@@ -13,6 +13,17 @@ import {
 } from "../core/config";
 import { showMcpManager } from "./mcp-manager";
 
+// Get version from .version file
+function getVersion(): string {
+  try {
+    const versionFile = `${process.env.HOME}/.claudectl/.version`;
+    const result = Bun.spawnSync(["cat", versionFile]);
+    return result.stdout.toString().trim() || "dev";
+  } catch {
+    return "dev";
+  }
+}
+
 // Extend blessed types to include runtime 'selected' property
 interface ListTableWithSelected extends Widgets.ListElement {
   selected: number;
@@ -85,6 +96,7 @@ export async function showSessionPicker(
   });
 
   function updateTitleBar() {
+    const version = getVersion();
     const badges: string[] = [];
     if (settings.skipPermissions) {
       badges.push("{#ebcb8b-fg}[SKIP PERMS]{/#ebcb8b-fg}");
@@ -94,7 +106,7 @@ export async function showSessionPicker(
     }
     const badgeStr = badges.length > 0 ? " " + badges.join(" ") : "";
     titleBar.setContent(
-      `{bold}{#b48ead-fg} ◆ claudectl{/#b48ead-fg}{/bold} {#5c6773-fg}│{/#5c6773-fg} {#81a1c1-fg}sessions{/#81a1c1-fg}${badgeStr}`
+      `{bold}{#b48ead-fg} ◆ claudectl{/#b48ead-fg}{/bold} {#5c6773-fg}${version} │{/#5c6773-fg} {#81a1c1-fg}sessions{/#81a1c1-fg}${badgeStr}`
     );
   }
   updateTitleBar();
