@@ -31,18 +31,12 @@ echo -e "${NC}"
 if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
   echo -e "${CYAN}Fetching latest release...${NC}"
 
-  # Fetch release info
-  RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null || echo "")
+  # Fetch release info and extract tag_name directly
+  VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | \
+    grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
 
-  # Try jq first if available, otherwise use grep/sed
-  if command -v jq &> /dev/null && [ -n "$RELEASE_JSON" ]; then
-    VERSION=$(echo "$RELEASE_JSON" | jq -r '.tag_name // empty')
-  elif [ -n "$RELEASE_JSON" ]; then
-    VERSION=$(echo "$RELEASE_JSON" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name"[^"]*"([^"]+)".*/\1/')
-  fi
-
-  # Validate version looks like a tag (starts with v, single line, no spaces)
-  if [ -z "$VERSION" ] || [[ ! "$VERSION" =~ ^v[0-9] ]] || [[ "$VERSION" == *$'\n'* ]]; then
+  # Validate version looks like a tag
+  if [ -z "$VERSION" ] || [[ ! "$VERSION" =~ ^v[0-9] ]]; then
     echo -e "${YELLOW}No valid release found, installing from main branch...${NC}"
     VERSION="main"
   fi
