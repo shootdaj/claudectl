@@ -58,10 +58,37 @@ BUN="$HOME/.bun/bin/bun"
 
 echo -e "${CYAN}Downloading claudectl...${NC}"
 
+# Preserve user data before wiping
+SETTINGS_FILE="$INSTALL_DIR/settings.json"
+BACKUP_DIR="$INSTALL_DIR/backup"
+TMP_SETTINGS=""
+TMP_BACKUP=""
+
+if [ -f "$SETTINGS_FILE" ]; then
+  TMP_SETTINGS=$(mktemp)
+  cp "$SETTINGS_FILE" "$TMP_SETTINGS"
+fi
+
+if [ -d "$BACKUP_DIR" ]; then
+  TMP_BACKUP=$(mktemp -d)
+  cp -r "$BACKUP_DIR" "$TMP_BACKUP/"
+fi
+
 # Download and extract tarball
 rm -rf "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 curl -fsSL "$DOWNLOAD_URL" | tar -xz -C "$INSTALL_DIR" --strip-components=1
+
+# Restore user data
+if [ -n "$TMP_SETTINGS" ] && [ -f "$TMP_SETTINGS" ]; then
+  cp "$TMP_SETTINGS" "$SETTINGS_FILE"
+  rm "$TMP_SETTINGS"
+fi
+
+if [ -n "$TMP_BACKUP" ] && [ -d "$TMP_BACKUP/backup" ]; then
+  cp -r "$TMP_BACKUP/backup" "$INSTALL_DIR/"
+  rm -rf "$TMP_BACKUP"
+fi
 
 # Save installed version
 echo "$VERSION" > "$INSTALL_DIR/.version"
