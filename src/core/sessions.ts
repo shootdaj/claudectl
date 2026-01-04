@@ -2,7 +2,7 @@ import { readdir, stat } from "fs/promises";
 import { join } from "path";
 import { getProjectsDir } from "./config";
 import { decodePath, shortenPath } from "../utils/paths";
-import { parseSessionMetadata, type SessionMetadata } from "../utils/jsonl";
+import { parseSessionMetadata, parseJsonl, getMessageContent, type SessionMetadata } from "../utils/jsonl";
 import { getRenamedTitle } from "./title-generator";
 
 /**
@@ -262,6 +262,113 @@ export async function launchSession(
  */
 function cleanTitle(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Search result with matching context
+ */
+export interface SearchResult {
+  session: Session;
+  matches: SearchMatch[];
+  totalMatches: number;
+}
+
+/**
+ * A single match within a session
+ */
+export interface SearchMatch {
+  type: "user" | "assistant";
+  content: string;
+  context: string; // Snippet with surrounding context
+  lineNumber: number;
+}
+
+/**
+ * Search options
+ */
+export interface SearchOptions extends DiscoverOptions {
+  /** Case-sensitive search. Default: false */
+  caseSensitive?: boolean;
+  /** Max matches per session. Default: 5 */
+  maxMatchesPerSession?: number;
+  /** Context chars around match. Default: 100 */
+  contextChars?: number;
+}
+
+/**
+ * Search through all session content for a query string
+ */
+export async function searchSessions(
+  query: string,
+  options: SearchOptions = {}
+): Promise<SearchResult[]> {
+  const sessions = await discoverSessions(options);
+  const results: SearchResult[] = [];
+
+  const caseSensitive = options.caseSensitive ?? false;
+  const maxMatchesPerSession = options.maxMatchesPerSession ?? 5;
+  const contextChars = options.contextChars ?? 100;
+
+  const searchQuery = caseSensitive ? query : query.toLowerCase();
+
+  for (const session of sessions) {
+    try {
+      const messages = await parseJsonl(session.filePath);
+      const matches: SearchMatch[] = [];
+      let totalMatches = 0;
+
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
+        if (msg.type !== "user" && msg.type !== "assistant") continue;
+
+        const content = getMessageContent(msg);
+        if (!content) continue;
+
+        const searchContent = caseSensitive ? content : content.toLowerCase();
+        let searchIndex = 0;
+        let matchIndex: number;
+
+        while ((matchIndex = searchContent.indexOf(searchQuery, searchIndex)) !== -1) {
+          totalMatches++;
+
+          // Only store up to maxMatchesPerSession full matches
+          if (matches.length < maxMatchesPerSession) {
+            // Extract context around match
+            const start = Math.max(0, matchIndex - contextChars);
+            const end = Math.min(content.length, matchIndex + query.length + contextChars);
+            let context = content.slice(start, end);
+
+            // Add ellipsis if truncated
+            if (start > 0) context = "..." + context;
+            if (end < content.length) context = context + "...";
+
+            matches.push({
+              type: msg.type as "user" | "assistant",
+              content: content.slice(matchIndex, matchIndex + query.length),
+              context: context.replace(/\n/g, " "),
+              lineNumber: i + 1,
+            });
+          }
+
+          searchIndex = matchIndex + 1;
+        }
+      }
+
+      if (totalMatches > 0) {
+        results.push({
+          session,
+          matches,
+          totalMatches,
+        });
+      }
+    } catch {
+      // Skip sessions that can't be parsed
+      continue;
+    }
+  }
+
+  // Sort by total matches (most matches first)
+  return results.sort((a, b) => b.totalMatches - a.totalMatches);
 }
 
 /**

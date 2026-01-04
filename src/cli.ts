@@ -1,8 +1,9 @@
 import { Command } from "commander";
 import { showSessionPicker } from "./ui/session-picker";
-import { discoverSessions, findSession, launchSession, formatRelativeTime } from "./core/sessions";
+import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions } from "./core/sessions";
 import { getAllConfigPaths } from "./core/config";
 import { renameSession } from "./core/title-generator";
+import pc from "picocolors";
 
 const program = new Command();
 
@@ -173,6 +174,54 @@ sessions
     }
 
     console.log("└──────────────────────────────────────────────┘\n");
+  });
+
+sessions
+  .command("search <query>")
+  .description("Search through all session content")
+  .option("-c, --case-sensitive", "Case-sensitive search")
+  .option("-j, --json", "Output as JSON")
+  .option("-m, --max <n>", "Max matches per session", "5")
+  .action(async (query, options) => {
+    const results = await searchSessions(query, {
+      caseSensitive: options.caseSensitive,
+      maxMatchesPerSession: parseInt(options.max, 10),
+    });
+
+    if (options.json) {
+      console.log(JSON.stringify(results, null, 2));
+      return;
+    }
+
+    if (results.length === 0) {
+      console.log(`\nNo results found for "${query}"\n`);
+      return;
+    }
+
+    console.log(`\n${pc.bold(`Found ${results.reduce((acc, r) => acc + r.totalMatches, 0)} matches in ${results.length} sessions:`)}\n`);
+
+    for (const result of results) {
+      const { session, matches, totalMatches } = result;
+      console.log(pc.cyan(`━━━ ${session.title.slice(0, 50)} ━━━`));
+      console.log(pc.dim(`    ${session.shortPath} • ${formatRelativeTime(session.lastAccessedAt)} • ${totalMatches} match${totalMatches > 1 ? "es" : ""}`));
+      console.log(pc.dim(`    ID: ${session.id}`));
+      console.log("");
+
+      for (const match of matches) {
+        const icon = match.type === "user" ? pc.green("→") : pc.blue("←");
+        // Highlight the match in context
+        const highlighted = match.context.replace(
+          new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), options.caseSensitive ? "g" : "gi"),
+          (m) => pc.bgYellow(pc.black(m))
+        );
+        console.log(`    ${icon} ${highlighted}`);
+      }
+
+      if (totalMatches > matches.length) {
+        console.log(pc.dim(`    ... and ${totalMatches - matches.length} more matches`));
+      }
+      console.log("");
+    }
   });
 
 // Config command
