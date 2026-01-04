@@ -12,6 +12,7 @@ import {
   type ClaudectlSettings,
 } from "../core/config";
 import { showMcpManager } from "./mcp-manager";
+import { autoBackup } from "../core/backup";
 
 // Get version from .version file
 function getVersion(): string {
@@ -52,6 +53,9 @@ const theme = {
 export async function showSessionPicker(
   options: SessionPickerOptions = {}
 ): Promise<void> {
+  // Auto-backup sessions on startup (if more than 1 hour since last backup)
+  await autoBackup();
+
   const sessions = await discoverSessions();
   let settings = loadClaudectlSettings();
 
