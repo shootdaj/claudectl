@@ -239,6 +239,61 @@ program
     console.log("└──────────────────────────────────────────────┘\n");
   });
 
+// Update command
+program
+  .command("update")
+  .description("Update claudectl to the latest version")
+  .option("-c, --check", "Check for updates without installing")
+  .action(async (options) => {
+    const installDir = `${process.env.HOME}/.claudectl`;
+    const versionFile = `${installDir}/.version`;
+
+    // Get current version
+    let currentVersion = "unknown";
+    try {
+      const file = Bun.file(versionFile);
+      currentVersion = (await file.text()).trim();
+    } catch {
+      // Version file doesn't exist
+    }
+
+    // Fetch latest version from GitHub
+    console.log(pc.cyan("\nChecking for updates..."));
+
+    let latestVersion = "unknown";
+    try {
+      const response = await fetch("https://api.github.com/repos/shootdaj/claudectl/releases/latest");
+      const data = await response.json() as { tag_name: string };
+      latestVersion = data.tag_name;
+    } catch (error) {
+      console.log(pc.red("Failed to check for updates. Check your internet connection."));
+      process.exit(1);
+    }
+
+    console.log(`Current version: ${pc.yellow(currentVersion)}`);
+    console.log(`Latest version:  ${pc.green(latestVersion)}`);
+
+    if (currentVersion === latestVersion) {
+      console.log(pc.green("\n✓ You're on the latest version!\n"));
+      return;
+    }
+
+    if (options.check) {
+      console.log(pc.yellow(`\n↑ Update available! Run ${pc.cyan("ccl update")} to install.\n`));
+      return;
+    }
+
+    // Run the install script
+    console.log(pc.cyan("\nUpdating..."));
+
+    const proc = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
+      stdio: ["inherit", "inherit", "inherit"],
+    });
+
+    const exitCode = await proc.exited;
+    process.exit(exitCode);
+  });
+
 function formatLargeNumber(n: number): string {
   if (n >= 1000000000) return `${(n / 1000000000).toFixed(2)}B`;
   if (n >= 1000000) return `${(n / 1000000).toFixed(2)}M`;
