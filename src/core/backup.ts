@@ -1,10 +1,10 @@
-import { mkdir, readdir, cp, rm, stat } from "fs/promises";
+import { mkdir, cp, rm, stat } from "fs/promises";
 import { join } from "path";
 import { homedir } from "os";
 import { getProjectsDir } from "./config";
 
-const BACKUP_DIR = join(homedir(), ".claudectl", "backups");
-const MAX_BACKUPS = 10; // Keep last 10 backups
+const BACKUP_DIR = join(homedir(), ".claudectl", "backup");
+const SESSIONS_BACKUP = join(BACKUP_DIR, "sessions");
 
 /**
  * Get backup directory path
@@ -14,7 +14,7 @@ export function getBackupDir(): string {
 }
 
 /**
- * Create a timestamped backup of all Claude Code sessions
+ * Create/update backup of all Claude Code sessions (single snapshot)
  */
 export async function backupSessions(): Promise<{ success: boolean; path?: string; error?: string }> {
   try {
@@ -30,68 +30,33 @@ export async function backupSessions(): Promise<{ success: boolean; path?: strin
     // Create backup directory
     await mkdir(BACKUP_DIR, { recursive: true });
 
-    // Create timestamped backup folder
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const backupPath = join(BACKUP_DIR, `sessions-${timestamp}`);
+    // Remove old backup and replace with new one
+    await rm(SESSIONS_BACKUP, { recursive: true, force: true });
+    await cp(projectsDir, SESSIONS_BACKUP, { recursive: true });
 
-    // Copy all sessions
-    await cp(projectsDir, backupPath, { recursive: true });
+    // Save timestamp
+    const timestampFile = join(BACKUP_DIR, ".last-backup");
+    await Bun.write(timestampFile, new Date().toISOString());
 
-    // Cleanup old backups (keep only MAX_BACKUPS)
-    await cleanupOldBackups();
-
-    return { success: true, path: backupPath };
+    return { success: true, path: SESSIONS_BACKUP };
   } catch (error) {
     return { success: false, error: String(error) };
   }
 }
 
 /**
- * Remove old backups, keeping only the most recent MAX_BACKUPS
+ * Get last backup info
  */
-async function cleanupOldBackups(): Promise<void> {
+export async function getBackupInfo(): Promise<{ date: Date; path: string } | null> {
   try {
-    const entries = await readdir(BACKUP_DIR);
-    const backups = entries
-      .filter(e => e.startsWith("sessions-"))
-      .sort()
-      .reverse(); // Most recent first
-
-    // Remove old backups
-    for (let i = MAX_BACKUPS; i < backups.length; i++) {
-      const oldBackup = join(BACKUP_DIR, backups[i]);
-      await rm(oldBackup, { recursive: true, force: true });
-    }
+    const timestampFile = join(BACKUP_DIR, ".last-backup");
+    const timestamp = await Bun.file(timestampFile).text();
+    return {
+      date: new Date(timestamp.trim()),
+      path: SESSIONS_BACKUP,
+    };
   } catch {
-    // Ignore cleanup errors
-  }
-}
-
-/**
- * List all available backups
- */
-export async function listBackups(): Promise<{ name: string; date: Date; path: string }[]> {
-  try {
-    await mkdir(BACKUP_DIR, { recursive: true });
-    const entries = await readdir(BACKUP_DIR);
-
-    const backups = await Promise.all(
-      entries
-        .filter(e => e.startsWith("sessions-"))
-        .map(async (name) => {
-          const path = join(BACKUP_DIR, name);
-          const stats = await stat(path);
-          return {
-            name,
-            date: stats.mtime,
-            path,
-          };
-        })
-    );
-
-    return backups.sort((a, b) => b.date.getTime() - a.date.getTime());
-  } catch {
-    return [];
+    return null;
   }
 }
 
@@ -99,16 +64,14 @@ export async function listBackups(): Promise<{ name: string; date: Date; path: s
  * Check if backup is needed (more than 1 hour since last backup)
  */
 export async function needsBackup(): Promise<boolean> {
-  const backups = await listBackups();
+  const info = await getBackupInfo();
 
-  if (backups.length === 0) {
+  if (!info) {
     return true;
   }
 
-  const lastBackup = backups[0];
-  const hoursSinceBackup = (Date.now() - lastBackup.date.getTime()) / (1000 * 60 * 60);
-
-  return hoursSinceBackup >= 1; // Backup if more than 1 hour old
+  const hoursSinceBackup = (Date.now() - info.date.getTime()) / (1000 * 60 * 60);
+  return hoursSinceBackup >= 1;
 }
 
 /**

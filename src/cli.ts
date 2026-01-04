@@ -3,7 +3,7 @@ import { showSessionPicker } from "./ui/session-picker";
 import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions } from "./core/sessions";
 import { getAllConfigPaths } from "./core/config";
 import { renameSession } from "./core/title-generator";
-import { backupSessions, listBackups, getBackupDir } from "./core/backup";
+import { backupSessions, getBackupInfo, getBackupDir } from "./core/backup";
 import pc from "picocolors";
 
 const program = new Command();
@@ -319,34 +319,22 @@ function formatLargeNumber(n: number): string {
 program
   .command("backup")
   .description("Backup Claude Code sessions")
-  .option("-l, --list", "List available backups")
-  .option("-n, --now", "Create backup now (ignores 1-hour cooldown)")
-  .action(async (options) => {
-    if (options.list) {
-      const backups = await listBackups();
+  .action(async () => {
+    const info = await getBackupInfo();
 
-      if (backups.length === 0) {
-        console.log(`\nNo backups found in ${getBackupDir()}\n`);
-        return;
-      }
-
-      console.log(`\n${pc.bold("Available Backups:")} ${pc.dim(`(${getBackupDir()})`)}\n`);
-
-      for (const backup of backups) {
-        const age = formatRelativeTime(backup.date);
-        console.log(`  ${pc.green("●")} ${backup.name}  ${pc.dim(age)}`);
-      }
-      console.log(`\n${pc.dim(`Keeping last 10 backups. Auto-backup runs hourly on ccl launch.`)}\n`);
-      return;
+    if (info) {
+      console.log(`\n${pc.bold("Current Backup:")}`);
+      console.log(`  ${pc.green("●")} ${info.path}`);
+      console.log(`  ${pc.dim(`Last updated: ${formatRelativeTime(info.date)}`)}\n`);
     }
 
-    console.log(pc.cyan("\nBacking up sessions..."));
+    console.log(pc.cyan("Backing up sessions..."));
     const result = await backupSessions();
 
     if (result.success) {
-      console.log(pc.green(`\n✓ Backup created: ${result.path}\n`));
+      console.log(pc.green(`✓ Backup updated: ${result.path}\n`));
     } else {
-      console.log(pc.red(`\n✗ Backup failed: ${result.error}\n`));
+      console.log(pc.red(`✗ Backup failed: ${result.error}\n`));
     }
   });
 
