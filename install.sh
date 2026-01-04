@@ -30,10 +30,20 @@ echo -e "${NC}"
 # Determine version to install
 if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
   echo -e "${CYAN}Fetching latest release...${NC}"
-  VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
 
-  if [ -z "$VERSION" ]; then
-    echo -e "${YELLOW}No releases found, installing from main branch...${NC}"
+  # Fetch release info
+  RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null || echo "")
+
+  # Try jq first if available, otherwise use grep/sed
+  if command -v jq &> /dev/null && [ -n "$RELEASE_JSON" ]; then
+    VERSION=$(echo "$RELEASE_JSON" | jq -r '.tag_name // empty')
+  elif [ -n "$RELEASE_JSON" ]; then
+    VERSION=$(echo "$RELEASE_JSON" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name"[^"]*"([^"]+)".*/\1/')
+  fi
+
+  # Validate version looks like a tag (starts with v, single line, no spaces)
+  if [ -z "$VERSION" ] || [[ ! "$VERSION" =~ ^v[0-9] ]] || [[ "$VERSION" == *$'\n'* ]]; then
+    echo -e "${YELLOW}No valid release found, installing from main branch...${NC}"
     VERSION="main"
   fi
 fi
