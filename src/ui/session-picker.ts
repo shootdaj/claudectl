@@ -387,7 +387,7 @@ export async function showSessionPicker(
       stdio: ["inherit", "inherit", "inherit"],
     });
     await install.exited;
-    // Relaunch ccl with the updated version
+    // Relaunch ccl with the updated version (v1.0.37 test)
     const relaunch = Bun.spawn([`${process.env.HOME}/.bun/bin/ccl`], {
       stdio: ["inherit", "inherit", "inherit"],
     });
