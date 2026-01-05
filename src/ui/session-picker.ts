@@ -177,7 +177,7 @@ export async function showSessionPicker(
     top: 2,
     left: 0,
     width: "100%-2",
-    height: "100%-8",
+    height: "100%-10",
     tags: true,
     keys: true,
     vi: true,
