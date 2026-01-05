@@ -383,15 +383,10 @@ export async function showSessionPicker(
   table.key(["u"], async () => {
     screen.destroy();
     console.log("\nUpdating claudectl...\n");
-    const proc = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
+    const proc = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash && exec $HOME/.bun/bin/ccl"], {
       stdio: ["inherit", "inherit", "inherit"],
     });
     await proc.exited;
-    // Relaunch ccl after update
-    const relaunch = Bun.spawn(["ccl"], {
-      stdio: ["inherit", "inherit", "inherit"],
-    });
-    await relaunch.exited;
     process.exit(0);
   });
 
