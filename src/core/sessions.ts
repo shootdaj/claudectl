@@ -246,22 +246,17 @@ export async function launchSession(
     return { command, cwd };
   }
 
+  // Change to session directory so terminal title updates
+  process.chdir(cwd);
+
   // Spawn Claude with full terminal control
   const proc = Bun.spawn(["claude", ...args], {
     cwd,
     stdio: ["inherit", "inherit", "inherit"],
   });
 
-  // Wait for Claude to exit
+  // Wait for Claude to exit, then exit with same code
   const exitCode = await proc.exited;
-
-  // Spawn a new shell in the session's directory so user ends up there
-  const shell = process.env.SHELL || "/bin/bash";
-  const shellProc = Bun.spawn([shell], {
-    cwd,
-    stdio: ["inherit", "inherit", "inherit"],
-  });
-  await shellProc.exited;
   process.exit(exitCode);
 }
 
