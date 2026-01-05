@@ -177,7 +177,7 @@ export async function showSessionPicker(
     top: 2,
     left: 0,
     width: "100%-2",
-    height: "100%-11",
+    height: "100%-10",
     tags: true,
     keys: true,
     vi: true,
@@ -201,7 +201,7 @@ export async function showSessionPicker(
   // Separator line
   blessed.line({
     parent: mainBox,
-    bottom: 5,
+    bottom: 4,
     left: 0,
     width: "100%-2",
     orientation: "horizontal",
@@ -211,7 +211,7 @@ export async function showSessionPicker(
   // Details panel
   const detailsBox = blessed.box({
     parent: mainBox,
-    bottom: 2,
+    bottom: 1,
     left: 1,
     width: "100%-4",
     height: 3,
@@ -387,6 +387,11 @@ export async function showSessionPicker(
       stdio: ["inherit", "inherit", "inherit"],
     });
     await proc.exited;
+    // Relaunch ccl after update
+    const relaunch = Bun.spawn(["ccl"], {
+      stdio: ["inherit", "inherit", "inherit"],
+    });
+    await relaunch.exited;
     process.exit(0);
   });
 
