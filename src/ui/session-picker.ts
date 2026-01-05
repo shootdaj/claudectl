@@ -288,20 +288,6 @@ export async function showSessionPicker(
   }
 
   table.on("select item", () => {
-    // Manually scroll to keep selection visible
-    const selected = table.selected;
-    const scrollPos = (table as any).childBase || 0;
-    const visibleHeight = (table.height as number) - 2;
-
-    // If selection is below visible area, scroll down
-    if (selected >= scrollPos + visibleHeight) {
-      table.scrollTo(selected - visibleHeight + 1);
-    }
-    // If selection is above visible area, scroll up
-    else if (selected < scrollPos) {
-      table.scrollTo(selected);
-    }
-
     updateDetails();
     screen.render();
   });
