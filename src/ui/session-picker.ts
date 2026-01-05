@@ -177,7 +177,7 @@ export async function showSessionPicker(
     top: 2,
     left: 0,
     width: "100%-2",
-    height: "100%-10",
+    height: "100%-11",
     tags: true,
     keys: true,
     vi: true,
@@ -201,7 +201,7 @@ export async function showSessionPicker(
   // Separator line
   blessed.line({
     parent: mainBox,
-    bottom: 4,
+    bottom: 5,
     left: 0,
     width: "100%-2",
     orientation: "horizontal",
@@ -211,7 +211,7 @@ export async function showSessionPicker(
   // Details panel
   const detailsBox = blessed.box({
     parent: mainBox,
-    bottom: 1,
+    bottom: 2,
     left: 1,
     width: "100%-4",
     height: 3,
