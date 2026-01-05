@@ -287,6 +287,21 @@ export async function showSessionPicker(
   }
 
   table.on("select item", () => {
+    // Only scroll when selection is outside visible area
+    const selected = table.selected;
+    const scrollPos = (table as any).childBase || 0;
+    const visibleHeight = (table.height as number) - 2;
+    const lastVisible = scrollPos + visibleHeight - 1;
+
+    // Scroll down only when selection goes past the last visible item
+    if (selected > lastVisible) {
+      table.scrollTo(selected - visibleHeight + 1);
+    }
+    // Scroll up only when selection goes above the first visible item
+    else if (selected < scrollPos) {
+      table.scrollTo(selected);
+    }
+
     updateDetails();
     screen.render();
   });
