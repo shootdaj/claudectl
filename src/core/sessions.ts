@@ -252,8 +252,16 @@ export async function launchSession(
     stdio: ["inherit", "inherit", "inherit"],
   });
 
-  // Wait for Claude to exit, then exit with same code
+  // Wait for Claude to exit
   const exitCode = await proc.exited;
+
+  // Spawn a new shell in the session's directory so user ends up there
+  const shell = process.env.SHELL || "/bin/bash";
+  const shellProc = Bun.spawn([shell], {
+    cwd,
+    stdio: ["inherit", "inherit", "inherit"],
+  });
+  await shellProc.exited;
   process.exit(exitCode);
 }
 
