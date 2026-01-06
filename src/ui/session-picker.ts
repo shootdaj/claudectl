@@ -468,11 +468,11 @@ export async function showSessionPicker(
 
   // Format snippet with highlighted search terms
   function formatSnippet(snippet: string, maxLen = 80): string {
-    // Replace >>>> and <<<< markers with colored highlights
+    // Replace >>>> and <<<< markers with background highlight (yellow bg, black text)
     return snippet
-      .replace(/>>>>/g, "{#ffff00-fg}{bold}")
-      .replace(/<<<<</g, "{/bold}{/#ffff00-fg}")
-      .replace(/<<<<(?!<)/g, "{/bold}{/#ffff00-fg}") // Handle 4 < as well
+      .replace(/>>>>/g, "{black-fg}{yellow-bg}")
+      .replace(/<<<<</g, "{/yellow-bg}{/black-fg}")
+      .replace(/<<<<(?!<)/g, "{/yellow-bg}{/black-fg}") // Handle 4 < as well
       .replace(/\n/g, " ")
       .slice(0, maxLen);
   }
