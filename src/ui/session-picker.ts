@@ -853,25 +853,28 @@ export async function showSessionPicker(
     screen.render();
   });
 
-  // Tab to jump between search box and context preview (screen-level to intercept before textbox)
-  screen.key(["tab"], () => {
-    // If search box is focused and preview is visible, jump to preview
-    if (screen.focused === searchBox && isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
-      contextPreview.focus();
-      footer.setContent(
-        " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}Tab{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
-      );
-      screen.render();
-      return;
-    }
-    // If context preview is focused, jump back to search box
-    if (screen.focused === contextPreview) {
-      searchBox.focus();
-      footer.setContent(
-        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
-      );
-      screen.render();
-      return;
+  // Tab to jump between search box and context preview
+  // Use 'element keypress' event to intercept before textbox processes it
+  (screen as any).on("element keypress", (_el: any, _ch: any, key: any) => {
+    if (key?.name === "tab") {
+      // If search box is focused and preview is visible, jump to preview
+      if (screen.focused === searchBox && isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
+        contextPreview.focus();
+        footer.setContent(
+          " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}Tab{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+        );
+        screen.render();
+        return false; // Prevent default
+      }
+      // If context preview is focused, jump back to search box
+      if (screen.focused === contextPreview) {
+        searchBox.focus();
+        footer.setContent(
+          " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+        );
+        screen.render();
+        return false; // Prevent default
+      }
     }
   });
 
