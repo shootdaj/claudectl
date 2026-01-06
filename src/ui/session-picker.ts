@@ -4,6 +4,7 @@ import {
   formatRelativeTime,
   launchSession,
   syncIndex,
+  getIndexStats,
   searchSessionContent,
   type Session,
   type ContentSearchResult,
@@ -83,8 +84,12 @@ export async function showSessionPicker(
   // Auto-backup sessions on startup (if more than 1 hour since last backup)
   await autoBackup();
 
-  // Sync the search index in background (fast incremental update)
-  syncIndex().catch(() => {}); // Non-blocking, ignore errors
+  // Sync the search index on startup (fast incremental update)
+  const stats = getIndexStats();
+  if (stats.sessions === 0) {
+    console.log("Building session index...");
+  }
+  await syncIndex();
 
   const sessions = await discoverSessions();
   let settings = loadClaudectlSettings();
