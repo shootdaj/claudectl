@@ -803,7 +803,7 @@ export async function showSessionPicker(
     searchBox.show();
     searchBox.focus();
     footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}C-f{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}C-↑↓{/#ffff00-fg} Scroll Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
     );
     screen.render();
   });
@@ -853,33 +853,19 @@ export async function showSessionPicker(
     screen.render();
   });
 
-  // Ctrl+F to jump into context preview for scrolling
-  searchBox.key(["C-f"], () => {
+  // Ctrl+Up/Down to scroll the preview while staying in search box
+  searchBox.key(["C-up"], () => {
     if (isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
-      contextPreview.focus();
-      footer.setContent(
-        " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}C-f{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
-      );
+      contextPreview.scroll(-3);
       screen.render();
     }
   });
 
-  // Ctrl+F from context preview back to search box
-  contextPreview.key(["C-f"], () => {
-    searchBox.focus();
-    footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}C-f{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
-    );
-    screen.render();
-  });
-
-  // Escape from context preview back to search box
-  contextPreview.key(["escape"], () => {
-    searchBox.focus();
-    footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
-    );
-    screen.render();
+  searchBox.key(["C-down"], () => {
+    if (isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
+      contextPreview.scroll(3);
+      screen.render();
+    }
   });
 
   // Navigate list with arrow keys while search box is focused
