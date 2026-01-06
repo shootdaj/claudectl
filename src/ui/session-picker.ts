@@ -773,6 +773,33 @@ export async function showSessionPicker(
     screen.render();
   });
 
+  // Navigate list with arrow keys while search box is focused
+  searchBox.key(["up"], () => {
+    if (filteredSessions.length === 0) return;
+    const current = table.selected;
+    const newIdx = Math.max(0, current - 1);
+    table.select(newIdx);
+    if (isSearchMode && searchResults.length > 0) {
+      updateSearchPreview();
+    } else {
+      updateDetails();
+    }
+    screen.render();
+  });
+
+  searchBox.key(["down"], () => {
+    if (filteredSessions.length === 0) return;
+    const current = table.selected;
+    const newIdx = Math.min(filteredSessions.length - 1, current + 1);
+    table.select(newIdx);
+    if (isSearchMode && searchResults.length > 0) {
+      updateSearchPreview();
+    } else {
+      updateDetails();
+    }
+    screen.render();
+  });
+
   // Show context popup for search results
   table.key(["c"], async () => {
     if (!isSearchMode || searchResults.length === 0) return;
