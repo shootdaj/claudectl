@@ -728,18 +728,19 @@ export async function showSessionPicker(
     screen.render();
   });
 
+  // Real-time search as user types
+  let lastSearchValue = "";
+
   table.key(["/"], () => {
     searchBox.setValue("");
+    lastSearchValue = "";
     searchBox.show();
     searchBox.focus();
     footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Results  {#00ff00-fg}↵{/#00ff00-fg} Select  {#ffff00-fg}c{/#ffff00-fg} Context  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
     );
     screen.render();
   });
-
-  // Real-time search as user types
-  let lastSearchValue = "";
   searchBox.on("keypress", (ch: string) => {
     // Get current value + new character (if printable)
     setTimeout(() => {
@@ -757,9 +758,16 @@ export async function showSessionPicker(
     // Keep search results, just hide the box and focus list
     searchBox.hide();
     table.focus();
-    footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
-    );
+    // Show context hint if we have search results
+    if (isSearchMode && searchResults.length > 0) {
+      footer.setContent(
+        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}c{/#ffff00-fg} Context  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+      );
+    } else {
+      footer.setContent(
+        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+      );
+    }
     screen.render();
   });
 
