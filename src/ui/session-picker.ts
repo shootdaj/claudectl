@@ -55,19 +55,29 @@ interface SessionPickerOptions {
   dryRun?: boolean;
 }
 
-// Dark Midnight with color flare
+// Neon color scheme
 const theme = {
-  purple: "#b48ead",      // Soft purple - titles, accents
-  blue: "#81a1c1",        // Steel blue - time, info
-  cyan: "#88c0d0",        // Teal cyan - highlights
-  green: "#a3be8c",       // Sage green - tokens, success
-  yellow: "#ebcb8b",      // Warm yellow - warnings
-  muted: "#5c6773",       // Muted gray
-  fg: "#d8dee9",          // Light foreground
-  border: "#b48ead",      // Purple border
-  selectedBg: "#3b4252",  // Selection background
-  selectedFg: "#a3be8c",  // Selection foreground - green
+  pink: "#ff00ff",        // Neon magenta - titles, accents
+  blue: "#00ffff",        // Neon cyan - time, info
+  cyan: "#00ff00",        // Neon green - highlights, success
+  green: "#00ff00",       // Neon green - tokens, success
+  yellow: "#ffff00",      // Neon yellow - warnings, labels
+  orange: "#ff8800",      // Neon orange - project names
+  purple: "#aa88ff",      // Bright purple - model names
+  muted: "#888888",       // Gray
+  fg: "#ffffff",          // White foreground
+  border: "#ff00ff",      // Magenta border
+  selectedBg: "#333333",  // Selection background
+  selectedFg: "#00ff00",  // Selection foreground - neon green
 };
+
+// Rainbow colors for border animation
+const rainbowColors = [
+  "#ff0000", "#ff8800", "#ffff00", "#00ff00", "#00ffff", "#0088ff", "#ff00ff"
+];
+
+// Sparkle characters for title animation
+const sparkles = ["✦", "✧", "★", "☆", "✴", "✵", "❋", "❊"];
 
 export async function showSessionPicker(
   options: SessionPickerOptions = {}
@@ -100,7 +110,7 @@ export async function showSessionPicker(
       type: "line",
     },
     style: {
-      border: { fg: theme.purple },
+      border: { fg: theme.pink },
     },
   });
 
@@ -124,17 +134,17 @@ export async function showSessionPicker(
     const version = getVersion();
     const badges: string[] = [];
     if (updateAvailable) {
-      badges.push(`{#ebcb8b-fg}[UPDATE ${updateAvailable}]{/#ebcb8b-fg}`);
+      badges.push(`{#ffff00-fg}[UPDATE ${updateAvailable}]{/#ffff00-fg}`);
     }
     if (settings.skipPermissions) {
-      badges.push("{#ebcb8b-fg}[SKIP PERMS]{/#ebcb8b-fg}");
+      badges.push("{#ff8800-fg}[SKIP PERMS]{/#ff8800-fg}");
     }
     if (settings.autoAddAgentExpert) {
-      badges.push("{#a3be8c-fg}[AGENT EXPERT]{/#a3be8c-fg}");
+      badges.push("{#00ff00-fg}[AGENT EXPERT]{/#00ff00-fg}");
     }
     const badgeStr = badges.length > 0 ? " " + badges.join(" ") : "";
     titleBar.setContent(
-      `{bold}{#b48ead-fg} ◆ claudectl{/#b48ead-fg}{/bold} {#5c6773-fg}${version} │{/#5c6773-fg} {#81a1c1-fg}sessions{/#81a1c1-fg}${badgeStr}`
+      `{bold}{#ff00ff-fg} ◆ claudectl{/#ff00ff-fg}{/bold} {#888888-fg}${version} │{/#888888-fg} {#00ffff-fg}sessions{/#00ffff-fg}${badgeStr}`
     );
   }
   updateTitleBar();
@@ -148,12 +158,71 @@ export async function showSessionPicker(
     }
   });
 
+  // Animation state
+  let rainbowIndex = 0;
+  let sparkleIndex = 0;
+  let blinkState = true;
+  const animationIntervals: NodeJS.Timeout[] = [];
+
+  // Rainbow border animation - cycles through colors
+  const borderAnimation = setInterval(() => {
+    rainbowIndex = (rainbowIndex + 1) % rainbowColors.length;
+    mainBox.style.border.fg = rainbowColors[rainbowIndex];
+    screen.render();
+  }, 150);
+  animationIntervals.push(borderAnimation);
+
+  // Blinking update badge (only when update available)
+  const blinkAnimation = setInterval(() => {
+    if (updateAvailable) {
+      blinkState = !blinkState;
+      updateTitleBar();
+      screen.render();
+    }
+  }, 500);
+  animationIntervals.push(blinkAnimation);
+
+  // Update title bar with optional blink effect
+  function updateTitleBarAnimated() {
+    const version = getVersion();
+    const sparkle = sparkles[sparkleIndex % sparkles.length];
+    sparkleIndex++;
+
+    const badges: string[] = [];
+    if (updateAvailable) {
+      const color = blinkState ? "#ffff00" : "#ff8800";
+      badges.push(`{${color}-fg}[UPDATE ${updateAvailable}]{/${color}-fg}`);
+    }
+    if (settings.skipPermissions) {
+      badges.push("{#ff8800-fg}[SKIP PERMS]{/#ff8800-fg}");
+    }
+    if (settings.autoAddAgentExpert) {
+      badges.push("{#00ff00-fg}[AGENT EXPERT]{/#00ff00-fg}");
+    }
+    const badgeStr = badges.length > 0 ? " " + badges.join(" ") : "";
+    titleBar.setContent(
+      `{bold}{#ff00ff-fg} ${sparkle} claudectl{/#ff00ff-fg}{/bold} {#888888-fg}${version} │{/#888888-fg} {#00ffff-fg}sessions{/#00ffff-fg}${badgeStr}`
+    );
+  }
+
+  // Sparkle animation in title
+  const sparkleAnimation = setInterval(() => {
+    updateTitleBarAnimated();
+    screen.render();
+  }, 300);
+  animationIntervals.push(sparkleAnimation);
+
+  // Cleanup animations on exit
+  function stopAnimations() {
+    animationIntervals.forEach(interval => clearInterval(interval));
+  }
+
   // Session count on right
   blessed.text({
     parent: titleBar,
     top: 0,
     right: 1,
-    content: `{#a3be8c-fg}${sessions.length}{/#a3be8c-fg} {#5c6773-fg}sessions{/#5c6773-fg}`,
+    content: `{#00ff00-fg}${sessions.length}{/#00ff00-fg} {#888888-fg}sessions{/#888888-fg}`,
     tags: true,
   });
 
@@ -167,7 +236,7 @@ export async function showSessionPicker(
     left: 1,
     width: "100%-4",
     height: 1,
-    content: `{#81a1c1-fg}${headerLine}{/#81a1c1-fg}`,
+    content: `{#00ffff-fg}${headerLine}{/#00ffff-fg}`,
     tags: true,
   });
 
@@ -185,7 +254,7 @@ export async function showSessionPicker(
     scrollable: true,
     scrollbar: {
       ch: "▌",
-      style: { fg: theme.purple },
+      style: { fg: theme.pink },
     },
     style: {
       fg: "white",
@@ -228,7 +297,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {#b48ead-fg}↑↓{/#b48ead-fg} Nav  {#a3be8c-fg}↵{/#a3be8c-fg} Launch  {#81a1c1-fg}n{/#81a1c1-fg} New  {#b48ead-fg}r{/#b48ead-fg} Rename  {#81a1c1-fg}/{/#81a1c1-fg} Search  {#88c0d0-fg}m{/#88c0d0-fg} MCP  {#ebcb8b-fg}u{/#ebcb8b-fg} Update  {#88c0d0-fg}q{/#88c0d0-fg} Quit",
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -277,9 +346,9 @@ export async function showSessionPicker(
     const title = truncate(session.title, maxTitleWidth);
 
     const lines = [
-      `{bold}{#b48ead-fg}${title}{/#b48ead-fg}{/bold}  {#5c6773-fg}${session.id.slice(0, 8)}{/#5c6773-fg}`,
-      `{#5c6773-fg}path{/#5c6773-fg} {#d8dee9-fg}${session.workingDirectory}{/#d8dee9-fg}  {#5c6773-fg}branch{/#5c6773-fg} {#a3be8c-fg}${session.gitBranch || "—"}{/#a3be8c-fg}`,
-      `{#5c6773-fg}created{/#5c6773-fg} {#d8dee9-fg}${session.createdAt.toLocaleString()}{/#d8dee9-fg}  {#5c6773-fg}model{/#5c6773-fg} {#81a1c1-fg}${session.model || "—"}{/#81a1c1-fg}`,
+      `{bold}{#ff00ff-fg}${title}{/#ff00ff-fg}{/bold}  {#888888-fg}${session.id.slice(0, 8)}{/#888888-fg}`,
+      `{#888888-fg}path{/#888888-fg} {#ffffff-fg}${session.workingDirectory}{/#ffffff-fg}  {#888888-fg}branch{/#888888-fg} {#00ff00-fg}${session.gitBranch || "—"}{/#00ff00-fg}`,
+      `{#888888-fg}created{/#888888-fg} {#ffffff-fg}${session.createdAt.toLocaleString()}{/#ffffff-fg}  {#888888-fg}model{/#888888-fg} {#aa88ff-fg}${session.model || "—"}{/#aa88ff-fg}`,
     ];
 
     detailsBox.setContent(lines.join("\n"));
@@ -316,6 +385,7 @@ export async function showSessionPicker(
     const session = filteredSessions[idx];
     if (!session) return;
 
+    stopAnimations();
     screen.destroy();
 
     if (options.dryRun) {
@@ -348,9 +418,9 @@ export async function showSessionPicker(
     updateTitleBar();
 
     const status = settings.skipPermissions
-      ? "{#ebcb8b-fg}ON{/#ebcb8b-fg} - launches will use --dangerously-skip-permissions"
-      : "{#a3be8c-fg}OFF{/#a3be8c-fg} - normal permission prompts";
-    detailsBox.setContent(`{#b48ead-fg}Dangerous Mode:{/#b48ead-fg} ${status}`);
+      ? "{#ff8800-fg}ON{/#ff8800-fg} - launches will use --dangerously-skip-permissions"
+      : "{#00ff00-fg}OFF{/#00ff00-fg} - normal permission prompts";
+    detailsBox.setContent(`{#ff00ff-fg}Dangerous Mode:{/#ff00ff-fg} ${status}`);
     screen.render();
   });
 
@@ -361,14 +431,15 @@ export async function showSessionPicker(
     updateTitleBar();
 
     const status = settings.autoAddAgentExpert
-      ? "{#a3be8c-fg}ON{/#a3be8c-fg} - new sessions will auto-install agent-expert"
-      : "{#5c6773-fg}OFF{/#5c6773-fg} - new sessions start without agent-expert";
-    detailsBox.setContent(`{#b48ead-fg}Agent Expert:{/#b48ead-fg} ${status}`);
+      ? "{#00ff00-fg}ON{/#00ff00-fg} - new sessions will auto-install agent-expert"
+      : "{#888888-fg}OFF{/#888888-fg} - new sessions start without agent-expert";
+    detailsBox.setContent(`{#ff00ff-fg}Agent Expert:{/#ff00ff-fg} ${status}`);
     screen.render();
   });
 
   // Open MCP manager
   table.key(["m"], async () => {
+    stopAnimations();
     screen.destroy();
     await showMcpManager({
       projectDir: process.cwd(),
@@ -381,6 +452,7 @@ export async function showSessionPicker(
 
   // Run update
   table.key(["u"], async () => {
+    stopAnimations();
     screen.destroy();
     console.log("\nUpdating claudectl...\n");
     const install = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
@@ -411,7 +483,7 @@ export async function showSessionPicker(
       tags: true,
       border: { type: "line" },
       style: {
-        border: { fg: theme.purple },
+        border: { fg: theme.pink },
         fg: "white",
       },
       scrollable: true,
@@ -419,9 +491,9 @@ export async function showSessionPicker(
       vi: true,
       scrollbar: {
         ch: "▌",
-        style: { fg: theme.purple },
+        style: { fg: theme.pink },
       },
-      label: ` {#b48ead-fg}${session.title || session.id}{/#b48ead-fg} `,
+      label: ` {#ff00ff-fg}${session.title || session.id}{/#ff00ff-fg} `,
     });
 
     previewBox.key(["escape", "q", "p"], () => {
@@ -454,7 +526,7 @@ export async function showSessionPicker(
     const session = filteredSessions[idx];
     if (!session) return;
 
-    detailsBox.setContent(`{#b48ead-fg}rename ›{/#b48ead-fg} {#d8dee9-fg}${session.title}{/#d8dee9-fg}`);
+    detailsBox.setContent(`{#ff00ff-fg}rename ›{/#ff00ff-fg} {#ffffff-fg}${session.title}{/#ffffff-fg}`);
     renameBox.setValue(session.title);
     renameBox.show();
     renameBox.focus();
@@ -479,7 +551,7 @@ export async function showSessionPicker(
     renameBox.hide();
     updateTable();
     table.focus();
-    detailsBox.setContent(`{#a3be8c-fg}✓{/#a3be8c-fg} {#d8dee9-fg}${newTitle}{/#d8dee9-fg}`);
+    detailsBox.setContent(`{#00ff00-fg}✓{/#00ff00-fg} {#ffffff-fg}${newTitle}{/#ffffff-fg}`);
     screen.render();
   });
 
@@ -539,6 +611,7 @@ export async function showSessionPicker(
 
   // New session in current folder
   table.key(["n"], async () => {
+    stopAnimations();
     screen.destroy();
     const cwd = process.cwd();
     console.log(`\nStarting new session in: ${cwd}\n`);
@@ -561,6 +634,7 @@ export async function showSessionPicker(
     const session = filteredSessions[idx];
     if (!session) return;
 
+    stopAnimations();
     screen.destroy();
     const cwd = session.workingDirectory;
     console.log(`\nStarting new session in: ${cwd}\n`);
@@ -578,6 +652,7 @@ export async function showSessionPicker(
   });
 
   screen.key(["q", "C-c"], () => {
+    stopAnimations();
     screen.destroy();
     options.onExit?.();
   });
@@ -604,8 +679,8 @@ function formatSessionRow(session: Session): string {
   const tokens = formatTokens(session.totalInputTokens + session.totalOutputTokens).padStart(5);
   const model = formatModelName(session.model).padStart(4);
 
-  // Add subtle color hints to row data
-  return ` ${title} {#88c0d0-fg}${project}{/#88c0d0-fg} {#81a1c1-fg}${time}{/#81a1c1-fg} ${msgs} {#a3be8c-fg}${tokens}{/#a3be8c-fg} {#b48ead-fg}${model}{/#b48ead-fg}`;
+  // Add vibrant color hints to row data
+  return ` ${title} {#ff8800-fg}${project}{/#ff8800-fg} {#00ffff-fg}${time}{/#00ffff-fg} ${msgs} {#00ff00-fg}${tokens}{/#00ff00-fg} {#aa88ff-fg}${model}{/#aa88ff-fg}`;
 }
 
 function formatModelName(model?: string): string {
@@ -624,23 +699,23 @@ function formatTokens(tokens: number): string {
 
 async function getSessionPreview(session: Session): Promise<string> {
   const lines = [
-    `{bold}{#b48ead-fg}Session Details{/#b48ead-fg}{/bold}`,
+    `{bold}{#ff00ff-fg}Session Details{/#ff00ff-fg}{/bold}`,
     ``,
-    `{#81a1c1-fg}title{/#81a1c1-fg}      ${session.title}`,
-    `{#81a1c1-fg}id{/#81a1c1-fg}         {#5c6773-fg}${session.id}{/#5c6773-fg}`,
-    `{#81a1c1-fg}slug{/#81a1c1-fg}       ${session.slug || "—"}`,
-    `{#81a1c1-fg}path{/#81a1c1-fg}       ${session.workingDirectory}`,
-    `{#81a1c1-fg}branch{/#81a1c1-fg}     {#a3be8c-fg}${session.gitBranch || "—"}{/#a3be8c-fg}`,
-    `{#81a1c1-fg}model{/#81a1c1-fg}      {#b48ead-fg}${session.model || "—"}{/#b48ead-fg}`,
+    `{#00ffff-fg}title{/#00ffff-fg}      ${session.title}`,
+    `{#00ffff-fg}id{/#00ffff-fg}         {#888888-fg}${session.id}{/#888888-fg}`,
+    `{#00ffff-fg}slug{/#00ffff-fg}       ${session.slug || "—"}`,
+    `{#00ffff-fg}path{/#00ffff-fg}       ${session.workingDirectory}`,
+    `{#00ffff-fg}branch{/#00ffff-fg}     {#00ff00-fg}${session.gitBranch || "—"}{/#00ff00-fg}`,
+    `{#00ffff-fg}model{/#00ffff-fg}      {#aa88ff-fg}${session.model || "—"}{/#aa88ff-fg}`,
     ``,
-    `{#81a1c1-fg}created{/#81a1c1-fg}    ${session.createdAt.toLocaleString()}`,
-    `{#81a1c1-fg}last used{/#81a1c1-fg}  ${session.lastAccessedAt.toLocaleString()}`,
+    `{#00ffff-fg}created{/#00ffff-fg}    ${session.createdAt.toLocaleString()}`,
+    `{#00ffff-fg}last used{/#00ffff-fg}  ${session.lastAccessedAt.toLocaleString()}`,
     ``,
-    `{#81a1c1-fg}messages{/#81a1c1-fg}   ${session.messageCount} total`,
-    `           {#5c6773-fg}${session.userMessageCount} user / ${session.assistantMessageCount} assistant{/#5c6773-fg}`,
-    `{#81a1c1-fg}tokens{/#81a1c1-fg}     {#a3be8c-fg}${formatTokens(session.totalInputTokens)}{/#a3be8c-fg} in / {#a3be8c-fg}${formatTokens(session.totalOutputTokens)}{/#a3be8c-fg} out`,
+    `{#00ffff-fg}messages{/#00ffff-fg}   ${session.messageCount} total`,
+    `           {#888888-fg}${session.userMessageCount} user / ${session.assistantMessageCount} assistant{/#888888-fg}`,
+    `{#00ffff-fg}tokens{/#00ffff-fg}     {#00ff00-fg}${formatTokens(session.totalInputTokens)}{/#00ff00-fg} in / {#00ff00-fg}${formatTokens(session.totalOutputTokens)}{/#00ff00-fg} out`,
     ``,
-    `{#5c6773-fg}press q or esc to close{/#5c6773-fg}`,
+    `{#888888-fg}press q or esc to close{/#888888-fg}`,
   ];
 
   return lines.join("\n");

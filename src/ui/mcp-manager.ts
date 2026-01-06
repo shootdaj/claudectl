@@ -25,18 +25,20 @@ interface McpManagerOptions {
   onExit?: () => void;
 }
 
-// Dark Midnight theme (same as session-picker)
+// Neon color scheme (same as session-picker)
 const theme = {
-  purple: "#b48ead",
-  blue: "#81a1c1",
-  cyan: "#88c0d0",
-  green: "#a3be8c",
-  yellow: "#ebcb8b",
-  red: "#bf616a",
-  muted: "#5c6773",
-  fg: "#d8dee9",
-  selectedBg: "#3b4252",
-  selectedFg: "#a3be8c",
+  pink: "#ff00ff",
+  blue: "#00ffff",
+  cyan: "#00ff00",
+  green: "#00ff00",
+  yellow: "#ffff00",
+  orange: "#ff8800",
+  purple: "#aa88ff",
+  red: "#ff0000",
+  muted: "#888888",
+  fg: "#ffffff",
+  selectedBg: "#333333",
+  selectedFg: "#00ff00",
 };
 
 async function loadAllServers(projectDir?: string): Promise<MCPServerWithMeta[]> {
@@ -71,7 +73,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     width: "100%",
     height: "100%",
     border: { type: "line" },
-    style: { border: { fg: theme.purple } },
+    style: { border: { fg: theme.pink } },
   });
 
   // Title bar
@@ -81,14 +83,14 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     left: 0,
     width: "100%-2",
     height: 1,
-    content: `{bold}{#b48ead-fg} ◆ claudectl{/#b48ead-fg}{/bold} {#5c6773-fg}│{/#5c6773-fg} {#81a1c1-fg}MCP servers{/#81a1c1-fg}`,
+    content: `{bold}{#ff00ff-fg} ◆ claudectl{/#ff00ff-fg}{/bold} {#888888-fg}│{/#888888-fg} {#00ffff-fg}MCP servers{/#00ffff-fg}`,
     tags: true,
     style: { fg: "white" },
   });
 
   // Server count
   function updateCount() {
-    countBox.setContent(`{#a3be8c-fg}${servers.length}{/#a3be8c-fg} {#5c6773-fg}servers{/#5c6773-fg}`);
+    countBox.setContent(`{#00ff00-fg}${servers.length}{/#00ff00-fg} {#888888-fg}servers{/#888888-fg}`);
   }
 
   const countBox = blessed.text({
@@ -108,7 +110,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     left: 1,
     width: "100%-4",
     height: 1,
-    content: `{#81a1c1-fg}${headerLine}{/#81a1c1-fg}`,
+    content: `{#00ffff-fg}${headerLine}{/#00ffff-fg}`,
     tags: true,
   });
 
@@ -125,7 +127,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     mouse: true,
     scrollbar: {
       ch: "▌",
-      style: { fg: theme.purple },
+      style: { fg: theme.pink },
     },
     style: {
       fg: "white",
@@ -167,7 +169,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     left: 0,
     width: "100%-2",
     height: 1,
-    content: ` {#b48ead-fg}↑↓{/#b48ead-fg} Navigate  {#a3be8c-fg}a{/#a3be8c-fg} Add  {#bf616a-fg}x{/#bf616a-fg} Remove  {#81a1c1-fg}e{/#81a1c1-fg} Edit  {#88c0d0-fg}q{/#88c0d0-fg} Back`,
+    content: ` {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#00ff00-fg}a{/#00ff00-fg} Add  {#ff0000-fg}x{/#ff0000-fg} Remove  {#00ffff-fg}e{/#00ffff-fg} Edit  {#bd93f9-fg}q{/#bd93f9-fg} Back`,
     tags: true,
     style: { fg: "gray" },
   });
@@ -179,7 +181,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     const details = getServerDisplay(s.server).slice(0, 50);
     // Color by scope: user=cyan, local=yellow, project=green
     const scopeColor = s.scope === "user" ? theme.cyan : s.scope === "local" ? theme.yellow : theme.green;
-    return ` ${name} {#5c6773-fg}${type}{/#5c6773-fg} {${scopeColor}-fg}${scope}{/${scopeColor}-fg} {#5c6773-fg}${details}{/#5c6773-fg}`;
+    return ` ${name} {#888888-fg}${type}{/#888888-fg} {${scopeColor}-fg}${scope}{/${scopeColor}-fg} {#888888-fg}${details}{/#888888-fg}`;
   }
 
   function updateTable() {
@@ -193,23 +195,23 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     const idx = table.selected;
     const server = servers[idx];
     if (!server) {
-      detailsBox.setContent("{#5c6773-fg}No servers configured{/#5c6773-fg}");
+      detailsBox.setContent("{#888888-fg}No servers configured{/#888888-fg}");
       screen.render();
       return;
     }
 
     const lines: string[] = [];
-    lines.push(`{bold}{#b48ead-fg}${server.name}{/#b48ead-fg}{/bold}  {#5c6773-fg}${server.scope}${server.projectPath ? ` (${server.projectPath.split("/").pop()})` : ""}{/#5c6773-fg}`);
+    lines.push(`{bold}{#ff00ff-fg}${server.name}{/#ff00ff-fg}{/bold}  {#888888-fg}${server.scope}${server.projectPath ? ` (${server.projectPath.split("/").pop()})` : ""}{/#888888-fg}`);
 
     if (isStdioServer(server.server)) {
-      lines.push(`{#5c6773-fg}command{/#5c6773-fg} {#d8dee9-fg}${server.server.command}{/#d8dee9-fg}  {#5c6773-fg}args{/#5c6773-fg} {#a3be8c-fg}${server.server.args?.join(" ") || "—"}{/#a3be8c-fg}`);
+      lines.push(`{#888888-fg}command{/#888888-fg} {#ffffff-fg}${server.server.command}{/#ffffff-fg}  {#888888-fg}args{/#888888-fg} {#00ff00-fg}${server.server.args?.join(" ") || "—"}{/#00ff00-fg}`);
     } else {
-      lines.push(`{#5c6773-fg}url{/#5c6773-fg} {#88c0d0-fg}${server.server.url}{/#88c0d0-fg}`);
+      lines.push(`{#888888-fg}url{/#888888-fg} {#00ffff-fg}${server.server.url}{/#00ffff-fg}`);
     }
 
     if (server.server.env && Object.keys(server.server.env).length > 0) {
       const envKeys = Object.keys(server.server.env).join(", ");
-      lines.push(`{#5c6773-fg}env{/#5c6773-fg} {#ebcb8b-fg}${envKeys}{/#ebcb8b-fg}`);
+      lines.push(`{#888888-fg}env{/#888888-fg} {#ffff00-fg}${envKeys}{/#ffff00-fg}`);
     }
 
     detailsBox.setContent(lines.join("\n"));
@@ -229,8 +231,8 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       width: 60,
       height: 16,
       border: { type: "line" },
-      style: { border: { fg: theme.purple } },
-      label: ` {#b48ead-fg}Add ${scope} MCP Server{/#b48ead-fg} `,
+      style: { border: { fg: theme.pink } },
+      label: ` {#ff00ff-fg}Add ${scope} MCP Server{/#ff00ff-fg} `,
       tags: true,
     });
 
@@ -247,7 +249,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
         parent: formBox,
         top: fieldY[i],
         left: 2,
-        content: `{#81a1c1-fg}${field}:{/#81a1c1-fg}`,
+        content: `{#00ffff-fg}${field}:{/#00ffff-fg}`,
         tags: true,
       });
 
@@ -256,7 +258,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
           parent: formBox,
           top: fieldY[i],
           left: 16,
-          content: `{#a3be8c-fg}stdio{/#a3be8c-fg} {#5c6773-fg}(tab to toggle){/#5c6773-fg}`,
+          content: `{#00ff00-fg}stdio{/#00ff00-fg} {#888888-fg}(tab to toggle){/#888888-fg}`,
           tags: true,
         });
       } else {
@@ -278,7 +280,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: formBox,
       bottom: 1,
       left: 2,
-      content: `{#5c6773-fg}Enter: Save  Esc: Cancel  Tab: Next field{/#5c6773-fg}`,
+      content: `{#888888-fg}Enter: Save  Esc: Cancel  Tab: Next field{/#888888-fg}`,
       tags: true,
     });
 
@@ -292,7 +294,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       const envStr = inputs[3].getValue().trim();
 
       if (!name || !cmdOrUrl) {
-        detailsBox.setContent(`{#bf616a-fg}Error: Name and command/URL are required{/#bf616a-fg}`);
+        detailsBox.setContent(`{#ff0000-fg}Error: Name and command/URL are required{/#ff0000-fg}`);
         formBox.destroy();
         screen.render();
         return;
@@ -328,7 +330,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       servers = await loadAllServers(options.projectDir);
       formBox.destroy();
       updateTable();
-      detailsBox.setContent(`{#a3be8c-fg}✓{/#a3be8c-fg} Added ${name}`);
+      detailsBox.setContent(`{#00ff00-fg}✓{/#00ff00-fg} Added ${name}`);
       table.focus();
       screen.render();
     };
@@ -361,8 +363,8 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       width: 50,
       height: 10,
       border: { type: "line" },
-      style: { border: { fg: theme.purple } },
-      label: ` {#b48ead-fg}Add MCP Server{/#b48ead-fg} `,
+      style: { border: { fg: theme.pink } },
+      label: ` {#ff00ff-fg}Add MCP Server{/#ff00ff-fg} `,
       tags: true,
     });
 
@@ -370,7 +372,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: scopeBox,
       top: 1,
       left: 2,
-      content: `{#d8dee9-fg}Select scope:{/#d8dee9-fg}`,
+      content: `{#ffffff-fg}Select scope:{/#ffffff-fg}`,
       tags: true,
     });
 
@@ -378,7 +380,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: scopeBox,
       top: 3,
       left: 2,
-      content: `{#88c0d0-fg}u{/#88c0d0-fg} User   - all projects (~/.claude.json)`,
+      content: `{#00ffff-fg}u{/#00ffff-fg} User   - all projects (~/.claude.json)`,
       tags: true,
     });
 
@@ -386,7 +388,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: scopeBox,
       top: 4,
       left: 2,
-      content: `{#ebcb8b-fg}l{/#ebcb8b-fg} Local  - this project, private (~/.claude.json)`,
+      content: `{#ffff00-fg}l{/#ffff00-fg} Local  - this project, private (~/.claude.json)`,
       tags: true,
     });
 
@@ -394,7 +396,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: scopeBox,
       top: 5,
       left: 2,
-      content: `{#a3be8c-fg}p{/#a3be8c-fg} Project - this project, shared (.mcp.json)`,
+      content: `{#00ff00-fg}p{/#00ff00-fg} Project - this project, shared (.mcp.json)`,
       tags: true,
     });
 
@@ -405,7 +407,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
 
     scopeBox.key(["l"], () => {
       if (!options.projectDir) {
-        detailsBox.setContent(`{#bf616a-fg}No project directory specified{/#bf616a-fg}`);
+        detailsBox.setContent(`{#ff0000-fg}No project directory specified{/#ff0000-fg}`);
         scopeBox.destroy();
         table.focus();
         screen.render();
@@ -417,7 +419,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
 
     scopeBox.key(["p"], () => {
       if (!options.projectDir) {
-        detailsBox.setContent(`{#bf616a-fg}No project directory specified{/#bf616a-fg}`);
+        detailsBox.setContent(`{#ff0000-fg}No project directory specified{/#ff0000-fg}`);
         scopeBox.destroy();
         table.focus();
         screen.render();
@@ -451,7 +453,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       height: 6,
       border: { type: "line" },
       style: { border: { fg: theme.red } },
-      label: ` {#bf616a-fg}Remove Server{/#bf616a-fg} `,
+      label: ` {#ff0000-fg}Remove Server{/#ff0000-fg} `,
       tags: true,
     });
 
@@ -459,7 +461,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: confirmBox,
       top: 1,
       left: 2,
-      content: `{#d8dee9-fg}Remove {#b48ead-fg}${server.name}{/#b48ead-fg}?{/#d8dee9-fg}`,
+      content: `{#ffffff-fg}Remove {#ff00ff-fg}${server.name}{/#ff00ff-fg}?{/#ffffff-fg}`,
       tags: true,
     });
 
@@ -467,7 +469,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       parent: confirmBox,
       top: 3,
       left: 2,
-      content: `{#a3be8c-fg}y{/#a3be8c-fg} Yes  {#5c6773-fg}n{/#5c6773-fg} No`,
+      content: `{#00ff00-fg}y{/#00ff00-fg} Yes  {#888888-fg}n{/#888888-fg} No`,
       tags: true,
     });
 
@@ -482,7 +484,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
       servers = await loadAllServers(options.projectDir);
       confirmBox.destroy();
       updateTable();
-      detailsBox.setContent(`{#a3be8c-fg}✓{/#a3be8c-fg} Removed ${server.name}`);
+      detailsBox.setContent(`{#00ff00-fg}✓{/#00ff00-fg} Removed ${server.name}`);
       table.focus();
       screen.render();
     });
@@ -503,7 +505,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     const server = servers[idx];
     if (!server) return;
 
-    detailsBox.setContent(`{#ebcb8b-fg}Edit not yet implemented. Remove and re-add to modify.{/#ebcb8b-fg}`);
+    detailsBox.setContent(`{#ffff00-fg}Edit not yet implemented. Remove and re-add to modify.{/#ffff00-fg}`);
     screen.render();
   });
 
