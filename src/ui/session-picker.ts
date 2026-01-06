@@ -803,7 +803,7 @@ export async function showSessionPicker(
     searchBox.show();
     searchBox.focus();
     footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}C-p{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
     );
     screen.render();
   });
@@ -853,22 +853,33 @@ export async function showSessionPicker(
     screen.render();
   });
 
-  // Ctrl+P to jump into context preview for scrolling
-  searchBox.key(["C-p"], () => {
-    if (isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
+  // Tab to jump between search box and context preview (screen-level to intercept before textbox)
+  screen.key(["tab"], () => {
+    // If search box is focused and preview is visible, jump to preview
+    if (screen.focused === searchBox && isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
       contextPreview.focus();
       footer.setContent(
-        " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}C-p{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+        " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}Tab{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
       );
       screen.render();
+      return;
+    }
+    // If context preview is focused, jump back to search box
+    if (screen.focused === contextPreview) {
+      searchBox.focus();
+      footer.setContent(
+        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      );
+      screen.render();
+      return;
     }
   });
 
-  // Ctrl+P or Escape from context preview back to search box
-  contextPreview.key(["C-p", "escape"], () => {
+  // Escape from context preview back to search box
+  contextPreview.key(["escape"], () => {
     searchBox.focus();
     footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}C-p{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
     );
     screen.render();
   });
