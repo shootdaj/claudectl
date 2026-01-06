@@ -71,11 +71,6 @@ const theme = {
   selectedFg: "#00ff00",  // Selection foreground - neon green
 };
 
-// Rainbow colors for border animation
-const rainbowColors = [
-  "#ff0000", "#ff8800", "#ffff00", "#00ff00", "#00ffff", "#0088ff", "#ff00ff"
-];
-
 // Sparkle characters for title animation
 const sparkles = ["✦", "✧", "★", "☆", "✴", "✵", "❋", "❊"];
 
@@ -159,18 +154,9 @@ export async function showSessionPicker(
   });
 
   // Animation state
-  let rainbowIndex = 0;
   let sparkleIndex = 0;
   let blinkState = true;
   const animationIntervals: NodeJS.Timeout[] = [];
-
-  // Rainbow border animation - cycles through colors
-  const borderAnimation = setInterval(() => {
-    rainbowIndex = (rainbowIndex + 1) % rainbowColors.length;
-    mainBox.style.border.fg = rainbowColors[rainbowIndex];
-    screen.render();
-  }, 150);
-  animationIntervals.push(borderAnimation);
 
   // Blinking update badge (only when update available)
   const blinkAnimation = setInterval(() => {
