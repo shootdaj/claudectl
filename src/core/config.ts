@@ -163,20 +163,21 @@ export async function saveClaudeSettings(updates: Partial<ClaudeSettings>): Prom
 }
 
 /**
- * Ensure session retention is disabled (don't auto-delete old sessions).
- * Setting cleanupPeriodDays to 0 disables cleanup entirely.
- * Call this on first run to preserve all conversation history.
+ * Ensure session retention is set to max (don't auto-delete old sessions).
+ * WARNING: cleanupPeriodDays=0 DELETES ALL SESSIONS immediately!
+ * Use 9999 (~27 years) to effectively keep forever.
  */
 export async function ensureMaxSessionRetention(): Promise<boolean> {
   const settings = loadClaudeSettings();
 
-  // 0 = disable cleanup entirely (sessions never auto-deleted)
-  const DISABLE_CLEANUP = 0;
+  // 9999 days = ~27 years (effectively forever)
+  // WARNING: 0 = immediate deletion, NOT disable!
+  const MAX_RETENTION = 9999;
 
-  if (settings.cleanupPeriodDays === DISABLE_CLEANUP) {
-    return false; // Already disabled
+  if (settings.cleanupPeriodDays === MAX_RETENTION) {
+    return false; // Already set to max
   }
 
-  await saveClaudeSettings({ cleanupPeriodDays: DISABLE_CLEANUP });
+  await saveClaudeSettings({ cleanupPeriodDays: MAX_RETENTION });
   return true; // Updated
 }
