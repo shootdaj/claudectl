@@ -739,12 +739,17 @@ export async function showSessionPicker(
   });
 
   // Real-time search as user types
+  let lastSearchValue = "";
   searchBox.on("keypress", (ch: string) => {
     // Get current value + new character (if printable)
     setTimeout(() => {
       const value = searchBox.getValue();
-      searchQuery = value;
-      performSearch(value);
+      // Only trigger search if the value actually changed (ignore arrow keys, etc.)
+      if (value !== lastSearchValue) {
+        lastSearchValue = value;
+        searchQuery = value;
+        performSearch(value);
+      }
     }, 0);
   });
 
