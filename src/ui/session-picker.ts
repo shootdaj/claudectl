@@ -854,28 +854,29 @@ export async function showSessionPicker(
   });
 
   // Tab to jump between search box and context preview
-  // Use 'element keypress' event to intercept before textbox processes it
-  (screen as any).on("element keypress", (_el: any, _ch: any, key: any) => {
-    if (key?.name === "tab") {
-      // If search box is focused and preview is visible, jump to preview
-      if (screen.focused === searchBox && isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
+  // Intercept on textbox keypress before it processes the key
+  (searchBox as any).on("keypress", (_ch: any, key: any) => {
+    if (key?.name === "tab" && isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
+      // Prevent tab from being inserted by clearing and re-setting value
+      const currentValue = searchBox.getValue();
+      setTimeout(() => {
+        searchBox.setValue(currentValue);
         contextPreview.focus();
         footer.setContent(
           " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}Tab{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
         );
         screen.render();
-        return false; // Prevent default
-      }
-      // If context preview is focused, jump back to search box
-      if (screen.focused === contextPreview) {
-        searchBox.focus();
-        footer.setContent(
-          " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
-        );
-        screen.render();
-        return false; // Prevent default
-      }
+      }, 0);
     }
+  });
+
+  // Tab from context preview back to search box
+  contextPreview.key(["tab"], () => {
+    searchBox.focus();
+    footer.setContent(
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+    );
+    screen.render();
   });
 
   // Escape from context preview back to search box
