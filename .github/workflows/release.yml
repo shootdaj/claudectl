@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+    tags: ['v*']
 
 permissions:
   contents: write
@@ -41,23 +42,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get next version from git tags
+      - name: Get version
         id: version
         run: |
-          # Get latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag: $LATEST_TAG"
-
-          # Strip 'v' prefix and increment patch
-          VERSION="${LATEST_TAG#v}"
-          IFS='.' read -r major minor patch <<< "$VERSION"
-          NEW_VERSION="v$major.$minor.$((patch + 1))"
-
-          echo "New version: $NEW_VERSION"
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "prev_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # Manual tag push - use that version
+            VERSION="${GITHUB_REF#refs/tags/}"
+            PREV_TAG=$(git describe --tags --abbrev=0 "$VERSION^" 2>/dev/null || echo "v0.0.0")
+            echo "Using pushed tag: $VERSION"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+            echo "is_tag_push=true" >> $GITHUB_OUTPUT
+          else
+            # Push to main - auto increment patch
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            echo "Latest tag: $LATEST_TAG"
+            VERSION="${LATEST_TAG#v}"
+            IFS='.' read -r major minor patch <<< "$VERSION"
+            NEW_VERSION="v$major.$minor.$((patch + 1))"
+            echo "New version: $NEW_VERSION"
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "prev_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+            echo "is_tag_push=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create tag
+        if: steps.version.outputs.is_tag_push != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
