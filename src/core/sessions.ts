@@ -4,6 +4,7 @@ import { getProjectsDir } from "./config";
 import { decodePath, shortenPath } from "../utils/paths";
 import { parseSessionMetadata, parseJsonl, getMessageContent, type SessionMetadata } from "../utils/jsonl";
 import { getRenamedTitle } from "./title-generator";
+import { getSearchIndex, type SearchResult as IndexSearchResult, type IndexedSession } from "./search-index";
 
 /**
  * Represents a Claude Code session
@@ -59,12 +60,78 @@ export interface DiscoverOptions {
   includeAgents?: boolean;
   /** Minimum message count to include. Default: 1 */
   minMessages?: number;
+  /** Use SQLite index for fast discovery. Default: true */
+  useIndex?: boolean;
 }
 
 /**
  * Discover all sessions across all projects
+ * Uses SQLite index for fast discovery by default
  */
 export async function discoverSessions(
+  options: DiscoverOptions = {}
+): Promise<Session[]> {
+  const useIndex = options.useIndex ?? true;
+
+  // Try fast index-based discovery first
+  if (useIndex) {
+    try {
+      return discoverSessionsFromIndex(options);
+    } catch {
+      // Fall back to JSONL parsing
+    }
+  }
+
+  return discoverSessionsFromFiles(options);
+}
+
+/**
+ * Fast session discovery using SQLite index
+ */
+function discoverSessionsFromIndex(options: DiscoverOptions = {}): Session[] {
+  const index = getSearchIndex();
+  const minMessages = options.minMessages ?? 1;
+  const includeEmpty = options.includeEmpty ?? false;
+  const includeAgents = options.includeAgents ?? false;
+
+  const indexedSessions = index.getSessions({
+    minMessages: includeEmpty ? 0 : minMessages,
+    excludeEmpty: !includeEmpty,
+  });
+
+  // Convert IndexedSession to Session
+  const sessions: Session[] = indexedSessions.map(s => ({
+    id: s.id,
+    title: s.customTitle || (s.firstUserMessage ? cleanTitle(s.firstUserMessage) : null) || s.slug || s.id.slice(0, 8),
+    slug: s.slug,
+    workingDirectory: s.workingDirectory,
+    shortPath: s.shortPath,
+    encodedPath: s.encodedPath,
+    filePath: s.filePath,
+    createdAt: s.createdAt,
+    lastAccessedAt: s.lastAccessedAt,
+    messageCount: s.messageCount,
+    userMessageCount: s.userMessageCount,
+    assistantMessageCount: s.assistantMessageCount,
+    gitBranch: s.gitBranch,
+    model: s.model,
+    totalInputTokens: s.totalInputTokens,
+    totalOutputTokens: s.totalOutputTokens,
+    machine: "local",
+  }));
+
+  // Filter agents if needed
+  if (!includeAgents) {
+    return sessions.filter(s => !s.id.startsWith("agent-"));
+  }
+
+  return sessions;
+}
+
+/**
+ * Slow session discovery from JSONL files (fallback)
+ */
+async function discoverSessionsFromFiles(
   options: DiscoverOptions = {}
 ): Promise<Session[]> {
   const projectsDir = options.projectsDir || getProjectsDir();
@@ -296,16 +363,144 @@ export interface SearchOptions extends DiscoverOptions {
   maxMatchesPerSession?: number;
   /** Context chars around match. Default: 100 */
   contextChars?: number;
+  /** Max total results. Default: 50 */
+  maxResults?: number;
+}
+
+/**
+ * Fast full-text search using SQLite FTS5
+ * Returns results with highlighted snippets
+ */
+export function searchSessionContent(
+  query: string,
+  options: SearchOptions = {}
+): ContentSearchResult[] {
+  if (!query.trim()) {
+    return [];
+  }
+
+  const index = getSearchIndex();
+  const maxResults = options.maxResults ?? 50;
+  const maxMatchesPerSession = options.maxMatchesPerSession ?? 5;
+
+  const indexResults = index.searchContent(query, {
+    maxResults,
+    maxMatchesPerSession,
+  });
+
+  return indexResults.map(r => ({
+    sessionId: r.sessionId,
+    title: r.title,
+    slug: r.slug,
+    workingDirectory: r.workingDirectory,
+    shortPath: r.shortPath,
+    filePath: r.filePath,
+    model: r.model,
+    lastAccessedAt: r.lastAccessedAt,
+    matches: r.matches.map(m => ({
+      type: m.type,
+      snippet: m.snippet.replace(/>>>>/g, "").replace(/<<<<</g, ""), // Clean markers for display
+      lineNumber: m.lineNumber,
+      // Highlight markers for UI
+      highlightedSnippet: m.snippet,
+    })),
+    totalMatches: r.totalMatches,
+  }));
+}
+
+/**
+ * Result from content search
+ */
+export interface ContentSearchResult {
+  sessionId: string;
+  title: string;
+  slug?: string;
+  workingDirectory: string;
+  shortPath: string;
+  filePath: string;
+  model?: string;
+  lastAccessedAt: Date;
+  matches: ContentMatch[];
+  totalMatches: number;
+}
+
+/**
+ * A single content match
+ */
+export interface ContentMatch {
+  type: "user" | "assistant";
+  snippet: string;
+  lineNumber: number;
+  highlightedSnippet: string;
 }
 
 /**
  * Search through all session content for a query string
+ * Uses FTS index by default for fast search
  */
 export async function searchSessions(
   query: string,
   options: SearchOptions = {}
 ): Promise<SearchResult[]> {
-  const sessions = await discoverSessions(options);
+  // Try fast FTS search first
+  const useIndex = options.useIndex ?? true;
+
+  if (useIndex) {
+    try {
+      const contentResults = searchSessionContent(query, options);
+
+      // Convert to legacy SearchResult format for backward compatibility
+      return await Promise.all(contentResults.map(async r => {
+        // Get the full session for compatibility
+        const session = await findSession(r.sessionId, { useIndex: true });
+        if (!session) {
+          // Create minimal session if not found
+          return {
+            session: {
+              id: r.sessionId,
+              title: r.title,
+              slug: r.slug,
+              workingDirectory: r.workingDirectory,
+              shortPath: r.shortPath,
+              encodedPath: "",
+              filePath: r.filePath,
+              createdAt: r.lastAccessedAt,
+              lastAccessedAt: r.lastAccessedAt,
+              messageCount: 0,
+              userMessageCount: 0,
+              assistantMessageCount: 0,
+              totalInputTokens: 0,
+              totalOutputTokens: 0,
+              machine: "local" as const,
+            },
+            matches: r.matches.map(m => ({
+              type: m.type,
+              content: "",
+              context: m.snippet,
+              lineNumber: m.lineNumber,
+            })),
+            totalMatches: r.totalMatches,
+          };
+        }
+
+        return {
+          session,
+          matches: r.matches.map(m => ({
+            type: m.type,
+            content: "",
+            context: m.snippet,
+            lineNumber: m.lineNumber,
+          })),
+          totalMatches: r.totalMatches,
+        };
+      }));
+    } catch {
+      // Fall back to slow search
+    }
+  }
+
+  // Fallback: slow JSONL-based search
+  const sessions = await discoverSessions({ ...options, useIndex: false });
   const results: SearchResult[] = [];
 
   const caseSensitive = options.caseSensitive ?? false;
@@ -396,4 +591,29 @@ export function formatRelativeTime(date: Date): string {
   if (days < 7) return `${days}d ago`;
   if (weeks < 4) return `${weeks}w ago`;
   return `${months}mo ago`;
+}
+
+/**
+ * Sync the search index with the filesystem
+ * Call this before search operations to ensure index is up-to-date
+ */
+export async function syncIndex(): Promise<{ added: number; updated: number; deleted: number; unchanged: number; duration: number }> {
+  const index = getSearchIndex();
+  return index.sync();
+}
+
+/**
+ * Rebuild the entire search index from scratch
+ */
+export async function rebuildIndex(): Promise<{ added: number; updated: number; deleted: number; unchanged: number; duration: number }> {
+  const index = getSearchIndex();
+  return index.rebuild();
+}
+
+/**
+ * Get search index statistics
+ */
+export function getIndexStats(): { sessions: number; messages: number; dbSize: number } {
+  const index = getSearchIndex();
+  return index.getStats();
 }

@@ -11,11 +11,15 @@ import {
 const FIXTURES_DIR = join(import.meta.dir, "../test-fixtures/sessions/projects");
 
 describe("sessions", () => {
+  // Note: Tests use useIndex: false to test file-based discovery
+  // Index-based discovery is tested in search-index.test.ts
+
   describe("discoverSessions", () => {
     test("discovers all sessions from projects directory", async () => {
       const sessions = await discoverSessions({
         projectsDir: FIXTURES_DIR,
         homeDir: "/Users/test",
+        useIndex: false,
       });
 
       expect(sessions).toHaveLength(2);
@@ -25,6 +29,7 @@ describe("sessions", () => {
       const sessions = await discoverSessions({
         projectsDir: FIXTURES_DIR,
         homeDir: "/Users/test",
+        useIndex: false,
       });
 
       // session-xyz789 was last accessed on 2025-12-19, session-abc123 on 2025-12-18
@@ -36,6 +41,7 @@ describe("sessions", () => {
       const sessions = await discoverSessions({
         projectsDir: FIXTURES_DIR,
         homeDir: "/Users/test",
+        useIndex: false,
       });
 
       const session1 = sessions.find((s) => s.id === "session-abc123")!;
@@ -64,6 +70,7 @@ describe("sessions", () => {
     test("returns empty array if projects directory doesn't exist", async () => {
       const sessions = await discoverSessions({
         projectsDir: "/nonexistent/path",
+        useIndex: false,
       });
 
       expect(sessions).toHaveLength(0);
@@ -74,6 +81,7 @@ describe("sessions", () => {
     test("finds session by exact ID", async () => {
       const session = await findSession("session-abc123", {
         projectsDir: FIXTURES_DIR,
+        useIndex: false,
       });
 
       expect(session).toBeDefined();
@@ -83,6 +91,7 @@ describe("sessions", () => {
     test("finds session by exact slug", async () => {
       const session = await findSession("first-session", {
         projectsDir: FIXTURES_DIR,
+        useIndex: false,
       });
 
       expect(session).toBeDefined();
@@ -92,6 +101,7 @@ describe("sessions", () => {
     test("finds session by partial ID prefix", async () => {
       const session = await findSession("session-abc", {
         projectsDir: FIXTURES_DIR,
+        useIndex: false,
       });
 
       expect(session).toBeDefined();
@@ -101,6 +111,7 @@ describe("sessions", () => {
     test("finds session by partial slug (case-insensitive)", async () => {
       const session = await findSession("FIRST", {
         projectsDir: FIXTURES_DIR,
+        useIndex: false,
       });
 
       expect(session).toBeDefined();
@@ -110,6 +121,7 @@ describe("sessions", () => {
     test("finds session by partial title (case-insensitive)", async () => {
       const session = await findSession("help", {
         projectsDir: FIXTURES_DIR,
+        useIndex: false,
       });
 
       expect(session).toBeDefined();
@@ -119,6 +131,7 @@ describe("sessions", () => {
     test("returns undefined for non-existent session", async () => {
       const session = await findSession("nonexistent", {
         projectsDir: FIXTURES_DIR,
+        useIndex: false,
       });
 
       expect(session).toBeUndefined();
@@ -129,6 +142,7 @@ describe("sessions", () => {
     test("returns sessions for specific directory", async () => {
       const sessions = await getSessionsForDirectory("/Users/test/project1", {
         projectsDir: FIXTURES_DIR,
+        useIndex: false,
       });
 
       expect(sessions).toHaveLength(1);
@@ -138,6 +152,7 @@ describe("sessions", () => {
     test("returns empty array for directory with no sessions", async () => {
       const sessions = await getSessionsForDirectory("/nonexistent", {
         projectsDir: FIXTURES_DIR,
+        useIndex: false,
       });
 
       expect(sessions).toHaveLength(0);

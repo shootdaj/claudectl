@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { showSessionPicker } from "./ui/session-picker";
-import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions } from "./core/sessions";
+import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions, syncIndex, rebuildIndex, getIndexStats } from "./core/sessions";
 import { getAllConfigPaths } from "./core/config";
 import { renameSession } from "./core/title-generator";
 import { backupSessions, getBackupInfo, getBackupDir } from "./core/backup";
@@ -237,6 +237,61 @@ sessions
       console.log("");
     }
   });
+
+// Index subcommand
+const index = program.command("index").description("Manage the search index");
+
+index
+  .command("stats")
+  .description("Show search index statistics")
+  .action(() => {
+    const stats = getIndexStats();
+
+    console.log("\n┌─ Search Index Statistics ───────────────────┐");
+    console.log(`│ Indexed Sessions:  ${String(stats.sessions).padEnd(24)}│`);
+    console.log(`│ Indexed Messages:  ${String(stats.messages).padEnd(24)}│`);
+    console.log(`│ Database Size:     ${formatBytes(stats.dbSize).padEnd(24)}│`);
+    console.log("└──────────────────────────────────────────────┘\n");
+  });
+
+index
+  .command("sync")
+  .description("Sync index with filesystem (incremental)")
+  .action(async () => {
+    console.log(pc.cyan("\nSyncing search index..."));
+    const startTime = Date.now();
+    const stats = await syncIndex();
+    const duration = Date.now() - startTime;
+
+    console.log(pc.green(`✓ Sync complete in ${duration}ms\n`));
+    console.log(`  Added:     ${pc.green(String(stats.added))}`);
+    console.log(`  Updated:   ${pc.yellow(String(stats.updated))}`);
+    console.log(`  Deleted:   ${pc.red(String(stats.deleted))}`);
+    console.log(`  Unchanged: ${pc.dim(String(stats.unchanged))}\n`);
+  });
+
+index
+  .command("rebuild")
+  .description("Rebuild index from scratch (slow)")
+  .action(async () => {
+    console.log(pc.cyan("\nRebuilding search index from scratch..."));
+    console.log(pc.dim("This may take a while for large session histories.\n"));
+
+    const startTime = Date.now();
+    const stats = await rebuildIndex();
+    const duration = Date.now() - startTime;
+
+    console.log(pc.green(`✓ Rebuild complete in ${(duration / 1000).toFixed(1)}s\n`));
+    console.log(`  Indexed ${pc.green(String(stats.added))} sessions\n`);
+  });
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(i > 0 ? 1 : 0)} ${sizes[i]}`;
+}
 
 // Config command
 program

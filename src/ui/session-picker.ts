@@ -3,7 +3,10 @@ import {
   discoverSessions,
   formatRelativeTime,
   launchSession,
+  syncIndex,
+  searchSessionContent,
   type Session,
+  type ContentSearchResult,
 } from "../core/sessions";
 import { renameSession } from "../core/title-generator";
 import {
@@ -79,6 +82,9 @@ export async function showSessionPicker(
 ): Promise<void> {
   // Auto-backup sessions on startup (if more than 1 hour since last backup)
   await autoBackup();
+
+  // Sync the search index in background (fast incremental update)
+  syncIndex().catch(() => {}); // Non-blocking, ignore errors
 
   const sessions = await discoverSessions();
   let settings = loadClaudectlSettings();
@@ -335,6 +341,115 @@ export async function showSessionPicker(
 
   let filteredSessions = [...sessions];
   let searchQuery = "";
+  let searchResults: ContentSearchResult[] = [];
+  let isSearchMode = false;
+  let searchDebounceTimer: NodeJS.Timeout | null = null;
+
+  // Debounced FTS search function
+  function performSearch(query: string) {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+    }
+
+    if (!query.trim()) {
+      // Empty search - show all sessions
+      isSearchMode = false;
+      searchResults = [];
+      filteredSessions = [...sessions];
+      updateTable();
+      return;
+    }
+
+    // Debounce 150ms for real-time search
+    searchDebounceTimer = setTimeout(() => {
+      try {
+        isSearchMode = true;
+        searchResults = searchSessionContent(query, { maxResults: 50, maxMatchesPerSession: 3 });
+
+        // Map search results to sessions for display
+        filteredSessions = searchResults.map(r => {
+          // Find matching session or create placeholder
+          const session = sessions.find(s => s.id === r.sessionId);
+          if (session) {
+            return { ...session, title: r.title }; // Use search result title (may include custom title)
+          }
+          // Create placeholder session from search result
+          return {
+            id: r.sessionId,
+            title: r.title,
+            slug: r.slug,
+            workingDirectory: r.workingDirectory,
+            shortPath: r.shortPath,
+            encodedPath: "",
+            filePath: r.filePath,
+            createdAt: r.lastAccessedAt,
+            lastAccessedAt: r.lastAccessedAt,
+            messageCount: r.totalMatches,
+            userMessageCount: 0,
+            assistantMessageCount: 0,
+            totalInputTokens: 0,
+            totalOutputTokens: 0,
+            model: r.model,
+            machine: "local" as const,
+          };
+        });
+
+        updateTable();
+        if (filteredSessions.length > 0) {
+          table.select(0);
+        }
+        updateSearchPreview();
+      } catch (e) {
+        // Fallback to simple filter if FTS fails
+        isSearchMode = false;
+        filteredSessions = sessions.filter(
+          (s) =>
+            s.title?.toLowerCase().includes(query.toLowerCase()) ||
+            s.slug?.toLowerCase().includes(query.toLowerCase()) ||
+            s.id.toLowerCase().includes(query.toLowerCase()) ||
+            s.workingDirectory.toLowerCase().includes(query.toLowerCase())
+        );
+        updateTable();
+      }
+    }, 150);
+  }
+
+  // Update details panel with search match preview
+  function updateSearchPreview() {
+    if (!isSearchMode || searchResults.length === 0) return;
+
+    const idx = table.selected;
+    const result = searchResults[idx];
+    if (!result || result.matches.length === 0) {
+      updateDetails();
+      return;
+    }
+
+    // Show first match snippet in details panel
+    const match = result.matches[0];
+    const matchType = match.type === "user" ? "{#00ffff-fg}user{/#00ffff-fg}" : "{#aa88ff-fg}assistant{/#aa88ff-fg}";
+    const snippet = formatSnippet(match.highlightedSnippet);
+
+    const lines = [
+      `{bold}{#ff00ff-fg}${result.title}{/#ff00ff-fg}{/bold}  {#888888-fg}${result.totalMatches} matches{/#888888-fg}`,
+      `{#888888-fg}in{/#888888-fg} ${result.shortPath}`,
+      `${matchType}: ${snippet}`,
+    ];
+
+    detailsBox.setContent(lines.join("\n"));
+    screen.render();
+  }
+
+  // Format snippet with highlighted search terms
+  function formatSnippet(snippet: string): string {
+    // Replace >>>> and <<<< markers with colored highlights
+    return snippet
+      .replace(/>>>>/g, "{#ffff00-fg}{bold}")
+      .replace(/<<<<</g, "{/bold}{/#ffff00-fg}")
+      .replace(/<<<<(?!<)/g, "{/bold}{/#ffff00-fg}") // Handle 4 < as well
+      .replace(/\n/g, " ")
+      .slice(0, 80);
+  }
 
   function updateTable() {
     table.setItems(filteredSessions.map(formatSessionRow));
@@ -417,7 +532,12 @@ export async function showSessionPicker(
       table.scrollTo(selected);
     }
 
-    updateDetails();
+    // Show search preview if in search mode, otherwise show normal details
+    if (isSearchMode && searchResults.length > 0) {
+      updateSearchPreview();
+    } else {
+      updateDetails();
+    }
     screen.render();
   });
 
@@ -609,38 +729,114 @@ export async function showSessionPicker(
   });
 
   table.key(["/"], () => {
+    searchBox.setValue("");
     searchBox.show();
     searchBox.focus();
+    footer.setContent(
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Results  {#00ff00-fg}↵{/#00ff00-fg} Select  {#ffff00-fg}c{/#ffff00-fg} Context  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+    );
     screen.render();
   });
 
+  // Real-time search as user types
+  searchBox.on("keypress", (ch: string) => {
+    // Get current value + new character (if printable)
+    setTimeout(() => {
+      const value = searchBox.getValue();
+      searchQuery = value;
+      performSearch(value);
+    }, 0);
+  });
+
   searchBox.on("submit", (value: string) => {
-    searchQuery = value.toLowerCase();
+    // Keep search results, just hide the box and focus list
     searchBox.hide();
     table.focus();
-
-    if (!searchQuery) {
-      filteredSessions = [...sessions];
-    } else {
-      filteredSessions = sessions.filter(
-        (s) =>
-          s.title?.toLowerCase().includes(searchQuery) ||
-          s.slug?.toLowerCase().includes(searchQuery) ||
-          s.id.toLowerCase().includes(searchQuery) ||
-          s.workingDirectory.toLowerCase().includes(searchQuery)
-      );
-    }
-
-    updateTable();
-    if (filteredSessions.length > 0) {
-      table.select(0);
-    }
+    footer.setContent(
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+    );
+    screen.render();
   });
 
   searchBox.key(["escape"], () => {
     searchBox.hide();
     searchBox.setValue("");
+    searchQuery = "";
+    isSearchMode = false;
+    searchResults = [];
+    filteredSessions = [...sessions];
+    updateTable();
     table.focus();
+    footer.setContent(
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+    );
+    screen.render();
+  });
+
+  // Show context popup for search results
+  table.key(["c"], async () => {
+    if (!isSearchMode || searchResults.length === 0) return;
+
+    const idx = table.selected;
+    const result = searchResults[idx];
+    if (!result || result.matches.length === 0) return;
+
+    // Create popup showing all matches with context
+    const lines: string[] = [
+      `{bold}{#ff00ff-fg}Search Matches: "${searchQuery}"{/#ff00ff-fg}{/bold}`,
+      `{#888888-fg}Session: ${result.title}{/#888888-fg}`,
+      `{#888888-fg}Path: ${result.shortPath}{/#888888-fg}`,
+      ``,
+      `{#00ffff-fg}${result.totalMatches} matches found:{/#00ffff-fg}`,
+      ``,
+    ];
+
+    for (let i = 0; i < result.matches.length; i++) {
+      const match = result.matches[i];
+      const typeLabel = match.type === "user" ? "{#00ffff-fg}[user]{/#00ffff-fg}" : "{#aa88ff-fg}[assistant]{/#aa88ff-fg}";
+      const snippet = formatSnippet(match.highlightedSnippet);
+      lines.push(`${i + 1}. ${typeLabel} line ${match.lineNumber}`);
+      lines.push(`   ${snippet}`);
+      lines.push(``);
+    }
+
+    if (result.totalMatches > result.matches.length) {
+      lines.push(`{#888888-fg}...and ${result.totalMatches - result.matches.length} more matches{/#888888-fg}`);
+    }
+
+    lines.push(``);
+    lines.push(`{#888888-fg}Press ESC or q to close{/#888888-fg}`);
+
+    const contextBox = blessed.box({
+      parent: screen,
+      top: "center",
+      left: "center",
+      width: "80%",
+      height: "70%",
+      content: lines.join("\n"),
+      tags: true,
+      border: { type: "line" },
+      style: {
+        border: { fg: theme.pink },
+        fg: "white",
+      },
+      scrollable: true,
+      keys: true,
+      vi: true,
+      scrollbar: {
+        ch: "▌",
+        style: { fg: theme.pink },
+      },
+      label: ` {#ffff00-fg}Match Context{/#ffff00-fg} `,
+    });
+
+    contextBox.key(["escape", "q", "c"], () => {
+      contextBox.destroy();
+      table.focus();
+      screen.render();
+    });
+
+    contextBox.focus();
     screen.render();
   });
 
