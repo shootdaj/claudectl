@@ -13,6 +13,7 @@ import { renameSession } from "../core/title-generator";
 import {
   loadClaudectlSettings,
   saveClaudectlSettings,
+  ensureMaxSessionRetention,
   type ClaudectlSettings,
 } from "../core/config";
 import { showMcpManager } from "./mcp-manager";
@@ -81,6 +82,12 @@ const sparkles = ["✦", "✧", "★", "☆", "✴", "✵", "❋", "❊"];
 export async function showSessionPicker(
   options: SessionPickerOptions = {}
 ): Promise<void> {
+  // Ensure session retention is set to max (don't auto-delete old sessions)
+  const retentionUpdated = await ensureMaxSessionRetention();
+  if (retentionUpdated) {
+    console.log("Session retention set to maximum (sessions won't be auto-deleted)");
+  }
+
   // Auto-backup sessions on startup (if more than 1 hour since last backup)
   await autoBackup();
 
