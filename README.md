@@ -22,15 +22,23 @@ Global session manager for [Claude Code](https://claude.ai/code). Browse, search
 ## Installation
 
 ```bash
-# Install latest release
 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
+```
 
-# Install specific version
+<details>
+<summary>Other install options</summary>
+
+Install specific version:
+```bash
 VERSION=v1.0.37 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
+```
 
-# Install from main branch (development)
+Install from main branch (development):
+```bash
 VERSION=main curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 ```
+
+</details>
 
 This will install [Bun](https://bun.sh) if needed, then set up claudectl.
 
