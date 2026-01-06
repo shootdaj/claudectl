@@ -82,10 +82,10 @@ const sparkles = ["✦", "✧", "★", "☆", "✴", "✵", "❋", "❊"];
 export async function showSessionPicker(
   options: SessionPickerOptions = {}
 ): Promise<void> {
-  // Ensure session retention is set to max (don't auto-delete old sessions)
+  // Ensure session cleanup is disabled (don't auto-delete old sessions)
   const retentionUpdated = await ensureMaxSessionRetention();
   if (retentionUpdated) {
-    console.log("Session retention set to maximum (sessions won't be auto-deleted)");
+    console.log("Session cleanup disabled (sessions won't be auto-deleted)");
   }
 
   // Auto-backup sessions on startup (if more than 1 hour since last backup)
