@@ -3,7 +3,7 @@ import { showSessionPicker } from "./ui/session-picker";
 import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions, syncIndex, rebuildIndex, getIndexStats } from "./core/sessions";
 import { getAllConfigPaths } from "./core/config";
 import { renameSession } from "./core/title-generator";
-import { backupSessions, getBackupInfo, getBackupDir } from "./core/backup";
+import { backupSessions, getBackupInfo, getBackupDir, findDeletedSessions, restoreSession, restoreAllSessions } from "./core/backup";
 import pc from "picocolors";
 
 const program = new Command();
@@ -370,11 +370,120 @@ function formatLargeNumber(n: number): string {
   return String(n);
 }
 
-// Backup command
-program
-  .command("backup")
-  .description("Backup Claude Code sessions")
+// Backup command group
+const backup = program.command("backup").description("Backup and restore sessions");
+
+backup
+  .command("now")
+  .description("Create a backup now")
   .action(async () => {
+    const info = await getBackupInfo();
+
+    if (info) {
+      console.log(`\n${pc.bold("Current Backup:")}`);
+      console.log(`  ${pc.green("●")} ${info.path}`);
+      console.log(`  ${pc.dim(`Last updated: ${formatRelativeTime(info.date)}`)}\n`);
+    }
+
+    console.log(pc.cyan("Backing up sessions..."));
+    const result = await backupSessions();
+
+    if (result.success) {
+      console.log(pc.green(`✓ Backup updated: ${result.path}\n`));
+    } else {
+      console.log(pc.red(`✗ Backup failed: ${result.error}\n`));
+    }
+  });
+
+backup
+  .command("status")
+  .description("Show backup status")
+  .action(async () => {
+    const info = await getBackupInfo();
+
+    if (!info) {
+      console.log(pc.yellow("\nNo backup found. Run `claudectl backup now` to create one.\n"));
+      return;
+    }
+
+    console.log(`\n${pc.bold("Backup Status:")}`);
+    console.log(`  Location: ${info.path}`);
+    console.log(`  Last updated: ${pc.green(formatRelativeTime(info.date))}`);
+
+    const deleted = await findDeletedSessions();
+    if (deleted.length > 0) {
+      console.log(`  ${pc.yellow(`${deleted.length} deleted session(s) can be restored`)}`);
+    } else {
+      console.log(`  ${pc.dim("All sessions are current")}`);
+    }
+    console.log("");
+  });
+
+backup
+  .command("deleted")
+  .description("List sessions that can be restored from backup")
+  .action(async () => {
+    const deleted = await findDeletedSessions();
+
+    if (deleted.length === 0) {
+      console.log(pc.green("\nNo deleted sessions found. All backed up sessions still exist.\n"));
+      return;
+    }
+
+    console.log(`\n${pc.bold(`Found ${deleted.length} deleted session(s):`)}\n`);
+
+    for (const session of deleted) {
+      console.log(`  ${pc.yellow("●")} ${session.id.slice(0, 8)}...`);
+      console.log(`    ${pc.dim(session.backupPath)}`);
+    }
+
+    console.log(`\n${pc.dim("Restore with:")} claudectl backup restore <id>\n`);
+    console.log(`${pc.dim("Restore all:")} claudectl backup restore --all\n`);
+  });
+
+backup
+  .command("restore [id]")
+  .description("Restore deleted session(s) from backup")
+  .option("-a, --all", "Restore all deleted sessions")
+  .action(async (id, options) => {
+    if (options.all) {
+      const deleted = await findDeletedSessions();
+      if (deleted.length === 0) {
+        console.log(pc.green("\nNo deleted sessions to restore.\n"));
+        return;
+      }
+
+      console.log(pc.cyan(`\nRestoring ${deleted.length} session(s)...`));
+      const result = await restoreAllSessions();
+
+      console.log(pc.green(`✓ Restored: ${result.restored}`));
+      if (result.failed > 0) {
+        console.log(pc.red(`✗ Failed: ${result.failed}`));
+      }
+      console.log("");
+      return;
+    }
+
+    if (!id) {
+      console.log(pc.red("\nPlease specify a session ID or use --all\n"));
+      console.log(pc.dim("List deleted sessions: claudectl backup deleted\n"));
+      return;
+    }
+
+    console.log(pc.cyan(`\nRestoring session ${id}...`));
+    const result = await restoreSession(id);
+
+    if (result.success) {
+      console.log(pc.green(`✓ Session restored\n`));
+    } else {
+      console.log(pc.red(`✗ ${result.error}\n`));
+    }
+  });
+
+// Default backup action (backwards compat)
+backup
+  .action(async () => {
+    // Same as "backup now"
     const info = await getBackupInfo();
 
     if (info) {
