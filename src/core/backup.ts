@@ -82,3 +82,97 @@ export async function autoBackup(): Promise<void> {
     await backupSessions();
   }
 }
+
+/**
+ * Find sessions that exist in backup but not in source (deleted sessions)
+ */
+export async function findDeletedSessions(): Promise<Array<{ id: string; filePath: string; backupPath: string }>> {
+  const { readdir, stat: fsStat } = await import("fs/promises");
+  const projectsDir = getProjectsDir();
+  const deleted: Array<{ id: string; filePath: string; backupPath: string }> = [];
+
+  try {
+    await fsStat(SESSIONS_BACKUP);
+  } catch {
+    return []; // No backup exists
+  }
+
+  // Scan backup directories
+  const backupDirs = await readdir(SESSIONS_BACKUP).catch(() => []);
+
+  for (const encodedDir of backupDirs) {
+    const backupDirPath = join(SESSIONS_BACKUP, encodedDir);
+    const sourceDirPath = join(projectsDir, encodedDir);
+
+    const backupStat = await fsStat(backupDirPath).catch(() => null);
+    if (!backupStat?.isDirectory()) continue;
+
+    const backupFiles = await readdir(backupDirPath).catch(() => []);
+
+    for (const file of backupFiles) {
+      if (!file.endsWith(".jsonl")) continue;
+
+      const sourceFile = join(sourceDirPath, file);
+      const backupFile = join(backupDirPath, file);
+
+      // Check if source file exists
+      try {
+        await fsStat(sourceFile);
+      } catch {
+        // Source doesn't exist - this session was deleted
+        deleted.push({
+          id: file.replace(".jsonl", ""),
+          filePath: sourceFile,
+          backupPath: backupFile,
+        });
+      }
+    }
+  }
+
+  return deleted;
+}
+
+/**
+ * Restore a specific session from backup
+ */
+export async function restoreSession(sessionId: string): Promise<{ success: boolean; error?: string }> {
+  const deleted = await findDeletedSessions();
+  const session = deleted.find(s => s.id === sessionId || s.id.startsWith(sessionId));
+
+  if (!session) {
+    return { success: false, error: "Session not found in backup or already exists" };
+  }
+
+  try {
+    // Ensure parent directory exists
+    const parentDir = join(session.filePath, "..");
+    await mkdir(parentDir, { recursive: true });
+
+    // Copy from backup to source
+    await cp(session.backupPath, session.filePath);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Restore all deleted sessions from backup
+ */
+export async function restoreAllSessions(): Promise<{ restored: number; failed: number }> {
+  const deleted = await findDeletedSessions();
+  let restored = 0;
+  let failed = 0;
+
+  for (const session of deleted) {
+    const result = await restoreSession(session.id);
+    if (result.success) {
+      restored++;
+    } else {
+      failed++;
+    }
+  }
+
+  return { restored, failed };
+}
