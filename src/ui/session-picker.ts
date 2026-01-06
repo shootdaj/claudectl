@@ -156,6 +156,8 @@ export async function showSessionPicker(
   // Animation state
   let sparkleIndex = 0;
   let blinkState = true;
+  let marqueeOffset = 0;
+  let currentMarqueeTitle = "";
   const animationIntervals: NodeJS.Timeout[] = [];
 
   // Blinking update badge (only when update available)
@@ -197,6 +199,16 @@ export async function showSessionPicker(
     screen.render();
   }, 300);
   animationIntervals.push(sparkleAnimation);
+
+  // Marquee animation for long titles in details panel
+  const marqueeAnimation = setInterval(() => {
+    if (currentMarqueeTitle.length > 0) {
+      marqueeOffset = (marqueeOffset + 1) % (currentMarqueeTitle.length + 10);
+      updateDetailsWithMarquee();
+      screen.render();
+    }
+  }, 150);
+  animationIntervals.push(marqueeAnimation);
 
   // Cleanup animations on exit
   function stopAnimations() {
@@ -318,26 +330,61 @@ export async function showSessionPicker(
     return text.slice(0, maxLen - 1) + "…";
   }
 
-  function updateDetails() {
+  // Get the visible portion of marquee text
+  function getMarqueeText(text: string, maxWidth: number, offset: number): string {
+    const padding = "     ";  // Space between repetitions
+    const scrollText = text + padding;
+    const start = offset % scrollText.length;
+    let visible = "";
+    for (let i = 0; i < maxWidth; i++) {
+      visible += scrollText[(start + i) % scrollText.length];
+    }
+    return visible;
+  }
+
+  function updateDetailsWithMarquee() {
     const idx = table.selected;
     const session = filteredSessions[idx];
-    if (!session) {
-      detailsBox.setContent("");
-      screen.render();
-      return;
+    if (!session) return;
+
+    const maxTitleWidth = Math.max(40, (screen.width as number) - 25);
+    let displayTitle: string;
+
+    if (session.title.length > maxTitleWidth) {
+      displayTitle = getMarqueeText(session.title, maxTitleWidth, marqueeOffset);
+    } else {
+      displayTitle = session.title;
     }
 
-    // Calculate max title width: screen width - margins - id suffix (~15 chars)
-    const maxTitleWidth = Math.max(40, (screen.width as number) - 20);
-    const title = truncate(session.title, maxTitleWidth);
-
     const lines = [
-      `{bold}{#ff00ff-fg}${title}{/#ff00ff-fg}{/bold}  {#888888-fg}${session.id.slice(0, 8)}{/#888888-fg}`,
+      `{bold}{#ff00ff-fg}${displayTitle}{/#ff00ff-fg}{/bold}  {#888888-fg}${session.id.slice(0, 8)}{/#888888-fg}`,
       `{#888888-fg}path{/#888888-fg} {#ffffff-fg}${session.workingDirectory}{/#ffffff-fg}  {#888888-fg}branch{/#888888-fg} {#00ff00-fg}${session.gitBranch || "—"}{/#00ff00-fg}`,
       `{#888888-fg}created{/#888888-fg} {#ffffff-fg}${session.createdAt.toLocaleString()}{/#ffffff-fg}  {#888888-fg}model{/#888888-fg} {#aa88ff-fg}${session.model || "—"}{/#aa88ff-fg}`,
     ];
 
     detailsBox.setContent(lines.join("\n"));
+  }
+
+  function updateDetails() {
+    const idx = table.selected;
+    const session = filteredSessions[idx];
+    if (!session) {
+      currentMarqueeTitle = "";
+      detailsBox.setContent("");
+      screen.render();
+      return;
+    }
+
+    // Set up marquee for long titles
+    const maxTitleWidth = Math.max(40, (screen.width as number) - 25);
+    if (session.title.length > maxTitleWidth) {
+      currentMarqueeTitle = session.title;
+      marqueeOffset = 0;  // Reset marquee position on selection change
+    } else {
+      currentMarqueeTitle = "";
+    }
+
+    updateDetailsWithMarquee();
     screen.render();
   }
 
