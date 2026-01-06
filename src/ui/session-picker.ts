@@ -342,16 +342,18 @@ export async function showSessionPicker(
     return visible;
   }
 
+  // Fixed width for marquee - titles longer than this will scroll
+  const MARQUEE_WIDTH = 60;
+
   function updateDetailsWithMarquee() {
     const idx = table.selected;
     const session = filteredSessions[idx];
     if (!session) return;
 
-    const maxTitleWidth = Math.max(40, (screen.width as number) - 25);
     let displayTitle: string;
 
-    if (session.title.length > maxTitleWidth) {
-      displayTitle = getMarqueeText(session.title, maxTitleWidth, marqueeOffset);
+    if (currentMarqueeTitle.length > 0) {
+      displayTitle = getMarqueeText(currentMarqueeTitle, MARQUEE_WIDTH, marqueeOffset);
     } else {
       displayTitle = session.title;
     }
@@ -375,9 +377,8 @@ export async function showSessionPicker(
       return;
     }
 
-    // Set up marquee for long titles
-    const maxTitleWidth = Math.max(40, (screen.width as number) - 25);
-    if (session.title.length > maxTitleWidth) {
+    // Set up marquee for long titles (> 60 chars)
+    if (session.title.length > MARQUEE_WIDTH) {
       currentMarqueeTitle = session.title;
       marqueeOffset = 0;  // Reset marquee position on selection change
     } else {
