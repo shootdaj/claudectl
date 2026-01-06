@@ -2,32 +2,34 @@
 
 Global session manager for [Claude Code](https://claude.ai/code). Browse, search, and resume sessions across all your projects from one place.
 
-![Demo](https://img.shields.io/badge/version-1.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 
 ```
-┌─ claudectl ──────────────────────────────────────────────────────────────────┐
-│ TITLE                              PROJECT          TIME    MSGS   TOK  MOD │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Fix authentication bug             myapp            2h ago    12   45K  son │
-│ Refactor database layer            backend          1d ago    28  120K opus │
-│ Add dark mode toggle               frontend         3d ago     8   22K  son │
-│ Update API documentation           docs             1w ago    15   38K  hai │
-└──────────────────────────────────────────────────────────────────────────────┘
-│ ↑↓ Navigate  Enter Launch  n New  N New@sel  r Rename  p Preview  / Search  │
+┌─ claudectl v1.0.37 │ sessions [SKIP PERMS] [AGENT EXPERT]     42 sessions ─┐
+│ TITLE                              PROJECT          TIME    MSGS   TOK MOD │
+│ Fix authentication bug             myapp            2h ago    12   45K son │
+│ Refactor database layer            backend          1d ago    28  120K opus│
+│ Add dark mode toggle               frontend         3d ago     8   22K son │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Fix authentication bug  abc123ef                                            │
+│ path ~/Code/myapp  branch main                                              │
+│ created 1/5/2025, 10:30:00 AM  model claude-sonnet-4-20250514               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ Nav  ↵ Launch  n New  r Rename  / Search  m MCP  u Update  q Quit       │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Installation
 
 ```bash
-# Install latest release (recommended)
-curl -fsSL https://cdn.jsdelivr.net/gh/shootdaj/claudectl@main/install.sh | bash
+# Install latest release
+curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 
 # Install specific version
-VERSION=v1.0.0 curl -fsSL https://cdn.jsdelivr.net/gh/shootdaj/claudectl@main/install.sh | bash
+VERSION=v1.0.37 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 
 # Install from main branch (development)
-VERSION=main curl -fsSL https://cdn.jsdelivr.net/gh/shootdaj/claudectl@main/install.sh | bash
+VERSION=main curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 ```
 
 This will install [Bun](https://bun.sh) if needed, then set up claudectl.
@@ -39,11 +41,14 @@ claudectl          # Open interactive session picker
 ccl                # Short alias
 
 # Commands
-claudectl sessions list              # List all sessions
-claudectl sessions launch <id>       # Launch specific session
-claudectl sessions rename <id> <name> # Rename a session
-claudectl sessions stats             # Usage statistics
-claudectl config                     # Show config paths
+ccl sessions list              # List all sessions
+ccl sessions launch <id>       # Launch specific session
+ccl sessions search <query>    # Full-text search across sessions
+ccl sessions stats             # Usage statistics
+ccl mcp list                   # List MCP servers
+ccl update                     # Update to latest version
+ccl backup                     # Backup all sessions
+ccl config                     # Show config paths
 ```
 
 ## Keybindings
@@ -57,15 +62,25 @@ claudectl config                     # Show config paths
 | `r` | Rename session |
 | `p` | Preview session details |
 | `/` | Search sessions |
+| `m` | Open MCP manager |
+| `u` | Update claudectl |
+| `d` | Toggle dangerous mode (skip permissions) |
+| `a` | Toggle Agent Expert auto-install |
 | `q` | Quit |
 
 ## Features
 
 - **Global View**: See all Claude Code sessions across every project
-- **Rich TUI**: Beautiful terminal interface with keyboard navigation
-- **Search**: Find sessions by title, project, or content
+- **Rich TUI**: Beautiful terminal interface with Dark Midnight theme
+- **Search**: Find sessions by title, project, or full-text content
 - **Rename**: Give sessions memorable names
 - **Stats**: Track token usage and session activity
+- **MCP Manager**: View and manage MCP server configurations
+- **Auto-Update**: Check for updates on startup, update with `u` key
+- **Auto-Backup**: Automatic hourly backup of all sessions
+- **Skip Permissions**: Launch sessions with `--dangerously-skip-permissions`
+- **Agent Expert**: Auto-install agent-expert in new sessions
+- **Settings Preserved**: Your preferences persist across updates
 - **Fast**: Built with Bun for speed
 
 ## Requirements
@@ -76,6 +91,21 @@ claudectl config                     # Show config paths
 ## How It Works
 
 claudectl reads session data from `~/.claude/projects/` where Claude Code stores conversation transcripts. It parses the JSONL files to extract metadata and provides a unified interface to browse and launch sessions.
+
+When you launch a session, claudectl changes to that project's directory before starting Claude, so your terminal shows the correct path.
+
+## Configuration
+
+Settings are stored in `~/.claudectl/settings.json`:
+
+```json
+{
+  "skipPermissions": false,
+  "autoAddAgentExpert": false
+}
+```
+
+Session backups are stored in `~/.claudectl/backup/`.
 
 ## License
 
