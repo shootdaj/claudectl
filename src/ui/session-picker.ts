@@ -158,8 +158,6 @@ export async function showSessionPicker(
   let blinkState = true;
   let marqueeOffset = 0;
   let currentMarqueeTitle = "";
-  let listMarqueeOffset = 0;
-  let lastSelectedIndex = 0;
   const animationIntervals: NodeJS.Timeout[] = [];
 
   // Blinking update badge (only when update available)
@@ -202,51 +200,23 @@ export async function showSessionPicker(
   }, 300);
   animationIntervals.push(sparkleAnimation);
 
-  // Marquee animation for long titles in details panel AND list items
+  // Marquee animation for long titles in details panel only
+  // (List marquee disabled - causes stack overflow with blessed setItems)
   const marqueeAnimation = setInterval(() => {
-    let needsRender = false;
-
-    // Details panel marquee
     if (currentMarqueeTitle.length > 0) {
       marqueeOffset = (marqueeOffset + 1) % (currentMarqueeTitle.length + 10);
       updateDetailsWithMarquee();
-      needsRender = true;
-    }
-
-    // List item marquee for selected row
-    const selectedIdx = table.selected;
-    const selectedSession = filteredSessions[selectedIdx];
-    if (selectedSession) {
-      const titleWidth = getTitleWidth();
-      if (selectedSession.title.length > titleWidth) {
-        listMarqueeOffset = (listMarqueeOffset + 1) % (selectedSession.title.length + 10);
-        // Update just the selected row with marquee
-        const items = filteredSessions.map((s, i) => formatSessionRowAnimated(s, i === selectedIdx));
-        table.setItems(items);
-        needsRender = true;
-      }
-    }
-
-    if (needsRender) {
       screen.render();
     }
   }, 150);
   animationIntervals.push(marqueeAnimation);
 
-  // Format session row with optional marquee for selected item
-  function formatSessionRowAnimated(session: Session, isSelected: boolean): string {
+  // Format session row
+  function formatSessionRow(session: Session): string {
     const titleWidth = getTitleWidth();
-    let title: string;
-
-    if (isSelected && session.title.length > titleWidth) {
-      // Marquee for selected long titles
-      title = getMarqueeText(session.title, titleWidth, listMarqueeOffset);
-    } else if (session.title.length > titleWidth) {
-      // Truncate non-selected long titles
-      title = session.title.slice(0, titleWidth - 1) + "…";
-    } else {
-      title = session.title.padEnd(titleWidth);
-    }
+    const title = session.title.length > titleWidth
+      ? session.title.slice(0, titleWidth - 1) + "…"
+      : session.title.padEnd(titleWidth);
 
     const project = (session.workingDirectory.split("/").pop() || "~").slice(0, 16).padEnd(16);
     const time = formatRelativeTime(session.lastAccessedAt).padEnd(7);
@@ -309,7 +279,7 @@ export async function showSessionPicker(
         bold: true,
       },
     },
-    items: sessions.map((s, i) => formatSessionRowAnimated(s, i === 0)),
+    items: sessions.map(formatSessionRow),
   }) as ListTableWithSelected;
 
   // Separator line
@@ -367,8 +337,7 @@ export async function showSessionPicker(
   let searchQuery = "";
 
   function updateTable() {
-    const selectedIdx = table.selected;
-    table.setItems(filteredSessions.map((s, i) => formatSessionRowAnimated(s, i === selectedIdx)));
+    table.setItems(filteredSessions.map(formatSessionRow));
     updateDetails();
     screen.render();
   }
@@ -446,14 +415,6 @@ export async function showSessionPicker(
     // Scroll up only when selection goes above the first visible item
     else if (selected < scrollPos) {
       table.scrollTo(selected);
-    }
-
-    // Reset list marquee when selection changes
-    if (selected !== lastSelectedIndex) {
-      lastSelectedIndex = selected;
-      listMarqueeOffset = 0;
-      // Update all rows to show marquee on newly selected row
-      table.setItems(filteredSessions.map((s, i) => formatSessionRowAnimated(s, i === selected)));
     }
 
     updateDetails();
