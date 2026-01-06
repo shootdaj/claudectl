@@ -339,6 +339,30 @@ export async function showSessionPicker(
     },
   });
 
+  // Context preview popup (shown during search)
+  const contextPreview = blessed.box({
+    parent: screen,
+    top: "center",
+    right: 1,
+    width: "45%",
+    height: "60%",
+    hidden: true,
+    tags: true,
+    border: { type: "line" },
+    style: {
+      border: { fg: theme.yellow },
+      fg: "white",
+    },
+    scrollable: true,
+    keys: true,
+    vi: true,
+    scrollbar: {
+      ch: "▌",
+      style: { fg: theme.yellow },
+    },
+    label: ` {#ffff00-fg}Match Preview{/#ffff00-fg} `,
+  });
+
   let filteredSessions = [...sessions];
   let searchQuery = "";
   let searchResults: ContentSearchResult[] = [];
@@ -356,6 +380,7 @@ export async function showSessionPicker(
       isSearchMode = false;
       searchResults = [];
       filteredSessions = [...sessions];
+      contextPreview.hide();
       updateTable();
       return;
     }
@@ -398,6 +423,7 @@ export async function showSessionPicker(
         if (filteredSessions.length > 0) {
           table.select(0);
         }
+        updateContextPreview();
         updateSearchPreview();
       } catch (e) {
         // Fallback to simple filter if FTS fails
@@ -441,14 +467,53 @@ export async function showSessionPicker(
   }
 
   // Format snippet with highlighted search terms
-  function formatSnippet(snippet: string): string {
+  function formatSnippet(snippet: string, maxLen = 80): string {
     // Replace >>>> and <<<< markers with colored highlights
     return snippet
       .replace(/>>>>/g, "{#ffff00-fg}{bold}")
       .replace(/<<<<</g, "{/bold}{/#ffff00-fg}")
       .replace(/<<<<(?!<)/g, "{/bold}{/#ffff00-fg}") // Handle 4 < as well
       .replace(/\n/g, " ")
-      .slice(0, 80);
+      .slice(0, maxLen);
+  }
+
+  // Update the context preview popup with all matches
+  function updateContextPreview() {
+    if (!isSearchMode || searchResults.length === 0) {
+      contextPreview.hide();
+      return;
+    }
+
+    const idx = table.selected;
+    const result = searchResults[idx];
+    if (!result || result.matches.length === 0) {
+      contextPreview.hide();
+      return;
+    }
+
+    const lines: string[] = [
+      `{bold}{#ff00ff-fg}${result.title.slice(0, 40)}{/#ff00ff-fg}{/bold}`,
+      `{#888888-fg}${result.shortPath}{/#888888-fg}`,
+      ``,
+      `{#00ffff-fg}${result.totalMatches} match${result.totalMatches > 1 ? "es" : ""} for "{#ffff00-fg}${searchQuery}{/#ffff00-fg}"{/#00ffff-fg}`,
+      ``,
+    ];
+
+    for (let i = 0; i < result.matches.length; i++) {
+      const match = result.matches[i];
+      const typeLabel = match.type === "user" ? "{#00ffff-fg}→{/#00ffff-fg}" : "{#aa88ff-fg}←{/#aa88ff-fg}";
+      const snippet = formatSnippet(match.highlightedSnippet, 200);
+      lines.push(`${typeLabel} ${snippet}`);
+      lines.push(``);
+    }
+
+    if (result.totalMatches > result.matches.length) {
+      lines.push(`{#888888-fg}...and ${result.totalMatches - result.matches.length} more{/#888888-fg}`);
+    }
+
+    contextPreview.setContent(lines.join("\n"));
+    contextPreview.show();
+    contextPreview.setScrollPerc(0);
   }
 
   function updateTable() {
@@ -534,6 +599,7 @@ export async function showSessionPicker(
 
     // Show search preview if in search mode, otherwise show normal details
     if (isSearchMode && searchResults.length > 0) {
+      updateContextPreview();
       updateSearchPreview();
     } else {
       updateDetails();
@@ -778,6 +844,7 @@ export async function showSessionPicker(
     isSearchMode = false;
     searchResults = [];
     filteredSessions = [...sessions];
+    contextPreview.hide();
     updateTable();
     table.focus();
     footer.setContent(
@@ -793,6 +860,7 @@ export async function showSessionPicker(
     const newIdx = Math.max(0, current - 1);
     table.select(newIdx);
     if (isSearchMode && searchResults.length > 0) {
+      updateContextPreview();
       updateSearchPreview();
     } else {
       updateDetails();
@@ -806,6 +874,7 @@ export async function showSessionPicker(
     const newIdx = Math.min(filteredSessions.length - 1, current + 1);
     table.select(newIdx);
     if (isSearchMode && searchResults.length > 0) {
+      updateContextPreview();
       updateSearchPreview();
     } else {
       updateDetails();
@@ -931,6 +1000,22 @@ export async function showSessionPicker(
     });
 
     proc.exited.then((code) => process.exit(code));
+  });
+
+  // Clear search with escape when table is focused
+  table.key(["escape"], () => {
+    if (isSearchMode) {
+      searchQuery = "";
+      isSearchMode = false;
+      searchResults = [];
+      filteredSessions = [...sessions];
+      contextPreview.hide();
+      updateTable();
+      footer.setContent(
+        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+      );
+      screen.render();
+    }
   });
 
   screen.key(["q", "C-c"], () => {
