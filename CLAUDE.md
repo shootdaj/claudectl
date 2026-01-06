@@ -30,6 +30,15 @@ If we ever need a compiled binary, we'd need to:
 
 This limitation was discovered during v1.0.0 development and is why we switched from compiled binary to source distribution.
 
+## Releases
+
+**NEVER create manual releases or tags.** All releases are automated via GitHub Actions.
+
+- Push to `main` triggers the release workflow automatically
+- CI runs tests, creates a new version tag, and publishes a GitHub release
+- Manual tags/releases will conflict with CI and cause failures
+- Just push to main and wait ~30 seconds for the release
+
 ---
 
 ## Testing Requirements
