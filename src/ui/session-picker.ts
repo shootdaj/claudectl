@@ -803,7 +803,7 @@ export async function showSessionPicker(
     searchBox.show();
     searchBox.focus();
     footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
     );
     screen.render();
   });
@@ -849,6 +849,26 @@ export async function showSessionPicker(
     table.focus();
     footer.setContent(
       " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+    );
+    screen.render();
+  });
+
+  // Tab to jump into context preview for scrolling
+  searchBox.key(["tab"], () => {
+    if (isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
+      contextPreview.focus();
+      footer.setContent(
+        " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}Tab{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      );
+      screen.render();
+    }
+  });
+
+  // Tab from context preview back to search box
+  contextPreview.key(["tab", "escape"], () => {
+    searchBox.focus();
+    footer.setContent(
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
     );
     screen.render();
   });
