@@ -803,7 +803,7 @@ export async function showSessionPicker(
     searchBox.show();
     searchBox.focus();
     footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}`{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
     );
     screen.render();
   });
@@ -853,28 +853,22 @@ export async function showSessionPicker(
     screen.render();
   });
 
-  // Tab to jump between search box and context preview
-  // Intercept on textbox keypress before it processes the key
-  (searchBox as any).on("keypress", (_ch: any, key: any) => {
-    if (key?.name === "tab" && isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
-      // Prevent tab from being inserted by clearing and re-setting value
-      const currentValue = searchBox.getValue();
-      setTimeout(() => {
-        searchBox.setValue(currentValue);
-        contextPreview.focus();
-        footer.setContent(
-          " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}Tab{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
-        );
-        screen.render();
-      }, 0);
+  // Backtick (`) to jump into context preview for scrolling
+  searchBox.key(["`"], () => {
+    if (isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
+      contextPreview.focus();
+      footer.setContent(
+        " {#ff00ff-fg}↑↓/jk{/#ff00ff-fg} Scroll  {#ffff00-fg}`{/#ffff00-fg} Back  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      );
+      screen.render();
     }
   });
 
-  // Tab from context preview back to search box
-  contextPreview.key(["tab"], () => {
+  // Backtick from context preview back to search box
+  contextPreview.key(["`"], () => {
     searchBox.focus();
     footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}Tab{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Navigate  {#ffff00-fg}`{/#ffff00-fg} Preview  {#00ff00-fg}↵{/#00ff00-fg} Done  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear"
     );
     screen.render();
   });
