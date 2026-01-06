@@ -115,3 +115,67 @@ export async function saveClaudectlSettings(settings: ClaudectlSettings): Promis
 
   await Bun.write(settingsPath, JSON.stringify(settings, null, 2));
 }
+
+// ============================================
+// Claude Code settings management
+// ============================================
+
+interface ClaudeSettings {
+  cleanupPeriodDays?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Load Claude Code's settings.json
+ */
+export function loadClaudeSettings(): ClaudeSettings {
+  const settingsPath = getSettingsPath();
+
+  if (!existsSync(settingsPath)) {
+    return {};
+  }
+
+  try {
+    const text = require("fs").readFileSync(settingsPath, "utf-8");
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Save Claude Code's settings.json (preserves existing settings)
+ */
+export async function saveClaudeSettings(updates: Partial<ClaudeSettings>): Promise<void> {
+  const settingsPath = getSettingsPath();
+  const dir = getClaudeDir();
+
+  // Ensure directory exists
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  // Load existing settings and merge
+  const existing = loadClaudeSettings();
+  const merged = { ...existing, ...updates };
+
+  await Bun.write(settingsPath, JSON.stringify(merged, null, 2));
+}
+
+/**
+ * Ensure session retention is set to maximum (don't auto-delete old sessions).
+ * Call this on first run to preserve all conversation history.
+ */
+export async function ensureMaxSessionRetention(): Promise<boolean> {
+  const settings = loadClaudeSettings();
+
+  // 36500 days = ~100 years (effectively forever)
+  const MAX_RETENTION = 36500;
+
+  if (settings.cleanupPeriodDays === MAX_RETENTION) {
+    return false; // Already set
+  }
+
+  await saveClaudeSettings({ cleanupPeriodDays: MAX_RETENTION });
+  return true; // Updated
+}
