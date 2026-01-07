@@ -62,6 +62,8 @@ export interface IndexedSession {
   totalInputTokens: number;
   totalOutputTokens: number;
   customTitle?: string;
+  isDeleted: boolean;
+  deletedAt?: Date;
 }
 
 interface FileInfo {
@@ -78,7 +80,7 @@ interface FileInfo {
 
 const CLAUDECTL_DIR = join(homedir(), ".claudectl");
 const INDEX_DB_PATH = join(CLAUDECTL_DIR, "index.db");
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2; // v2: added is_deleted column
 
 // ============================================
 // Schema
@@ -120,7 +122,9 @@ CREATE TABLE IF NOT EXISTS files (
     user_message_count INTEGER DEFAULT 0,
     assistant_message_count INTEGER DEFAULT 0,
     total_input_tokens INTEGER DEFAULT 0,
-    total_output_tokens INTEGER DEFAULT 0
+    total_output_tokens INTEGER DEFAULT 0,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_files_session_id ON files(session_id);
@@ -207,8 +211,20 @@ export class SearchIndex {
       // Check version and migrate if needed
       const currentVersion = this.db.query("SELECT MAX(version) as v FROM schema_info").get() as { v: number } | null;
       if (!currentVersion || currentVersion.v < SCHEMA_VERSION) {
-        // Future: handle migrations here
+        this.migrateSchema(currentVersion?.v || 0);
         this.db.run("INSERT OR REPLACE INTO schema_info (version) VALUES (?)", [SCHEMA_VERSION]);
+      }
+    }
+  }
+
+  private migrateSchema(fromVersion: number): void {
+    // Migration v1 -> v2: Add is_deleted and deleted_at columns
+    if (fromVersion < 2) {
+      try {
+        this.db.run("ALTER TABLE files ADD COLUMN is_deleted INTEGER DEFAULT 0");
+        this.db.run("ALTER TABLE files ADD COLUMN deleted_at TEXT");
+      } catch {
+        // Columns might already exist
       }
     }
   }
@@ -231,20 +247,28 @@ export class SearchIndex {
     const diskFiles = await this.getAllSessionFiles();
     const diskFileMap = new Map(diskFiles.map(f => [f.filePath, f]));
 
-    // Get all indexed files from database
-    const indexedFiles = this.db.query("SELECT id, file_path, mtime_ms, size_bytes FROM files").all() as Array<{
+    // Get all indexed files from database (including deleted ones)
+    const indexedFiles = this.db.query("SELECT id, file_path, mtime_ms, size_bytes, is_deleted FROM files").all() as Array<{
       id: number;
       file_path: string;
       mtime_ms: number;
       size_bytes: number;
+      is_deleted: number;
     }>;
     const indexedMap = new Map(indexedFiles.map(f => [f.file_path, f]));
 
-    // Find files to delete (in DB but not on disk)
+    // Find files to mark as deleted (in DB but not on disk)
     for (const indexed of indexedFiles) {
       if (!diskFileMap.has(indexed.file_path)) {
-        this.db.run("DELETE FROM files WHERE id = ?", [indexed.id]);
-        stats.deleted++;
+        if (!indexed.is_deleted) {
+          // Mark as deleted instead of removing
+          this.db.run("UPDATE files SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?", [indexed.id]);
+          stats.deleted++;
+        }
+      } else if (indexed.is_deleted) {
+        // File reappeared (was restored) - mark as not deleted
+        this.db.run("UPDATE files SET is_deleted = 0, deleted_at = NULL WHERE id = ?", [indexed.id]);
+        stats.updated++;
       }
     }
 
@@ -257,14 +281,16 @@ export class SearchIndex {
         await this.indexFile(diskFile);
         stats.added++;
       } else if (
-        indexed.mtime_ms !== diskFile.mtimeMs ||
-        indexed.size_bytes !== diskFile.sizeBytes
+        !indexed.is_deleted && (
+          indexed.mtime_ms !== diskFile.mtimeMs ||
+          indexed.size_bytes !== diskFile.sizeBytes
+        )
       ) {
-        // Changed file - re-index it
+        // Changed file - re-index it (but preserve is_deleted status)
         this.db.run("DELETE FROM files WHERE id = ?", [indexed.id]);
         await this.indexFile(diskFile);
         stats.updated++;
-      } else {
+      } else if (!indexed.is_deleted) {
         // Unchanged - skip
         stats.unchanged++;
       }
@@ -399,8 +425,8 @@ export class SearchIndex {
   /**
    * Get all indexed sessions sorted by last accessed
    */
-  getSessions(options: { minMessages?: number; excludeEmpty?: boolean } = {}): IndexedSession[] {
-    const { minMessages = 0, excludeEmpty = true } = options;
+  getSessions(options: { minMessages?: number; excludeEmpty?: boolean; includeDeleted?: boolean } = {}): IndexedSession[] {
+    const { minMessages = 0, excludeEmpty = true, includeDeleted = true } = options;
 
     let sql = `
       SELECT
@@ -417,8 +443,12 @@ export class SearchIndex {
     if (minMessages > 0) {
       sql += ` AND f.message_count >= ${minMessages}`;
     }
+    if (!includeDeleted) {
+      sql += ` AND (f.is_deleted = 0 OR f.is_deleted IS NULL)`;
+    }
 
-    sql += ` ORDER BY f.last_accessed_at DESC`;
+    // Sort: active sessions by last_accessed, then deleted sessions by deleted_at
+    sql += ` ORDER BY f.is_deleted ASC, COALESCE(f.deleted_at, f.last_accessed_at) DESC`;
 
     const rows = this.db.query(sql).all() as any[];
 
@@ -440,6 +470,8 @@ export class SearchIndex {
       totalInputTokens: row.total_input_tokens,
       totalOutputTokens: row.total_output_tokens,
       customTitle: row.custom_title,
+      isDeleted: row.is_deleted === 1,
+      deletedAt: row.deleted_at ? new Date(row.deleted_at) : undefined,
     }));
   }
 

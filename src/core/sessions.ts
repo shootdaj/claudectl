@@ -44,6 +44,10 @@ export interface Session {
   totalOutputTokens: number;
   /** Machine identifier (for future remote support) */
   machine: "local";
+  /** Whether the session was deleted from disk but still in index */
+  isDeleted?: boolean;
+  /** When the session was deleted */
+  deletedAt?: Date;
 }
 
 /**
@@ -118,6 +122,8 @@ function discoverSessionsFromIndex(options: DiscoverOptions = {}): Session[] {
     totalInputTokens: s.totalInputTokens,
     totalOutputTokens: s.totalOutputTokens,
     machine: "local",
+    isDeleted: s.isDeleted,
+    deletedAt: s.deletedAt,
   }));
 
   // Filter agents if needed
