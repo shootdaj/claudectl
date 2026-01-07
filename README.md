@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh 
 
 ### Windows (PowerShell)
 
-> **Note:** Windows support is experimental and has not been tested on actual Windows machines. Please [report issues](https://github.com/shootdaj/claudectl/issues) if you encounter problems.
+> **Note:** Windows support is experimental. Please [report issues](https://github.com/shootdaj/claudectl/issues) if you encounter problems.
 
 ```powershell
 irm https://raw.githubusercontent.com/shootdaj/claudectl/main/install.ps1 | iex
