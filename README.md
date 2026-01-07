@@ -118,13 +118,17 @@ ccl config                     # Show config paths
 
 ## How It Works
 
-claudectl reads session data from `~/.claude/projects/` where Claude Code stores conversation transcripts. It parses the JSONL files to extract metadata and provides a unified interface to browse and launch sessions.
+claudectl reads session data from Claude Code's projects directory:
+- **macOS/Linux:** `~/.claude/projects/`
+- **Windows:** `%USERPROFILE%\.claude\projects\`
 
-When you launch a session, claudectl changes to that project's directory before starting Claude, so your terminal shows the correct path.
+It parses the JSONL files to extract metadata and provides a unified interface to browse and launch sessions. When you launch a session, claudectl changes to that project's directory before starting Claude.
 
 ## Configuration
 
-Settings are stored in `~/.claudectl/settings.json`:
+Settings are stored in:
+- **macOS/Linux:** `~/.claudectl/settings.json`
+- **Windows:** `%USERPROFILE%\.claudectl\settings.json`
 
 ```json
 {
@@ -133,7 +137,7 @@ Settings are stored in `~/.claudectl/settings.json`:
 }
 ```
 
-Session backups are stored in `~/.claudectl/backup/`.
+Session backups are stored in the `backup/` subdirectory.
 
 ## License
 
