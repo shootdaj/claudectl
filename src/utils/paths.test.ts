@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { encodePath, decodePath, shortenPath, basename } from "./paths";
+import { encodePath, decodePath, shortenPath, basename, getHomeDir, isWindowsPlatform } from "./paths";
 
 describe("paths", () => {
   describe("encodePath", () => {
@@ -60,6 +60,17 @@ describe("paths", () => {
       expect(shortenPath("/Users/anshul", "/Users/anshul"))
         .toBe("~");
     });
+
+    test("handles Windows-style paths with backslashes", () => {
+      // Both should normalize to the same result
+      expect(shortenPath("C:\\Users\\test\\Code", "C:\\Users\\test"))
+        .toBe("~/Code");
+    });
+
+    test("handles mixed separators", () => {
+      expect(shortenPath("C:/Users/test/Code", "C:\\Users\\test"))
+        .toBe("~/Code");
+    });
   });
 
   describe("basename", () => {
@@ -77,6 +88,44 @@ describe("paths", () => {
 
     test("handles empty path", () => {
       expect(basename("")).toBe("");
+    });
+
+    test("handles Windows-style paths with backslashes", () => {
+      expect(basename("C:\\Users\\test\\Code\\project")).toBe("project");
+    });
+
+    test("handles mixed separators", () => {
+      expect(basename("C:/Users\\test/Code")).toBe("Code");
+    });
+  });
+
+  describe("cross-platform helpers", () => {
+    test("getHomeDir returns a string", () => {
+      const home = getHomeDir();
+      expect(typeof home).toBe("string");
+      expect(home.length).toBeGreaterThan(0);
+    });
+
+    test("isWindowsPlatform returns boolean", () => {
+      expect(typeof isWindowsPlatform()).toBe("boolean");
+    });
+  });
+
+  describe("Windows path handling", () => {
+    // These tests verify the logic without requiring Windows
+    test("Windows drive letter detection in decodePath", () => {
+      // C--Users-test pattern is Windows-style encoding
+      const decoded = decodePath("C--Users-test-Code");
+      // Should start with C: and contain the path components
+      expect(decoded).toContain("C:");
+      expect(decoded).toContain("Users");
+      expect(decoded).toContain("test");
+      expect(decoded).toContain("Code");
+    });
+
+    test("handles paths without drive letters normally", () => {
+      const decoded = decodePath("-home-user-code");
+      expect(decoded).toBe("/home/user/code");
     });
   });
 });

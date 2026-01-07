@@ -1,4 +1,6 @@
 import { Command } from "commander";
+import { homedir } from "os";
+import { join } from "path";
 import { showSessionPicker } from "./ui/session-picker";
 import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions, syncIndex, rebuildIndex, getIndexStats } from "./core/sessions";
 import { getAllConfigPaths } from "./core/config";
@@ -7,14 +9,16 @@ import { backupSessions, getBackupInfo, getBackupDir, findDeletedSessions, resto
 import pc from "picocolors";
 
 const program = new Command();
+const isWindows = process.platform === "win32";
 
 // Get version from .version file (set by installer)
 function getVersion(): string {
   try {
-    const versionFile = `${process.env.HOME}/.claudectl/.version`;
+    const versionFile = join(homedir(), ".claudectl", ".version");
     const file = Bun.file(versionFile);
-    // Use sync read via Bun.spawnSync for simplicity
-    const result = Bun.spawnSync(["cat", versionFile]);
+    const text = file.toString();
+    // Synchronous file read
+    const result = Bun.spawnSync(isWindows ? ["cmd", "/c", "type", versionFile] : ["cat", versionFile]);
     return result.stdout.toString().trim() || "dev";
   } catch {
     return "dev";
@@ -314,8 +318,8 @@ program
   .description("Update claudectl to the latest version")
   .option("-c, --check", "Check for updates without installing")
   .action(async (options) => {
-    const installDir = `${process.env.HOME}/.claudectl`;
-    const versionFile = `${installDir}/.version`;
+    const installDir = join(homedir(), ".claudectl");
+    const versionFile = join(installDir, ".version");
 
     // Get current version
     let currentVersion = "unknown";
@@ -352,12 +356,19 @@ program
       return;
     }
 
-    // Run the install script
+    // Run the install script (platform-specific)
     console.log(pc.cyan("\nUpdating..."));
 
-    const proc = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
-      stdio: ["inherit", "inherit", "inherit"],
-    });
+    let proc;
+    if (isWindows) {
+      proc = Bun.spawn(["powershell", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/shootdaj/claudectl/main/install.ps1 | iex"], {
+        stdio: ["inherit", "inherit", "inherit"],
+      });
+    } else {
+      proc = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
+        stdio: ["inherit", "inherit", "inherit"],
+      });
+    }
 
     const exitCode = await proc.exited;
     process.exit(exitCode);
