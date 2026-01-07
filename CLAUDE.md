@@ -119,9 +119,10 @@ Sessions are stored in `~/.claude/projects/` (can be overridden via `CLAUDE_CONF
 └── settings.json                # User settings (permissions, hooks, etc.)
 ```
 
-**Path encoding:** Forward slashes become hyphens
-- `/Users/anshul/Code` → `-Users-anshul-Code`
-- To decode: replace leading `-` with `/`, then all `-` with `/`
+**Path encoding:** Slashes become hyphens
+- Unix: `/Users/anshul/Code` → `-Users-anshul-Code`
+- Windows: `C:\Users\anshul\Code` → `C--Users-anshul-Code`
+- Decoding uses filesystem checks to handle hyphenated folder names
 
 ### Session File Format (JSONL)
 
@@ -387,16 +388,22 @@ interface SessionMessage {
 
 ### Path Encoding/Decoding
 ```typescript
-export function encodePath(p: string): string {
-  return p.replace(/\//g, '-');
+// Cross-platform path handling (see src/utils/paths.ts)
+import { homedir } from "os";
+const isWindows = process.platform === "win32";
+
+export function encodePath(path: string): string {
+  const normalized = path.replace(/\\/g, "/");
+  // Windows: C:/Users/... → C--Users-...
+  if (isWindows && /^[A-Za-z]:/.test(normalized)) {
+    const drive = normalized[0];
+    return drive + normalized.slice(2).replace(/\//g, "-");
+  }
+  return normalized.replace(/\//g, "-");
 }
 
-export function decodePath(encoded: string): string {
-  // -Users-anshul-Code → /Users/anshul/Code
-  if (encoded.startsWith('-')) {
-    return '/' + encoded.slice(1).replace(/-/g, '/');
-  }
-  return encoded.replace(/-/g, '/');
+export function getHomeDir(): string {
+  return homedir(); // Works on all platforms
 }
 ```
 
