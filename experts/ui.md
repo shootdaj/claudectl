@@ -176,6 +176,13 @@ cloneRepo(parentFolder, repoUrl, projectName, options)
 
 ## Gotchas & Edge Cases
 
+### Cross-Platform Considerations
+**Windows Support**: Experimental but supported
+- Use `homedir()` from `os` module, not `process.env.HOME`
+- Use `basename()` from `src/utils/paths.ts` for path splitting (handles both `/` and `\`)
+- Use `isWindowsPlatform()` for platform-specific commands
+- For shell commands: `cmd /c type` on Windows, `cat` on Unix
+
 ### Blessed Cannot Be Compiled
 **Symptom**: `bun build --compile` produces broken binary
 **Cause**: blessed uses dynamic require() and runtime terminal detection
