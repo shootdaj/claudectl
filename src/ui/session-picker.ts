@@ -1,4 +1,6 @@
 import blessed, { Widgets } from "blessed";
+import { homedir } from "os";
+import { join } from "path";
 import {
   discoverSessions,
   formatRelativeTime,
@@ -19,12 +21,15 @@ import {
 import { showMcpManager } from "./mcp-manager";
 import { showNewProjectWizard } from "./new-project";
 import { autoBackup, restoreSession as restoreSessionFromBackup } from "../core/backup";
+import { basename as pathBasename } from "../utils/paths";
+
+const isWindows = process.platform === "win32";
 
 // Get version from .version file
 function getVersion(): string {
   try {
-    const versionFile = `${process.env.HOME}/.claudectl/.version`;
-    const result = Bun.spawnSync(["cat", versionFile]);
+    const versionFile = join(homedir(), ".claudectl", ".version");
+    const result = Bun.spawnSync(isWindows ? ["cmd", "/c", "type", versionFile] : ["cat", versionFile]);
     return result.stdout.toString().trim() || "dev";
   } catch {
     return "dev";
@@ -237,7 +242,7 @@ export async function showSessionPicker(
       ? session.title.slice(0, titleWidth - 1) + "…"
       : session.title.padEnd(titleWidth);
 
-    const project = (session.workingDirectory.split("/").pop() || "~").slice(0, 16).padEnd(16);
+    const project = (pathBasename(session.workingDirectory) || "~").slice(0, 16).padEnd(16);
     const time = formatRelativeTime(session.lastAccessedAt).padEnd(7);
     const msgs = String(session.messageCount).padStart(4);
     const tokens = formatTokens(session.totalInputTokens + session.totalOutputTokens).padStart(5);
@@ -712,12 +717,22 @@ export async function showSessionPicker(
     stopAnimations();
     screen.destroy();
     console.log("\nUpdating claudectl...\n");
-    const install = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
-      stdio: ["inherit", "inherit", "inherit"],
-    });
+    let install;
+    if (isWindows) {
+      install = Bun.spawn(["powershell", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/shootdaj/claudectl/main/install.ps1 | iex"], {
+        stdio: ["inherit", "inherit", "inherit"],
+      });
+    } else {
+      install = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
+        stdio: ["inherit", "inherit", "inherit"],
+      });
+    }
     await install.exited;
-    // Relaunch ccl with the updated version (v1.0.37 test)
-    const relaunch = Bun.spawn([`${process.env.HOME}/.bun/bin/ccl`], {
+    // Relaunch ccl with the updated version
+    const cclPath = isWindows
+      ? join(homedir(), ".bun", "bin", "ccl.cmd")
+      : join(homedir(), ".bun", "bin", "ccl");
+    const relaunch = Bun.spawn([cclPath], {
       stdio: ["inherit", "inherit", "inherit"],
     });
     await relaunch.exited;
@@ -1024,10 +1039,19 @@ export async function showSessionPicker(
   // Helper to install agent-expert in a directory
   async function installAgentExpert(cwd: string): Promise<boolean> {
     console.log(`Installing agent-expert...`);
-    const proc = Bun.spawn(["bash", "-c", "curl -sL https://raw.githubusercontent.com/shootdaj/agent-expert/main/install.sh | bash"], {
-      cwd,
-      stdio: ["inherit", "inherit", "inherit"],
-    });
+    let proc;
+    if (isWindows) {
+      // On Windows, use PowerShell to download and run
+      proc = Bun.spawn(["powershell", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/shootdaj/agent-expert/main/install.ps1 | iex"], {
+        cwd,
+        stdio: ["inherit", "inherit", "inherit"],
+      });
+    } else {
+      proc = Bun.spawn(["bash", "-c", "curl -sL https://raw.githubusercontent.com/shootdaj/agent-expert/main/install.sh | bash"], {
+        cwd,
+        stdio: ["inherit", "inherit", "inherit"],
+      });
+    }
     const code = await proc.exited;
     return code === 0;
   }

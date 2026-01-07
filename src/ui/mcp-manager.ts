@@ -15,6 +15,7 @@ import {
   type MCPServerWithMeta,
   type MCPScope,
 } from "../core/mcp";
+import { basename } from "../utils/paths";
 
 interface ListWithSelected extends Widgets.ListElement {
   selected: number;
@@ -201,7 +202,7 @@ export async function showMcpManager(options: McpManagerOptions = {}): Promise<v
     }
 
     const lines: string[] = [];
-    lines.push(`{bold}{#ff00ff-fg}${server.name}{/#ff00ff-fg}{/bold}  {#888888-fg}${server.scope}${server.projectPath ? ` (${server.projectPath.split("/").pop()})` : ""}{/#888888-fg}`);
+    lines.push(`{bold}{#ff00ff-fg}${server.name}{/#ff00ff-fg}{/bold}  {#888888-fg}${server.scope}${server.projectPath ? ` (${basename(server.projectPath)})` : ""}{/#888888-fg}`);
 
     if (isStdioServer(server.server)) {
       lines.push(`{#888888-fg}command{/#888888-fg} {#ffffff-fg}${server.server.command}{/#ffffff-fg}  {#888888-fg}args{/#888888-fg} {#00ff00-fg}${server.server.args?.join(" ") || "—"}{/#00ff00-fg}`);
