@@ -17,6 +17,7 @@ import {
   type ClaudectlSettings,
 } from "../core/config";
 import { showMcpManager } from "./mcp-manager";
+import { showNewProjectWizard } from "./new-project";
 import { autoBackup, restoreSession as restoreSessionFromBackup } from "../core/backup";
 
 // Get version from .version file
@@ -335,7 +336,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}R{/#ffff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit",
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ffff00-fg}P{/#ffff00-fg} Project  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -1071,6 +1072,16 @@ export async function showSessionPicker(
     });
 
     proc.exited.then((code) => process.exit(code));
+  });
+
+  // New project wizard (Shift+P)
+  table.key(["S-p"], async () => {
+    stopAnimations();
+    screen.destroy();
+    await showNewProjectWizard({
+      onComplete: () => process.exit(0),
+      onCancel: () => showSessionPicker(options),
+    });
   });
 
   // Clear search with escape when table is focused
