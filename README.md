@@ -2,7 +2,7 @@
 
 Global session manager for [Claude Code](https://claude.ai/code). Browse, search, and resume sessions across all your projects from one place.
 
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 
 ```
 ┌─ claudectl v1.0.37 │ sessions [SKIP PERMS] [AGENT EXPERT]     42 sessions ─┐
@@ -21,21 +21,39 @@ Global session manager for [Claude Code](https://claude.ai/code). Browse, search
 
 ## Installation
 
+### macOS / Linux
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
+```
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/shootdaj/claudectl/main/install.ps1 | iex
 ```
 
 <details>
 <summary>Other install options</summary>
 
-Install specific version:
+**macOS/Linux - specific version:**
 ```bash
-VERSION=v1.0.37 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
+VERSION=v2.0.0 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 ```
 
-Install from main branch (development):
+**macOS/Linux - main branch (development):**
 ```bash
 VERSION=main curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
+```
+
+**Windows - specific version:**
+```powershell
+$env:VERSION="v2.0.0"; irm https://raw.githubusercontent.com/shootdaj/claudectl/main/install.ps1 | iex
+```
+
+**Windows - main branch (development):**
+```powershell
+$env:VERSION="main"; irm https://raw.githubusercontent.com/shootdaj/claudectl/main/install.ps1 | iex
 ```
 
 </details>
@@ -94,7 +112,7 @@ ccl config                     # Show config paths
 ## Requirements
 
 - [Claude Code](https://claude.ai/code) installed
-- macOS or Linux
+- macOS, Linux, or Windows 10/11
 
 ## How It Works
 
