@@ -17,7 +17,7 @@ import {
   type ClaudectlSettings,
 } from "../core/config";
 import { showMcpManager } from "./mcp-manager";
-import { autoBackup } from "../core/backup";
+import { autoBackup, restoreSession as restoreSessionFromBackup } from "../core/backup";
 
 // Get version from .version file
 function getVersion(): string {
@@ -242,6 +242,11 @@ export async function showSessionPicker(
     const tokens = formatTokens(session.totalInputTokens + session.totalOutputTokens).padStart(5);
     const model = formatModelName(session.model).padStart(4);
 
+    // Deleted sessions shown in dim gray with [DEL] prefix
+    if (session.isDeleted) {
+      return ` {#666666-fg}[DEL] ${title.slice(0, titleWidth - 6)} ${project} ${time} ${msgs} ${tokens} ${model}{/#666666-fg}`;
+    }
+
     return ` ${title} {#ff8800-fg}${project}{/#ff8800-fg} {#00ffff-fg}${time}{/#00ffff-fg} ${msgs} {#00ff00-fg}${tokens}{/#00ff00-fg} {#aa88ff-fg}${model}{/#aa88ff-fg}`;
   }
 
@@ -330,7 +335,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit",
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}R{/#ffff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
@@ -629,6 +634,13 @@ export async function showSessionPicker(
     const session = filteredSessions[idx];
     if (!session) return;
 
+    // Cannot launch deleted sessions - must restore first
+    if (session.isDeleted) {
+      detailsBox.setContent(`{#ff0000-fg}Cannot launch deleted session.{/#ff0000-fg} Press {#ffff00-fg}Shift+R{/#ffff00-fg} to restore first.`);
+      screen.render();
+      return;
+    }
+
     stopAnimations();
     screen.destroy();
 
@@ -806,6 +818,38 @@ export async function showSessionPicker(
     screen.render();
   });
 
+  // Restore deleted session (Shift+R)
+  table.key(["S-r"], async () => {
+    const idx = table.selected;
+    const session = filteredSessions[idx];
+    if (!session) return;
+
+    if (!session.isDeleted) {
+      detailsBox.setContent(`{#ffff00-fg}Session is not deleted{/#ffff00-fg}`);
+      screen.render();
+      return;
+    }
+
+    detailsBox.setContent(`{#ffff00-fg}Restoring...{/#ffff00-fg} ${session.title}`);
+    screen.render();
+
+    const result = await restoreSessionFromBackup(session.id);
+    if (result.success) {
+      // Re-sync index to pick up restored file and clear deleted status
+      await syncIndex();
+      // Refresh sessions list
+      const newSessions = await discoverSessions();
+      sessions.length = 0;
+      sessions.push(...newSessions);
+      filteredSessions = [...sessions];
+      updateTable();
+      detailsBox.setContent(`{#00ff00-fg}✓ Restored:{/#00ff00-fg} ${session.title}`);
+    } else {
+      detailsBox.setContent(`{#ff0000-fg}✗ Restore failed:{/#ff0000-fg} ${result.error}`);
+    }
+    screen.render();
+  });
+
   // Real-time search as user types
   let lastSearchValue = "";
 
@@ -843,7 +887,7 @@ export async function showSessionPicker(
       );
     } else {
       footer.setContent(
-        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}R{/#ffff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
       );
     }
     screen.render();
@@ -860,7 +904,7 @@ export async function showSessionPicker(
     updateTable();
     table.focus();
     footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}R{/#ffff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
     );
     screen.render();
   });
@@ -1039,7 +1083,7 @@ export async function showSessionPicker(
       contextPreview.hide();
       updateTable();
       footer.setContent(
-        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#ffff00-fg}u{/#ffff00-fg} Update  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}R{/#ffff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
       );
       screen.render();
     }

@@ -43,7 +43,13 @@ This limitation was discovered during v1.0.0 development and is why we switched 
 
 ## Testing Requirements
 
-**All code must have tests.** Tests are written alongside implementation and run continuously during development.
+**MANDATORY: Every code change must include tests.** No PR or commit should modify code without corresponding test coverage.
+
+### Testing Rules
+1. **Before committing**: Run `bun test` and ensure all tests pass
+2. **New features**: Write tests first or alongside implementation
+3. **Bug fixes**: Add a test that reproduces the bug, then fix it
+4. **Refactors**: Ensure existing tests still pass, add new ones if behavior changes
 
 ### Testing Approach
 - Use Bun's built-in test runner (`bun test`)

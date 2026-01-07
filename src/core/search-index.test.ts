@@ -167,6 +167,135 @@ describe("SearchIndex", () => {
     });
   });
 
+  describe("soft-delete", () => {
+    test("marks deleted files as is_deleted instead of removing from DB", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+
+      const sessionFile = join(sessionDir, "session1.jsonl");
+      await writeFile(sessionFile, createTestSession("Test session"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Verify session is indexed
+      let sessions = index.getSessions();
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].isDeleted).toBe(false);
+
+      // Delete the file from disk
+      await rm(sessionFile);
+
+      // Sync again
+      const stats = await index.sync();
+      expect(stats.deleted).toBe(1);
+
+      // Session should still be in DB but marked as deleted
+      sessions = index.getSessions({ includeDeleted: true });
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].isDeleted).toBe(true);
+      expect(sessions[0].deletedAt).toBeDefined();
+    });
+
+    test("getSessions excludes deleted sessions when includeDeleted is false", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+
+      const sessionFile = join(sessionDir, "session1.jsonl");
+      await writeFile(sessionFile, createTestSession("Test session"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Delete the file
+      await rm(sessionFile);
+      await index.sync();
+
+      // Should not appear with includeDeleted: false
+      const sessions = index.getSessions({ includeDeleted: false });
+      expect(sessions.length).toBe(0);
+    });
+
+    test("getSessions includes deleted sessions by default", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+
+      const sessionFile = join(sessionDir, "session1.jsonl");
+      await writeFile(sessionFile, createTestSession("Test session"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Delete the file
+      await rm(sessionFile);
+      await index.sync();
+
+      // Default behavior includes deleted sessions
+      const sessions = index.getSessions();
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].isDeleted).toBe(true);
+    });
+
+    test("restores deleted session when file reappears", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+
+      const sessionFile = join(sessionDir, "session1.jsonl");
+      const content = createTestSession("Test session");
+      await writeFile(sessionFile, content);
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Delete the file
+      await rm(sessionFile);
+      await index.sync();
+
+      // Verify it's marked as deleted
+      let sessions = index.getSessions();
+      expect(sessions[0].isDeleted).toBe(true);
+
+      // Restore the file (simulate backup restore)
+      await writeFile(sessionFile, content);
+
+      // Sync again
+      const stats = await index.sync();
+      expect(stats.updated).toBe(1);
+
+      // Session should no longer be marked as deleted
+      sessions = index.getSessions();
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].isDeleted).toBe(false);
+      expect(sessions[0].deletedAt).toBeUndefined();
+    });
+
+    test("deleted sessions sorted after active sessions", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+
+      // Create two sessions
+      const session1 = join(sessionDir, "session1.jsonl");
+      const session2 = join(sessionDir, "session2.jsonl");
+      await writeFile(session1, createTestSession("Session 1", undefined, new Date("2024-01-01")));
+      await writeFile(session2, createTestSession("Session 2", undefined, new Date("2024-06-01")));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Delete the newer session (session2)
+      await rm(session2);
+      await index.sync();
+
+      // Active sessions should come first, then deleted ones
+      const sessions = index.getSessions();
+      expect(sessions.length).toBe(2);
+      expect(sessions[0].id).toBe("session1"); // Active session first
+      expect(sessions[0].isDeleted).toBe(false);
+      expect(sessions[1].id).toBe("session2"); // Deleted session last
+      expect(sessions[1].isDeleted).toBe(true);
+    });
+  });
+
   describe("getSessions", () => {
     test("returns empty array for empty index", () => {
       index = new SearchIndex(dbPath, projectsDir);

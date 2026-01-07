@@ -1,7 +1,7 @@
 # Database Expert
 
 > Mental model for SQLite search index operations in this codebase.
-> **Last Updated**: 2026-01-07
+> **Last Updated**: 2026-01-07 (v2.0.1 - soft-delete)
 > **Expertise Level**: expert
 
 ## Quick Reference
@@ -66,6 +66,22 @@ const results = index.searchContent("authentication", {
 });
 // Returns snippets with >>>> and <<<< markers around matches
 ```
+
+### Pattern: Soft-Delete for Sessions
+**Purpose**: Keep deleted sessions in DB for recovery/display
+**When to Use**: When files are deleted from disk but should remain discoverable
+
+```typescript
+// Sessions deleted from disk get is_deleted = 1, deleted_at = timestamp
+// They still appear in getSessions() by default
+const sessions = index.getSessions();  // includes deleted
+const activeOnly = index.getSessions({ includeDeleted: false });
+
+// When file reappears (restored from backup), is_deleted is cleared
+await index.sync();  // Detects restored file and clears deleted flag
+```
+
+**Key columns**: `is_deleted INTEGER DEFAULT 0`, `deleted_at TEXT`
 
 **Anti-pattern** (don't do this):
 ```typescript
@@ -135,6 +151,9 @@ bun test src/core/search-index.test.ts
 - Sync with empty dir: Returns zero stats
 - File changes: Updates detected by mtime/size
 - Search: FTS queries return correct snippets
+- Soft-delete: Deleted files marked in DB, not removed
+- Restore: File reappearing clears is_deleted flag
+- Sorting: Active sessions before deleted sessions
 
 ---
 
@@ -145,6 +164,8 @@ bun test src/core/search-index.test.ts
 | 2026-01-07 | Initial implementation with FTS5 | SQLite search index plan |
 | 2026-01-07 | Added CLI commands: index sync/rebuild/stats | Phase 5 |
 | 2026-01-07 | Integrated with session-picker for real-time search | Phase 4 |
+| 2026-01-07 | Soft-delete: deleted files stay in DB with is_deleted flag | User request |
+| 2026-01-07 | Schema v2: Added is_deleted, deleted_at columns with migration | Soft-delete feature |
 
 ---
 
