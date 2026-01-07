@@ -94,7 +94,7 @@ export async function discoverSessions(
  */
 function discoverSessionsFromIndex(options: DiscoverOptions = {}): Session[] {
   const index = getSearchIndex();
-  const minMessages = options.minMessages ?? 1;
+  const minMessages = options.minMessages ?? 2;  // Filter out empty single-message sessions
   const includeEmpty = options.includeEmpty ?? false;
   const includeAgents = options.includeAgents ?? false;
 
@@ -215,7 +215,7 @@ async function discoverSessionsFromFiles(
   }
 
   // Filter based on options
-  const minMessages = options.minMessages ?? 1;
+  const minMessages = options.minMessages ?? 2;  // Filter out empty single-message sessions
   const includeEmpty = options.includeEmpty ?? false;
   const includeAgents = options.includeAgents ?? false;
 
