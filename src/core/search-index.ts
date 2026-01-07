@@ -438,7 +438,8 @@ export class SearchIndex {
     `;
 
     if (excludeEmpty) {
-      sql += ` AND f.message_count > 0`;
+      // Require at least 1 user message - filters out metadata-only files
+      sql += ` AND f.user_message_count > 0`;
     }
     if (minMessages > 0) {
       sql += ` AND f.message_count >= ${minMessages}`;
