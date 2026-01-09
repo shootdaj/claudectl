@@ -64,15 +64,22 @@ Write-Cyan "Downloading claudectl..."
 
 # Preserve user data before wiping
 $SettingsFile = "$InstallDir\settings.json"
+$RenamesFile = "$InstallDir\renamed-sessions.json"
 $BackupDir = "$InstallDir\backup"
 $IndexDb = "$InstallDir\index.db"
 $TempSettings = $null
+$TempRenames = $null
 $TempBackup = $null
 $TempIndex = $null
 
 if (Test-Path $SettingsFile) {
     $TempSettings = [System.IO.Path]::GetTempFileName()
     Copy-Item $SettingsFile $TempSettings
+}
+
+if (Test-Path $RenamesFile) {
+    $TempRenames = [System.IO.Path]::GetTempFileName()
+    Copy-Item $RenamesFile $TempRenames
 }
 
 if (Test-Path $BackupDir) {
@@ -109,6 +116,11 @@ Remove-Item -Recurse $TempExtract -ErrorAction SilentlyContinue
 if ($TempSettings -and (Test-Path $TempSettings)) {
     Copy-Item $TempSettings $SettingsFile
     Remove-Item $TempSettings
+}
+
+if ($TempRenames -and (Test-Path $TempRenames)) {
+    Copy-Item $TempRenames $RenamesFile
+    Remove-Item $TempRenames
 }
 
 if ($TempBackup -and (Test-Path $TempBackup)) {

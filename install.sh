@@ -64,18 +64,32 @@ echo -e "${CYAN}Downloading claudectl...${NC}"
 
 # Preserve user data before wiping
 SETTINGS_FILE="$INSTALL_DIR/settings.json"
+RENAMES_FILE="$INSTALL_DIR/renamed-sessions.json"
 BACKUP_DIR="$INSTALL_DIR/backup"
+INDEX_DB="$INSTALL_DIR/index.db"
 TMP_SETTINGS=""
+TMP_RENAMES=""
 TMP_BACKUP=""
+TMP_INDEX=""
 
 if [ -f "$SETTINGS_FILE" ]; then
   TMP_SETTINGS=$(mktemp)
   cp "$SETTINGS_FILE" "$TMP_SETTINGS"
 fi
 
+if [ -f "$RENAMES_FILE" ]; then
+  TMP_RENAMES=$(mktemp)
+  cp "$RENAMES_FILE" "$TMP_RENAMES"
+fi
+
 if [ -d "$BACKUP_DIR" ]; then
   TMP_BACKUP=$(mktemp -d)
   cp -r "$BACKUP_DIR" "$TMP_BACKUP/"
+fi
+
+if [ -f "$INDEX_DB" ]; then
+  TMP_INDEX=$(mktemp)
+  cp "$INDEX_DB" "$TMP_INDEX"
 fi
 
 # Download and extract tarball
@@ -89,9 +103,19 @@ if [ -n "$TMP_SETTINGS" ] && [ -f "$TMP_SETTINGS" ]; then
   rm "$TMP_SETTINGS"
 fi
 
+if [ -n "$TMP_RENAMES" ] && [ -f "$TMP_RENAMES" ]; then
+  cp "$TMP_RENAMES" "$RENAMES_FILE"
+  rm "$TMP_RENAMES"
+fi
+
 if [ -n "$TMP_BACKUP" ] && [ -d "$TMP_BACKUP/backup" ]; then
   cp -r "$TMP_BACKUP/backup" "$INSTALL_DIR/"
   rm -rf "$TMP_BACKUP"
+fi
+
+if [ -n "$TMP_INDEX" ] && [ -f "$TMP_INDEX" ]; then
+  cp "$TMP_INDEX" "$INDEX_DB"
+  rm "$TMP_INDEX"
 fi
 
 # Save installed version
