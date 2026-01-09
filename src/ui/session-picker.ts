@@ -660,6 +660,7 @@ export async function showSessionPicker(
       console.log(`│ Command: ${result.command.padEnd(32)}│`);
       console.log(`│ CWD: ${result.cwd.slice(0, 36).padEnd(36)}│`);
       console.log(`└────────────────────────────────────────────┘\n`);
+      options.onLaunch?.(session);
     } else {
       console.log(`\nLaunching: ${session.title}`);
       console.log(`Directory: ${session.workingDirectory}`);
@@ -668,9 +669,10 @@ export async function showSessionPicker(
       }
       console.log();
       await launchSession(session, { skipPermissions: settings.skipPermissions });
+      // Return to session picker after Claude exits
+      options.onLaunch?.(session);
+      await showSessionPicker(options);
     }
-
-    options.onLaunch?.(session);
   });
 
   // Toggle dangerous mode (skip permissions)
@@ -1072,7 +1074,9 @@ export async function showSessionPicker(
       stdio: ["inherit", "inherit", "inherit"],
     });
 
-    proc.exited.then((code) => process.exit(code));
+    await proc.exited;
+    // Return to session picker after Claude exits
+    await showSessionPicker(options);
   });
 
   // New session in selected session's folder
@@ -1095,7 +1099,9 @@ export async function showSessionPicker(
       stdio: ["inherit", "inherit", "inherit"],
     });
 
-    proc.exited.then((code) => process.exit(code));
+    await proc.exited;
+    // Return to session picker after Claude exits
+    await showSessionPicker(options);
   });
 
   // New project wizard (Shift+P)
@@ -1103,7 +1109,7 @@ export async function showSessionPicker(
     stopAnimations();
     screen.destroy();
     await showNewProjectWizard({
-      onComplete: () => process.exit(0),
+      onComplete: () => showSessionPicker(options),
       onCancel: () => showSessionPicker(options),
     });
   });
