@@ -84,12 +84,14 @@ ccl config                     # Show config paths
 | Key | Action |
 |-----|--------|
 | `↑` `↓` | Navigate sessions |
-| `Enter` | Launch selected session |
+| `Enter` | Launch session (returns to picker when Claude exits) |
 | `n` | New session in current directory |
 | `N` | New session in selected session's directory |
+| `P` | New project wizard (create or clone from GitHub) |
 | `r` | Rename session |
+| `R` | Restore deleted session |
 | `p` | Preview session details |
-| `/` | Search sessions |
+| `/` | Search sessions (full-text) |
 | `m` | Open MCP manager |
 | `u` | Update claudectl |
 | `d` | Toggle dangerous mode (skip permissions) |
@@ -99,16 +101,20 @@ ccl config                     # Show config paths
 ## Features
 
 - **Global View**: See all Claude Code sessions across every project
+- **Session Loop**: Returns to picker after Claude exits (Ctrl+C, /exit, etc.)
 - **Rich TUI**: Beautiful terminal interface with Dark Midnight theme
-- **Search**: Find sessions by title, project, or full-text content
-- **Rename**: Give sessions memorable names
+- **Full-Text Search**: SQLite FTS5 index for instant search across all session content
+- **New Project Wizard**: Create new projects or clone from GitHub (Shift+P)
+- **Rename**: Give sessions memorable names (preserved across updates)
+- **Soft Delete & Restore**: Deleted sessions can be restored from backup
 - **Stats**: Track token usage and session activity
 - **MCP Manager**: View and manage MCP server configurations
 - **Auto-Update**: Check for updates on startup, update with `u` key
 - **Auto-Backup**: Automatic hourly backup of all sessions
 - **Skip Permissions**: Launch sessions with `--dangerously-skip-permissions`
 - **Agent Expert**: Auto-install agent-expert in new sessions
-- **Settings Preserved**: Your preferences persist across updates
+- **Data Preserved**: Settings, renames, backups, and search index persist across updates
+- **Cross-Platform**: macOS, Linux, and Windows (experimental)
 - **Fast**: Built with Bun for speed
 
 ## Requirements

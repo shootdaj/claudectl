@@ -1,7 +1,7 @@
 # UI Expert
 
 > Mental model for TUI (Terminal User Interface) operations in this codebase.
-> **Last Updated**: 2026-01-07
+> **Last Updated**: 2026-01-09
 > **Expertise Level**: intermediate
 
 ## Quick Reference
@@ -108,6 +108,22 @@ const footer = blessed.box({
 });
 ```
 
+### Pattern: Session Loop (Return to Picker)
+**Purpose**: Return to session picker after Claude exits
+**When to Use**: Any action that launches Claude
+
+```typescript
+// In session-picker.ts - after launching Claude
+await launchSession(session, { skipPermissions: settings.skipPermissions });
+// Return to session picker after Claude exits
+await showSessionPicker(options);
+```
+
+**Key implementation details:**
+- `launchSession()` returns instead of calling `process.exit()`
+- SIGINT is ignored while Claude runs (so Ctrl+C only affects Claude)
+- After Claude exits (any method: Ctrl+C, /exit, normal exit), picker reappears
+
 ---
 
 ## File Locations
@@ -206,6 +222,27 @@ table.key(["S-p"], async () => {
 **Cause**: Wrong widget has focus
 **Solution**: Call `widget.focus()` after showing/hiding
 
+### SIGINT Handling for Child Processes
+**Symptom**: Ctrl+C kills both Claude and claudectl
+**Cause**: SIGINT goes to entire process group
+**Solution**: Ignore SIGINT while child process runs
+
+```typescript
+// In src/core/sessions.ts - launchSession()
+const originalSigint = process.listeners("SIGINT");
+process.removeAllListeners("SIGINT");
+process.on("SIGINT", () => { /* ignore */ });
+
+const proc = Bun.spawn(["claude", ...args], { ... });
+await proc.exited;
+
+// Restore handlers
+process.removeAllListeners("SIGINT");
+for (const listener of originalSigint) {
+  process.on("SIGINT", listener as () => void);
+}
+```
+
 ---
 
 ## Dependencies
@@ -254,6 +291,9 @@ UI components are split into:
 | 2026-01-07 | Created ui.md expert file | Documentation task |
 | 2026-01-07 | Added new-project wizard with clone support | v2.0.10 release |
 | 2026-01-07 | Added comprehensive tests for new-project | Testing task |
+| 2026-01-09 | Added Windows cross-platform support | Windows compatibility |
+| 2026-01-09 | Added session loop (return to picker after Claude exits) | UX improvement |
+| 2026-01-09 | Added SIGINT handling for Ctrl+C in child processes | Bug fix |
 
 ---
 
