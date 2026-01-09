@@ -294,7 +294,7 @@ export async function getSessionsForDirectory(
 
 /**
  * Launch a session in Claude Code
- * When launched (not dry run), this exits the process after Claude exits.
+ * Returns after Claude exits (does not call process.exit)
  */
 export async function launchSession(
   session: Session,
@@ -322,15 +322,29 @@ export async function launchSession(
   // Change to session directory so terminal title updates
   process.chdir(cwd);
 
+  // Ignore SIGINT while Claude is running (so Ctrl+C only affects Claude)
+  const originalSigint = process.listeners("SIGINT");
+  process.removeAllListeners("SIGINT");
+  process.on("SIGINT", () => {
+    // Ignore - let Claude handle it
+  });
+
   // Spawn Claude with full terminal control
   const proc = Bun.spawn(["claude", ...args], {
     cwd,
     stdio: ["inherit", "inherit", "inherit"],
   });
 
-  // Wait for Claude to exit, then exit with same code
+  // Wait for Claude to exit
   const exitCode = await proc.exited;
-  process.exit(exitCode);
+
+  // Restore SIGINT handlers
+  process.removeAllListeners("SIGINT");
+  for (const listener of originalSigint) {
+    process.on("SIGINT", listener as () => void);
+  }
+
+  return { command, cwd, exitCode };
 }
 
 /**
