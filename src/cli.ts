@@ -317,6 +317,7 @@ program
   .command("update")
   .description("Update claudectl to the latest version")
   .option("-c, --check", "Check for updates without installing")
+  .option("-f, --force", "Force reinstall even if on latest version")
   .action(async (options) => {
     const installDir = join(homedir(), ".claudectl");
     const versionFile = join(installDir, ".version");
@@ -346,7 +347,7 @@ program
     console.log(`Current version: ${pc.yellow(currentVersion)}`);
     console.log(`Latest version:  ${pc.green(latestVersion)}`);
 
-    if (currentVersion === latestVersion) {
+    if (currentVersion === latestVersion && !options.force) {
       console.log(pc.green("\n✓ You're on the latest version!\n"));
       return;
     }
@@ -354,6 +355,10 @@ program
     if (options.check) {
       console.log(pc.yellow(`\n↑ Update available! Run ${pc.cyan("ccl update")} to install.\n`));
       return;
+    }
+
+    if (options.force && currentVersion === latestVersion) {
+      console.log(pc.yellow("\nForce reinstalling..."));
     }
 
     // Run the install script (platform-specific)
