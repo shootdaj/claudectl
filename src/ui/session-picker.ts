@@ -11,7 +11,7 @@ import {
   type Session,
   type ContentSearchResult,
 } from "../core/sessions";
-import { renameSession } from "../core/title-generator";
+import { renameSession, migrateRenamesToIndex } from "../core/title-generator";
 import {
   loadClaudectlSettings,
   saveClaudectlSettings,
@@ -64,6 +64,7 @@ interface SessionPickerOptions {
   onLaunch?: (session: Session) => void;
   onExit?: () => void;
   dryRun?: boolean;
+  selectedIndex?: number;  // Restore selection when returning from Claude
 }
 
 // Neon color scheme
@@ -103,6 +104,9 @@ export async function showSessionPicker(
     console.log("Building session index...");
   }
   await syncIndex();
+
+  // Migrate any renames from JSON file to SQLite index
+  await migrateRenamesToIndex();
 
   const sessions = await discoverSessions();
   let settings = loadClaudectlSettings();
@@ -630,8 +634,9 @@ export async function showSessionPicker(
     screen.render();
   });
 
-  // Focus first row
-  table.select(0);
+  // Focus first row (or restore previous selection)
+  const initialIndex = Math.min(options.selectedIndex ?? 0, filteredSessions.length - 1);
+  table.select(Math.max(0, initialIndex));
   updateDetails();
 
   // Keybindings
@@ -669,9 +674,9 @@ export async function showSessionPicker(
       }
       console.log();
       await launchSession(session, { skipPermissions: settings.skipPermissions });
-      // Return to session picker after Claude exits
+      // Return to session picker after Claude exits, restoring the same row
       options.onLaunch?.(session);
-      await showSessionPicker(options);
+      await showSessionPicker({ ...options, selectedIndex: idx });
     }
   });
 
