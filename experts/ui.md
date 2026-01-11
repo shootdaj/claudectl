@@ -294,6 +294,8 @@ UI components are split into:
 | 2026-01-09 | Added Windows cross-platform support | Windows compatibility |
 | 2026-01-09 | Added session loop (return to picker after Claude exits) | UX improvement |
 | 2026-01-09 | Added SIGINT handling for Ctrl+C in child processes | Bug fix |
+| 2026-01-12 | Fixed renames not persisting (sync to SQLite index) | Bug fix |
+| 2026-01-12 | Added selection state restore after returning from Claude | UX improvement |
 
 ---
 
