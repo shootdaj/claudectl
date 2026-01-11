@@ -1,69 +1,34 @@
-import { existsSync, mkdirSync } from "fs";
+/**
+ * Session title management - uses SQLite as single source of truth.
+ */
+
+import { existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { getSearchIndex } from "./search-index";
 
 const CACHE_DIR = join(homedir(), ".claudectl");
-const RENAME_CACHE_FILE = join(CACHE_DIR, "renamed-sessions.json");
-
-interface RenameCache {
-  [sessionId: string]: {
-    title: string;
-    renamedAt: string;
-  };
-}
-
-/**
- * Load rename cache from disk
- */
-async function loadRenameCache(): Promise<RenameCache> {
-  try {
-    const file = Bun.file(RENAME_CACHE_FILE);
-    if (await file.exists()) {
-      return await file.json();
-    }
-  } catch {
-    // Cache doesn't exist or is corrupt
-  }
-  return {};
-}
-
-/**
- * Save rename cache to disk
- */
-async function saveRenameCache(cache: RenameCache): Promise<void> {
-  if (!existsSync(CACHE_DIR)) {
-    mkdirSync(CACHE_DIR, { recursive: true });
-  }
-  await Bun.write(RENAME_CACHE_FILE, JSON.stringify(cache, null, 2));
-}
-
-/**
- * Get user-renamed title for a session (if renamed)
- */
-export async function getRenamedTitle(sessionId: string): Promise<string | undefined> {
-  const cache = await loadRenameCache();
-  return cache[sessionId]?.title;
-}
+const LEGACY_RENAME_FILE = join(CACHE_DIR, "renamed-sessions.json");
 
 /**
  * Rename a session (user-assigned custom title)
  */
 export async function renameSession(sessionId: string, title: string): Promise<void> {
-  // Update JSON file (legacy/backup)
-  const cache = await loadRenameCache();
-  cache[sessionId] = {
-    title,
-    renamedAt: new Date().toISOString(),
-  };
-  await saveRenameCache(cache);
+  const index = getSearchIndex();
+  index.setSessionTitle(sessionId, title);
+}
 
-  // Update SQLite index (primary)
+/**
+ * Get user-renamed title for a session (if renamed)
+ * Note: This is only used as fallback during file-based discovery.
+ * Index-based discovery reads titles directly from SQLite.
+ */
+export async function getRenamedTitle(sessionId: string): Promise<string | undefined> {
   try {
     const index = getSearchIndex();
-    index.setSessionTitle(sessionId, title);
+    return index.getSessionTitle(sessionId);
   } catch {
-    // Index may not be available, JSON file is the fallback
+    return undefined;
   }
 }
 
@@ -71,26 +36,30 @@ export async function renameSession(sessionId: string, title: string): Promise<v
  * Clear all renamed sessions
  */
 export async function clearRenameCache(): Promise<void> {
-  try {
-    await Bun.write(RENAME_CACHE_FILE, "{}");
-  } catch {
-    // Ignore errors
-  }
+  // SQLite titles are preserved - this is a no-op now
+  // The session_titles table persists across index rebuilds
 }
 
 /**
- * Migrate renames from JSON file to SQLite index.
- * Call this during startup to ensure index has all renames.
+ * Migrate renames from legacy JSON file to SQLite index.
+ * Call this during startup to import any old renames.
+ * After migration, the JSON file can be deleted.
  */
 export async function migrateRenamesToIndex(): Promise<number> {
-  const cache = await loadRenameCache();
-  const entries = Object.entries(cache);
-
-  if (entries.length === 0) {
+  // Check for legacy JSON file
+  if (!existsSync(LEGACY_RENAME_FILE)) {
     return 0;
   }
 
   try {
+    const file = Bun.file(LEGACY_RENAME_FILE);
+    const cache = await file.json() as Record<string, { title: string; renamedAt: string }>;
+    const entries = Object.entries(cache);
+
+    if (entries.length === 0) {
+      return 0;
+    }
+
     const index = getSearchIndex();
     let migrated = 0;
 
@@ -101,6 +70,11 @@ export async function migrateRenamesToIndex(): Promise<number> {
         index.setSessionTitle(sessionId, title);
         migrated++;
       }
+    }
+
+    // Delete the legacy file after successful migration
+    if (migrated > 0 || entries.length > 0) {
+      await Bun.write(LEGACY_RENAME_FILE, "{}");
     }
 
     return migrated;
