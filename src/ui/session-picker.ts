@@ -346,7 +346,7 @@ export async function showSessionPicker(
     width: "100%-2",
     height: 1,
     content:
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ffff00-fg}P{/#ffff00-fg} Project  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit",
+      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit",
     tags: true,
     style: { fg: "gray" },
   });
