@@ -518,4 +518,48 @@ backup
     }
   });
 
+// Serve subcommand - remote web access
+const serve = program.command("serve").description("Start remote web server for Claude Code access");
+
+serve
+  .command("start", { isDefault: true })
+  .description("Start the web server")
+  .option("-p, --port <port>", "Port to listen on", "3847")
+  .option("-t, --tunnel", "Start Cloudflare Tunnel for remote access")
+  .action(async (options) => {
+    const { startServer } = await import("./server/index");
+    await startServer({
+      port: parseInt(options.port),
+      tunnel: options.tunnel,
+    });
+  });
+
+serve
+  .command("auth")
+  .description("Set or reset the server password")
+  .argument("[action]", "Action: set or reset", "set")
+  .action(async (action) => {
+    const { interactivePasswordSetup, setServerPassword } = await import("./server/index");
+
+    if (action === "reset") {
+      // Clear password
+      const { getClaudectlDir } = await import("./core/config");
+      const fs = await import("fs");
+      const path = await import("path");
+      const configPath = path.join(getClaudectlDir(), "server-config.json");
+
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        delete config.passwordHash;
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        console.log(pc.yellow("Password reset. Run 'claudectl serve auth set' to set a new password."));
+      } else {
+        console.log("No password configured.");
+      }
+      return;
+    }
+
+    await interactivePasswordSetup();
+  });
+
 export { program };

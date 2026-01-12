@@ -17,11 +17,14 @@
     "@clack/prompts": "^0.9.1",
     "blessed": "^0.1.81",
     "commander": "^13.0.0",
-    "picocolors": "^1.1.1"
+    "picocolors": "^1.1.1",
+    "node-pty": "^1.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/blessed": "^0.1.25",
     "@types/bun": "latest",
+    "@types/web-push": "^3.6.4",
     "typescript": "^5.7.2"
   }
 }
