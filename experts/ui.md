@@ -142,28 +142,24 @@ await showSessionPicker(options);
 
 ---
 
-## New Project Wizard
+## New Project Wizard (Unified `n` Key)
 
-### Features
-1. **Mode Selection** (Step 0)
-   - Create new project
-   - Clone from GitHub
+### Entry Point
+- Press `n` in session picker to open unified start menu
+- If current session is scratch, shows "Promote to Project" instead
 
-2. **Parent Folder Selection** (Step 1)
-   - Common folders auto-detected: ~/Code, ~/Projects, ~/Developer, etc.
-   - Custom path option
+### Options
+1. **Quick question** - Start in `~/.claudectl/scratch/` with no git
+2. **Clone repo** - Clone from GitHub
 
-3. **Project Name / Repo Selection** (Step 2)
-   - **New mode**: Enter project name (sanitized to kebab-case)
-   - **Clone mode**: Select from user's GitHub repos or enter URL manually
-
-4. **GitHub Options** (Step 3, new mode only)
-   - Create private repo
-   - Create public repo
-   - Local git only (no GitHub)
-
-### Keybinding
-- `Shift+P` from session picker opens the wizard
+### Promote Flow (Scratch Sessions Only)
+When on a scratch session, `n` shows promote wizard:
+1. Enter project name
+2. Creates `~/Code/<name>/`
+3. Runs `git init` + `gh repo create --private`
+4. Moves session JSONL to new location
+5. Updates SQLite index
+6. Relaunches Claude in new directory
 
 ### GitHub Integration
 - Uses `gh repo list` to fetch user's repositories
@@ -296,6 +292,8 @@ UI components are split into:
 | 2026-01-09 | Added SIGINT handling for Ctrl+C in child processes | Bug fix |
 | 2026-01-12 | Fixed renames not persisting (sync to SQLite index) | Bug fix |
 | 2026-01-12 | Added selection state restore after returning from Claude | UX improvement |
+| 2026-01-12 | Unified `n` key: Quick question, Clone repo, Promote to project | Feature |
+| 2026-01-12 | Removed separate n/N/Shift+P keybindings, consolidated to single `n` | Simplification |
 
 ---
 

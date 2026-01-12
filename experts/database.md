@@ -166,6 +166,8 @@ bun test src/core/search-index.test.ts
 | 2026-01-07 | Integrated with session-picker for real-time search | Phase 4 |
 | 2026-01-07 | Soft-delete: deleted files stay in DB with is_deleted flag | User request |
 | 2026-01-07 | Schema v2: Added is_deleted, deleted_at columns with migration | Soft-delete feature |
+| 2026-01-12 | Session renames now SQLite-only (removed JSON file dual storage) | Simplification |
+| 2026-01-12 | Added `updateSessionPath()` for session move/promote | Feature |
 
 ---
 
