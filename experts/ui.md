@@ -294,6 +294,50 @@ UI components are split into:
 | 2026-01-12 | Added selection state restore after returning from Claude | UX improvement |
 | 2026-01-12 | Unified `n` key: Quick question, Clone repo, Promote to project | Feature |
 | 2026-01-12 | Removed separate n/N/Shift+P keybindings, consolidated to single `n` | Simplification |
+| 2026-01-12 | Added remote web server (`claudectl serve`) with Tokyo Night Storm theme | Feature |
+| 2026-01-12 | Added PWA support with push notifications | Feature |
+| 2026-01-12 | Added WebSocket-based terminal I/O with xterm.js | Feature |
+
+---
+
+## Remote Web Server
+
+### Overview
+The `claudectl serve` command starts a web server that exposes Claude Code sessions via WebSocket, accessible from any device as a PWA.
+
+### Architecture
+```
+src/server/
+├── index.ts              # Bun HTTP + WebSocket server
+├── auth.ts               # Password verification, JWT tokens
+├── session-manager.ts    # PTY lifecycle, multi-client broadcast
+└── push.ts               # Web push notifications
+
+src/web/
+├── index.html            # Single page app
+├── app.js                # Main app logic with xterm.js
+├── styles.css            # Tokyo Night Storm theme
+├── service-worker.js     # PWA + push handler
+├── manifest.json         # PWA manifest
+└── icon.svg              # App icon
+```
+
+### Key Components
+- **Bun native server**: HTTP + WebSocket in single server
+- **node-pty**: Spawns Claude with full TTY support
+- **xterm.js**: Terminal emulator in browser
+- **JWT auth**: Password-based authentication with 7-day tokens
+- **Multi-client**: Multiple browsers can connect to same session
+- **Push notifications**: Alerts when Claude needs input
+
+### CLI Commands
+```bash
+claudectl serve              # Start server on port 3847
+claudectl serve --port 4000  # Custom port
+claudectl serve --tunnel     # With Cloudflare Tunnel
+claudectl serve auth set     # Set password
+claudectl serve auth reset   # Reset password
+```
 
 ---
 
