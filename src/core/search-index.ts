@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS session_titles (
 // ============================================
 
 export class SearchIndex {
-  private db: Database;
+  private db: InstanceType<typeof Database>;
   private projectsDir: string;
   private homeDir: string;
 
