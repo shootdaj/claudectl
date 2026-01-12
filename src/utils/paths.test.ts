@@ -43,6 +43,27 @@ describe("paths", () => {
       const original = "/Users/anshul/Anshul/Code/myproject";
       expect(decodePath(encodePath(original))).toBe(original);
     });
+
+    test("decodes hidden directory (double hyphen)", () => {
+      // Claude Code encodes .claudectl as --claudectl (dot becomes hyphen)
+      expect(decodePath("-Users-anshul--claudectl-scratch"))
+        .toBe("/Users/anshul/.claudectl/scratch");
+    });
+
+    test("decodes multiple hidden directories", () => {
+      expect(decodePath("-Users-anshul--config--nested-data"))
+        .toBe("/Users/anshul/.config/.nested/data");
+    });
+
+    test("decodes hidden directory at end", () => {
+      expect(decodePath("-Users-anshul--hidden"))
+        .toBe("/Users/anshul/.hidden");
+    });
+
+    test("decodes hidden directory at start", () => {
+      expect(decodePath("--hidden-user-code"))
+        .toBe("/.hidden/user/code");
+    });
   });
 
   describe("shortenPath", () => {
