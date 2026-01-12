@@ -8,6 +8,7 @@ import {
   syncIndex,
   getIndexStats,
   searchSessionContent,
+  closeSearchIndex,
   type Session,
   type ContentSearchResult,
 } from "../core/sessions";
@@ -677,6 +678,8 @@ export async function showSessionPicker(
       await launchSession(session, { skipPermissions: settings.skipPermissions });
       // Return to session picker after Claude exits, restoring the same row
       options.onLaunch?.(session);
+      // Close the database connection to avoid stale connection errors
+      closeSearchIndex();
       await showSessionPicker({ ...options, selectedIndex: idx });
     }
   });

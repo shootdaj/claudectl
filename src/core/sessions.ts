@@ -4,7 +4,9 @@ import { getProjectsDir, getClaudeDir } from "./config";
 import { decodePath, shortenPath, encodePath } from "../utils/paths";
 import { parseSessionMetadata, parseJsonl, getMessageContent, type SessionMetadata } from "../utils/jsonl";
 import { getRenamedTitle } from "./title-generator";
-import { getSearchIndex, type SearchResult as IndexSearchResult, type IndexedSession } from "./search-index";
+import { getSearchIndex, closeSearchIndex, type SearchResult as IndexSearchResult, type IndexedSession } from "./search-index";
+
+export { closeSearchIndex };
 
 /**
  * Represents a Claude Code session
