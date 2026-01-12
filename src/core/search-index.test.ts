@@ -12,7 +12,7 @@ describe.skip("SearchIndex", () => {
   let tempDir: string;
   let dbPath: string;
   let projectsDir: string;
-  let index: SearchIndex;
+  let index: any;
 
   beforeEach(async () => {
     // Create temp directories for each test
