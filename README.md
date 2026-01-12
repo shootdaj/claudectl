@@ -87,7 +87,8 @@ ccl config                     # Show config paths
 | `Enter` | Launch session (returns to picker when Claude exits) |
 | `n` | New session in current directory |
 | `N` | New session in selected session's directory |
-| `P` | New project wizard (create or clone from GitHub) |
+| `P` | New session wizard (quick question or clone) |
+| `P` | Promote to project (when on scratch session) |
 | `r` | Rename session |
 | `R` | Restore deleted session |
 | `p` | Preview session details |
@@ -101,10 +102,12 @@ ccl config                     # Show config paths
 ## Features
 
 - **Global View**: See all Claude Code sessions across every project
+- **Quick Questions**: Start scratch sessions without a project (Shift+P → New)
+- **Promote to Project**: Turn a scratch session into a real project with git + GitHub
+- **Clone from GitHub**: Quick access to your repos (Shift+P → Existing)
 - **Session Loop**: Returns to picker after Claude exits (Ctrl+C, /exit, etc.)
 - **Rich TUI**: Beautiful terminal interface with Dark Midnight theme
 - **Full-Text Search**: SQLite FTS5 index for instant search across all session content
-- **New Project Wizard**: Create new projects or clone from GitHub (Shift+P)
 - **Rename**: Give sessions memorable names (preserved across updates)
 - **Soft Delete & Restore**: Deleted sessions can be restored from backup
 - **Stats**: Track token usage and session activity
