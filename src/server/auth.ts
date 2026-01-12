@@ -1,9 +1,11 @@
 /**
  * Authentication module for claudectl serve
- * Uses Bun's built-in password hashing and simple JWT-like tokens
+ * Uses bcrypt for password hashing and simple JWT-like tokens
+ * Compatible with both Node.js and Bun
  */
 
 import { randomBytes, createHmac } from "crypto";
+import bcrypt from "bcrypt";
 import { getClaudectlDir } from "../core/config";
 import { join } from "path";
 import { existsSync, readFileSync, writeFileSync } from "fs";
@@ -54,20 +56,17 @@ function saveConfig(config: ServerConfig): void {
 }
 
 /**
- * Hash a password using Bun's built-in password hashing
+ * Hash a password using bcrypt
  */
 export async function hashPassword(password: string): Promise<string> {
-  return await Bun.password.hash(password, {
-    algorithm: "bcrypt",
-    cost: 12,
-  });
+  return bcrypt.hash(password, 12);
 }
 
 /**
  * Verify a password against a hash
  */
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return await Bun.password.verify(password, hash);
+  return bcrypt.compare(password, hash);
 }
 
 /**

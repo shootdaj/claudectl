@@ -1,3 +1,5 @@
+import { readFile, stat } from "fs/promises";
+
 /**
  * Types for session message parsing
  */
@@ -56,9 +58,7 @@ const INTERNAL_MESSAGE_TYPES = new Set([
  * Parse a JSONL file and return all parsed lines
  */
 export async function parseJsonl(filePath: string): Promise<SessionMessage[]> {
-  const file = Bun.file(filePath);
-  const text = await file.text();
-
+  const text = await readFile(filePath, "utf-8");
   return parseJsonlText(text);
 }
 
@@ -225,8 +225,7 @@ export async function parseSessionMetadata(
   const metadata = extractMetadata(messages);
 
   // Use file mtime as fallback for invalid dates
-  const file = Bun.file(filePath);
-  const stats = await file.stat();
+  const stats = await stat(filePath);
   const fileMtime = stats?.mtime ? new Date(stats.mtime) : new Date();
 
   // Fix invalid createdAt

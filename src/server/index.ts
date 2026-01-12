@@ -1,16 +1,21 @@
 /**
  * claudectl serve - Web server for remote Claude Code access
+ * Node.js compatible version using http + ws
  */
 
-import { join } from "path";
+import { createServer, type IncomingMessage, type ServerResponse } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { spawn } from "child_process";
+import { join, dirname } from "path";
 import { existsSync, readFileSync } from "fs";
+import { parse as parseUrl } from "url";
+import { fileURLToPath } from "url";
 import {
   authenticate,
   verifyToken,
   isPasswordSet,
   setPassword,
   savePushSubscription,
-  getVapidKeys,
   type PushSubscription,
 } from "./auth";
 import {
@@ -21,17 +26,21 @@ import {
   addClient,
   removeClient,
   cleanup,
-  type WebSocketData,
 } from "./session-manager";
 import { getPublicVapidKey } from "./push";
 import { discoverSessions } from "../core/sessions";
 
-const WEB_DIR = join(import.meta.dir, "..", "web");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const WEB_DIR = join(__dirname, "..", "web");
 
 interface ServeOptions {
   port?: number;
   tunnel?: boolean;
 }
+
+// Store WebSocket session associations
+const wsSessionMap = new WeakMap<WebSocket, string>();
 
 /**
  * Start the claudectl web server
@@ -48,91 +57,121 @@ export async function startServer(options: ServeOptions = {}): Promise<void> {
 
   console.log(`\n[Server] Starting claudectl server on port ${port}...`);
 
-  const server = Bun.serve<WebSocketData>({
-    port,
+  // Create HTTP server
+  const server = createServer(async (req, res) => {
+    const url = parseUrl(req.url || "/", true);
+    const path = url.pathname || "/";
 
-    async fetch(req, server) {
-      const url = new URL(req.url);
-      const path = url.pathname;
+    // CORS headers
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-      // CORS headers for API
-      const corsHeaders = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      };
+    // Handle CORS preflight
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
 
-      // Handle CORS preflight
-      if (req.method === "OPTIONS") {
-        return new Response(null, { headers: corsHeaders });
-      }
+    // API Routes
+    if (path.startsWith("/api/")) {
+      await handleApi(req, res, path);
+      return;
+    }
 
-      // API Routes
-      if (path.startsWith("/api/")) {
-        return handleApi(req, path, corsHeaders);
-      }
-
-      // WebSocket upgrade
-      if (path.startsWith("/ws/")) {
-        return handleWebSocketUpgrade(req, server, url);
-      }
-
-      // Static files (web client)
-      return serveStaticFile(path);
-    },
-
-    websocket: {
-      open(ws) {
-        const sessionId = ws.data.sessionId;
-        console.log(`[WS] Client connected to session ${sessionId}`);
-
-        const managed = addClient(sessionId, ws);
-        if (managed && !managed.isActive) {
-          // Auto-spawn PTY when first client connects
-          spawnPty(managed);
-        }
-      },
-
-      message(ws, message) {
-        try {
-          const data = JSON.parse(message.toString());
-          const sessionId = ws.data.sessionId;
-
-          switch (data.type) {
-            case "input":
-              sendInput(sessionId, data.data);
-              break;
-
-            case "resize":
-              resizePty(sessionId, data.cols, data.rows);
-              break;
-
-            case "spawn":
-              // Request to spawn/respawn PTY
-              getOrCreateManagedSession(sessionId).then((managed) => {
-                if (managed) {
-                  spawnPty(managed, data.cols, data.rows);
-                }
-              });
-              break;
-
-            default:
-              console.log(`[WS] Unknown message type: ${data.type}`);
-          }
-        } catch (err) {
-          console.error(`[WS] Error processing message:`, err);
-        }
-      },
-
-      close(ws) {
-        const sessionId = ws.data.sessionId;
-        removeClient(sessionId, ws);
-      },
-    },
+    // Static files
+    serveStaticFile(path, res);
   });
 
-  console.log(`[Server] Server running at http://localhost:${port}`);
-  console.log(`[Server] Open in browser or connect from mobile\n`);
+  // Create WebSocket server
+  const wss = new WebSocketServer({ server });
+
+  wss.on("connection", async (ws, req) => {
+    const url = parseUrl(req.url || "/", true);
+    const path = url.pathname || "/";
+
+    // Extract session ID from path: /ws/session/:id
+    const match = path.match(/^\/ws\/session\/([^/]+)$/);
+    if (!match) {
+      ws.close(1002, "Invalid WebSocket path");
+      return;
+    }
+
+    const sessionId = match[1];
+    const token = url.query.token as string;
+
+    // Verify token
+    if (!token || !verifyToken(token)) {
+      ws.close(1008, "Unauthorized");
+      return;
+    }
+
+    console.log(`[WS] Client connected to session ${sessionId}`);
+
+    // Store session ID for this WebSocket
+    wsSessionMap.set(ws, sessionId);
+
+    // Prepare the session
+    const managed = await getOrCreateManagedSession(sessionId);
+    if (!managed) {
+      console.error(`[WS] Failed to get session ${sessionId}`);
+      ws.close(1011, "Session not found");
+      return;
+    }
+
+    // Add client and spawn PTY if needed
+    addClient(sessionId, ws);
+    if (!managed.isActive) {
+      spawnPty(managed);
+    }
+
+    // Handle messages
+    ws.on("message", (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log(`[WS] Message received: type=${data.type} sessionId=${sessionId}`);
+
+        switch (data.type) {
+          case "input":
+            console.log(`[WS] Processing input: ${data.data?.length} bytes`);
+            const success = sendInput(sessionId, data.data);
+            console.log(`[WS] sendInput result: ${success}`);
+            break;
+
+          case "resize":
+            resizePty(sessionId, data.cols, data.rows);
+            break;
+
+          case "spawn":
+            getOrCreateManagedSession(sessionId).then((managed) => {
+              if (managed) {
+                spawnPty(managed, data.cols, data.rows);
+              }
+            });
+            break;
+
+          default:
+            console.log(`[WS] Unknown message type: ${data.type}`);
+        }
+      } catch (err) {
+        console.error(`[WS] Error processing message:`, err);
+      }
+    });
+
+    // Handle close
+    ws.on("close", () => {
+      const sid = wsSessionMap.get(ws);
+      if (sid) {
+        removeClient(sid, ws);
+      }
+    });
+  });
+
+  server.listen(port, () => {
+    console.log(`[Server] Server running at http://localhost:${port}`);
+    console.log(`[Server] Open in browser or connect from mobile\n`);
+  });
 
   if (options.tunnel) {
     startTunnel(port);
@@ -142,14 +181,14 @@ export async function startServer(options: ServeOptions = {}): Promise<void> {
   process.on("SIGINT", () => {
     console.log("\n[Server] Shutting down...");
     cleanup();
-    server.stop();
+    server.close();
     process.exit(0);
   });
 
   process.on("SIGTERM", () => {
     console.log("\n[Server] Shutting down...");
     cleanup();
-    server.stop();
+    server.close();
     process.exit(0);
   });
 }
@@ -158,54 +197,57 @@ export async function startServer(options: ServeOptions = {}): Promise<void> {
  * Handle API requests
  */
 async function handleApi(
-  req: Request,
-  path: string,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const jsonHeaders = {
-    ...corsHeaders,
-    "Content-Type": "application/json",
+  req: IncomingMessage,
+  res: ServerResponse,
+  path: string
+): Promise<void> {
+  res.setHeader("Content-Type", "application/json");
+
+  // Helper to read body
+  const readBody = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      let body = "";
+      req.on("data", (chunk) => (body += chunk));
+      req.on("end", () => resolve(body));
+      req.on("error", reject);
+    });
   };
 
   // Auth endpoints (no token required)
   if (path === "/api/auth/login" && req.method === "POST") {
     try {
-      const body = await req.json() as { password: string };
+      const body = JSON.parse(await readBody()) as { password: string };
       const token = await authenticate(body.password);
 
       if (token) {
-        return Response.json({ token, expiresIn: "7d" }, { headers: jsonHeaders });
+        res.writeHead(200);
+        res.end(JSON.stringify({ token, expiresIn: "7d" }));
       } else {
-        return Response.json(
-          { error: "Invalid password" },
-          { status: 401, headers: jsonHeaders }
-        );
+        res.writeHead(401);
+        res.end(JSON.stringify({ error: "Invalid password" }));
       }
-    } catch (err) {
-      return Response.json(
-        { error: "Invalid request" },
-        { status: 400, headers: jsonHeaders }
-      );
+    } catch {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: "Invalid request" }));
     }
+    return;
   }
 
   // Check if password is set
   if (path === "/api/auth/status") {
-    return Response.json(
-      { passwordSet: isPasswordSet() },
-      { headers: jsonHeaders }
-    );
+    res.writeHead(200);
+    res.end(JSON.stringify({ passwordSet: isPasswordSet() }));
+    return;
   }
 
   // All other API endpoints require authentication
-  const authHeader = req.headers.get("Authorization");
+  const authHeader = req.headers.authorization;
   const token = authHeader?.replace("Bearer ", "");
 
   if (!token || !verifyToken(token)) {
-    return Response.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: jsonHeaders }
-    );
+    res.writeHead(401);
+    res.end(JSON.stringify({ error: "Unauthorized" }));
+    return;
   }
 
   // Sessions list
@@ -220,87 +262,44 @@ async function handleApi(
         lastAccessedAt: s.lastAccessedAt,
         messageCount: s.messageCount,
       }));
-      return Response.json({ sessions: sessionList }, { headers: jsonHeaders });
-    } catch (err) {
-      return Response.json(
-        { error: "Failed to load sessions" },
-        { status: 500, headers: jsonHeaders }
-      );
+      res.writeHead(200);
+      res.end(JSON.stringify({ sessions: sessionList }));
+    } catch {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: "Failed to load sessions" }));
     }
+    return;
   }
 
-  // VAPID public key for push subscriptions
+  // VAPID public key
   if (path === "/api/push/vapid-key") {
-    return Response.json(
-      { publicKey: getPublicVapidKey() },
-      { headers: jsonHeaders }
-    );
+    res.writeHead(200);
+    res.end(JSON.stringify({ publicKey: getPublicVapidKey() }));
+    return;
   }
 
   // Save push subscription
   if (path === "/api/push/subscribe" && req.method === "POST") {
     try {
-      const subscription = await req.json() as PushSubscription;
+      const subscription = JSON.parse(await readBody()) as PushSubscription;
       savePushSubscription(subscription);
-      return Response.json({ success: true }, { headers: jsonHeaders });
-    } catch (err) {
-      return Response.json(
-        { error: "Invalid subscription" },
-        { status: 400, headers: jsonHeaders }
-      );
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true }));
+    } catch {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: "Invalid subscription" }));
     }
+    return;
   }
 
-  return Response.json(
-    { error: "Not found" },
-    { status: 404, headers: jsonHeaders }
-  );
+  res.writeHead(404);
+  res.end(JSON.stringify({ error: "Not found" }));
 }
 
 /**
- * Handle WebSocket upgrade requests
+ * Serve static files
  */
-function handleWebSocketUpgrade(
-  req: Request,
-  server: ReturnType<typeof Bun.serve>,
-  url: URL
-): Response | undefined {
-  // Extract session ID from path: /ws/session/:id
-  const match = url.pathname.match(/^\/ws\/session\/([^/]+)$/);
-  if (!match) {
-    return new Response("Invalid WebSocket path", { status: 400 });
-  }
-
-  const sessionId = match[1];
-
-  // Check auth token from query param
-  const token = url.searchParams.get("token");
-  if (!token || !verifyToken(token)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  // Upgrade to WebSocket
-  const success = server.upgrade(req, {
-    data: {
-      sessionId,
-      authenticated: true,
-    },
-  });
-
-  if (!success) {
-    return new Response("WebSocket upgrade failed", { status: 500 });
-  }
-
-  // Prepare the session (but don't spawn PTY yet)
-  getOrCreateManagedSession(sessionId);
-
-  return undefined; // Bun handles the response
-}
-
-/**
- * Serve static files from the web directory
- */
-function serveStaticFile(path: string): Response {
+function serveStaticFile(path: string, res: ServerResponse): void {
   // Default to index.html
   if (path === "/" || path === "") {
     path = "/index.html";
@@ -310,29 +309,32 @@ function serveStaticFile(path: string): Response {
 
   // Security: prevent directory traversal
   if (!filePath.startsWith(WEB_DIR)) {
-    return new Response("Forbidden", { status: 403 });
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
   }
 
   if (!existsSync(filePath)) {
     // For SPA, return index.html for non-file paths
     const indexPath = join(WEB_DIR, "index.html");
     if (existsSync(indexPath) && !path.includes(".")) {
-      return new Response(readFileSync(indexPath), {
-        headers: { "Content-Type": "text/html" },
-      });
+      res.setHeader("Content-Type", "text/html");
+      res.writeHead(200);
+      res.end(readFileSync(indexPath));
+      return;
     }
-    return new Response("Not found", { status: 404 });
+    res.writeHead(404);
+    res.end("Not found");
+    return;
   }
 
   const content = readFileSync(filePath);
   const contentType = getContentType(path);
 
-  return new Response(content, {
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": path.includes(".") ? "max-age=31536000" : "no-cache",
-    },
-  });
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Cache-Control", path.includes(".") ? "max-age=31536000" : "no-cache");
+  res.writeHead(200);
+  res.end(content);
 }
 
 /**
@@ -365,43 +367,30 @@ async function startTunnel(port: number): Promise<void> {
 
   try {
     // Check if cloudflared is installed
-    const which = Bun.spawn(["which", "cloudflared"]);
-    await which.exited;
+    const which = spawn("which", ["cloudflared"]);
+    const exitCode = await new Promise<number>((resolve) => {
+      which.on("close", resolve);
+    });
 
-    if (which.exitCode !== 0) {
+    if (exitCode !== 0) {
       console.log("[Tunnel] cloudflared not found. Install with:");
       console.log("  brew install cloudflared");
       console.log("\nOr manually from: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/\n");
       return;
     }
 
-    // Start quick tunnel (no config required)
-    const tunnel = Bun.spawn(["cloudflared", "tunnel", "--url", `http://localhost:${port}`], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    // Start quick tunnel
+    const tunnel = spawn("cloudflared", ["tunnel", "--url", `http://localhost:${port}`]);
 
-    // Parse tunnel URL from output
-    const reader = tunnel.stderr.getReader();
-    const decoder = new TextDecoder();
-
-    const readOutput = async () => {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const text = decoder.decode(value);
-        // Look for the tunnel URL
-        const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
-        if (match) {
-          console.log(`\n[Tunnel] Your public URL: ${match[0]}\n`);
-          console.log("[Tunnel] Share this URL to access claudectl from anywhere!");
-          console.log("[Tunnel] Note: This URL changes each time you restart.\n");
-        }
+    tunnel.stderr.on("data", (data) => {
+      const text = data.toString();
+      const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+      if (match) {
+        console.log(`\n[Tunnel] Your public URL: ${match[0]}\n`);
+        console.log("[Tunnel] Share this URL to access claudectl from anywhere!");
+        console.log("[Tunnel] Note: This URL changes each time you restart.\n");
       }
-    };
-
-    readOutput();
+    });
   } catch (err) {
     console.error("[Tunnel] Failed to start tunnel:", err);
   }
