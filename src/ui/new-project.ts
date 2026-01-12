@@ -66,10 +66,10 @@ async function showNewSessionMenu(options: NewProjectOptions): Promise<void> {
     top: "center",
     left: "center",
     width: 50,
-    height: 10,
+    height: 9,
     border: { type: "line" },
     style: { border: { fg: theme.pink } },
-    label: ` {#ff00ff-fg}New Session{/#ff00ff-fg} `,
+    label: ` {#ff00ff-fg}Start{/#ff00ff-fg} `,
     tags: true,
   });
 
@@ -88,8 +88,8 @@ async function showNewSessionMenu(options: NewProjectOptions): Promise<void> {
       selected: { fg: theme.selectedFg, bg: theme.selectedBg, bold: true },
     },
     items: [
-      `{${theme.green}-fg}New{/${theme.green}-fg}        Quick question (no project)`,
-      `{${theme.blue}-fg}Existing{/${theme.blue}-fg}    Clone from GitHub`,
+      `{${theme.green}-fg}Quick question{/${theme.green}-fg}   No project, just chat`,
+      `{${theme.blue}-fg}Clone repo{/${theme.blue}-fg}       From GitHub`,
     ],
   });
 
