@@ -6,6 +6,7 @@
 
 import { randomBytes, createHmac } from "crypto";
 import bcrypt from "bcrypt";
+import webpush from "web-push";
 import { getClaudectlDir } from "../core/config";
 import { join } from "path";
 import { existsSync, readFileSync, writeFileSync } from "fs";
@@ -187,7 +188,6 @@ export function getVapidKeys(): { publicKey: string; privateKey: string } {
   }
 
   // Generate new VAPID keys using web-push
-  const webpush = require("web-push");
   const vapidKeys = webpush.generateVAPIDKeys();
 
   config.vapidPublicKey = vapidKeys.publicKey;
