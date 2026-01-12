@@ -16,6 +16,7 @@ import {
   loadClaudectlSettings,
   saveClaudectlSettings,
   ensureMaxSessionRetention,
+  isScratchPath,
   type ClaudectlSettings,
 } from "../core/config";
 import { showMcpManager } from "./mcp-manager";
@@ -1109,13 +1110,20 @@ export async function showSessionPicker(
     await showSessionPicker(options);
   });
 
-  // New project wizard (Shift+P)
+  // New project wizard (Shift+P) - or promote if on scratch session
   table.key(["S-p"], async () => {
+    const idx = table.selected;
+    const session = filteredSessions[idx];
+
+    // Check if current session is a scratch session (can be promoted)
+    const isScratch = session && isScratchPath(session.workingDirectory);
+
     stopAnimations();
     screen.destroy();
     await showNewProjectWizard({
-      onComplete: () => showSessionPicker(options),
-      onCancel: () => showSessionPicker(options),
+      scratchSession: isScratch ? session : undefined,
+      onComplete: () => showSessionPicker({ ...options, selectedIndex: idx }),
+      onCancel: () => showSessionPicker({ ...options, selectedIndex: idx }),
     });
   });
 

@@ -603,6 +603,26 @@ export class SearchIndex {
   }
 
   /**
+   * Update session path after moving to a new directory
+   */
+  updateSessionPath(
+    sessionId: string,
+    newFilePath: string,
+    newWorkingDirectory: string,
+    newShortPath: string,
+    newEncodedPath: string
+  ): void {
+    this.db.run(`
+      UPDATE files SET
+        file_path = ?,
+        working_directory = ?,
+        short_path = ?,
+        encoded_path = ?
+      WHERE session_id = ?
+    `, [newFilePath, newWorkingDirectory, newShortPath, newEncodedPath, sessionId]);
+  }
+
+  /**
    * Get index statistics
    */
   getStats(): { sessions: number; messages: number; dbSize: number } {

@@ -1,7 +1,7 @@
-import { readdir, stat } from "fs/promises";
+import { readdir, stat, mkdir, rename } from "fs/promises";
 import { join } from "path";
-import { getProjectsDir } from "./config";
-import { decodePath, shortenPath } from "../utils/paths";
+import { getProjectsDir, getClaudeDir } from "./config";
+import { decodePath, shortenPath, encodePath } from "../utils/paths";
 import { parseSessionMetadata, parseJsonl, getMessageContent, type SessionMetadata } from "../utils/jsonl";
 import { getRenamedTitle } from "./title-generator";
 import { getSearchIndex, type SearchResult as IndexSearchResult, type IndexedSession } from "./search-index";
@@ -345,6 +345,43 @@ export async function launchSession(
   }
 
   return { command, cwd, exitCode };
+}
+
+/**
+ * Move a session to a new working directory.
+ * Moves the JSONL file and updates the SQLite index.
+ */
+export async function moveSession(
+  session: Session,
+  newWorkingDirectory: string
+): Promise<Session> {
+  const claudeDir = getClaudeDir();
+  const projectsDir = join(claudeDir, "projects");
+
+  // Encode new path
+  const newEncodedPath = encodePath(newWorkingDirectory);
+  const newDirPath = join(projectsDir, newEncodedPath);
+  const newShortPath = shortenPath(newWorkingDirectory);
+
+  // Create new directory if needed
+  await mkdir(newDirPath, { recursive: true });
+
+  // Move JSONL file
+  const oldFilePath = session.filePath;
+  const newFilePath = join(newDirPath, `${session.id}.jsonl`);
+  await rename(oldFilePath, newFilePath);
+
+  // Update SQLite index
+  const index = getSearchIndex();
+  index.updateSessionPath(session.id, newFilePath, newWorkingDirectory, newShortPath, newEncodedPath);
+
+  return {
+    ...session,
+    workingDirectory: newWorkingDirectory,
+    encodedPath: newEncodedPath,
+    filePath: newFilePath,
+    shortPath: newShortPath,
+  };
 }
 
 /**

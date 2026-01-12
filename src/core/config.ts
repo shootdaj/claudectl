@@ -75,6 +75,38 @@ export function getClaudectlDir(): string {
 }
 
 /**
+ * Get the scratch directory for quick questions (no git).
+ * Creates the directory if it doesn't exist.
+ */
+export function getScratchDir(): string {
+  const dir = join(getClaudectlDir(), "scratch");
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+/**
+ * Get the default projects directory (~/Code).
+ * Creates the directory if it doesn't exist.
+ */
+export function getDefaultProjectsDir(): string {
+  const dir = join(homedir(), "Code");
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+/**
+ * Check if a path is a scratch session path.
+ */
+export function isScratchPath(path: string): boolean {
+  const scratchDir = join(getClaudectlDir(), "scratch");
+  return path === scratchDir || path.startsWith(scratchDir + "/") || path.startsWith(scratchDir + "\\");
+}
+
+/**
  * Get the path to claudectl's settings file.
  */
 export function getClaudectlSettingsPath(): string {
