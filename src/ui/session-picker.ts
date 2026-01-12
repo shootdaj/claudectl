@@ -1064,54 +1064,8 @@ export async function showSessionPicker(
     return code === 0;
   }
 
-  // New session in current folder
+  // Start menu (n) - unified entry point for new sessions
   table.key(["n"], async () => {
-    stopAnimations();
-    screen.destroy();
-    const cwd = process.cwd();
-    console.log(`\nStarting new session in: ${cwd}\n`);
-
-    if (settings.autoAddAgentExpert) {
-      await installAgentExpert(cwd);
-    }
-
-    const proc = Bun.spawn(["claude"], {
-      cwd,
-      stdio: ["inherit", "inherit", "inherit"],
-    });
-
-    await proc.exited;
-    // Return to session picker after Claude exits
-    await showSessionPicker(options);
-  });
-
-  // New session in selected session's folder
-  table.key(["S-n"], async () => {
-    const idx = table.selected;
-    const session = filteredSessions[idx];
-    if (!session) return;
-
-    stopAnimations();
-    screen.destroy();
-    const cwd = session.workingDirectory;
-    console.log(`\nStarting new session in: ${cwd}\n`);
-
-    if (settings.autoAddAgentExpert) {
-      await installAgentExpert(cwd);
-    }
-
-    const proc = Bun.spawn(["claude"], {
-      cwd,
-      stdio: ["inherit", "inherit", "inherit"],
-    });
-
-    await proc.exited;
-    // Return to session picker after Claude exits
-    await showSessionPicker(options);
-  });
-
-  // New project wizard (Shift+P) - or promote if on scratch session
-  table.key(["S-p"], async () => {
     const idx = table.selected;
     const session = filteredSessions[idx];
 

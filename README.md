@@ -85,10 +85,8 @@ ccl config                     # Show config paths
 |-----|--------|
 | `↑` `↓` | Navigate sessions |
 | `Enter` | Launch session (returns to picker when Claude exits) |
-| `n` | New session in current directory |
-| `N` | New session in selected session's directory |
-| `P` | New session wizard (quick question or clone) |
-| `P` | Promote to project (when on scratch session) |
+| `n` | Start: Quick question or Clone repo |
+| `n` | Promote to project (when on scratch session) |
 | `r` | Rename session |
 | `R` | Restore deleted session |
 | `p` | Preview session details |
