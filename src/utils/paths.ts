@@ -54,7 +54,7 @@ export function decodePath(encoded: string): string {
   if (/^[A-Za-z]-/.test(encoded)) {
     const drive = encoded[0];
     const rest = encoded.slice(1); // Remove drive letter, keep leading hyphen
-    const parts = rest.slice(1).split("-"); // Remove leading hyphen, split
+    const parts = rest.slice(1).split("-").filter(Boolean); // Remove leading hyphen, split, filter empty
     const resolved = findValidPathWindows(drive, parts);
     return toPlatformPath(resolved);
   }
@@ -66,10 +66,13 @@ export function decodePath(encoded: string): string {
 
   // Remove leading hyphen
   const withoutLeading = encoded.slice(1);
-  const parts = withoutLeading.split("-");
+  const parts = withoutLeading.split("-").filter(Boolean); // Filter empty strings from double hyphens
 
   // Try to find the actual path by testing which combinations exist
-  return "/" + findValidPath(parts);
+  const result = "/" + findValidPath(parts);
+
+  // Normalize any remaining double slashes
+  return result.replace(/\/+/g, "/");
 }
 
 /**
