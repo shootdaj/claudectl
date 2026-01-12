@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-01-13
+
+### Completed
+- **Fixed Remote Server Terminal I/O**: Debugged blank terminal issue in web interface
+  - Root cause: Bun's Terminal API bug (GitHub #25779) - `terminal.write()` bypasses PTY line discipline
+  - Solution: Migrated server to Node.js compatibility, spawned via `npx tsx`
+- **Node.js Compatibility for Server**:
+  - `bun:sqlite` → `better-sqlite3`
+  - `Bun.file()` → Node.js `fs` module
+  - `Bun.password.hash/verify` → `bcrypt`
+  - Fixed ES module `__dirname` issue with `import.meta.url`
+- **CLI Integration**: Updated `claudectl serve` to spawn Node.js process for server
+- **Created `experts/remote-server.md`**: Documented server architecture and gotchas
+
+### Current State
+- Remote server fully functional with working terminal I/O
+- Input reaches Claude through PTY correctly
+- All API endpoints and WebSocket protocol working
+
+### Usage
+```bash
+claudectl serve              # Start on port 3847
+claudectl serve --tunnel     # With Cloudflare tunnel
+```
+
+---
+
 ## 2026-01-12
 
 ### Completed

@@ -527,10 +527,38 @@ serve
   .option("-p, --port <port>", "Port to listen on", "3847")
   .option("-t, --tunnel", "Start Cloudflare Tunnel for remote access")
   .action(async (options) => {
-    const { startServer } = await import("./server/index");
-    await startServer({
-      port: parseInt(options.port),
-      tunnel: options.tunnel,
+    // The server must run under Node.js (not Bun) because of Bun Terminal API bug
+    // that prevents input from reaching the PTY properly.
+    // See: https://github.com/oven-sh/bun/issues/25779
+    const { spawn } = await import("child_process");
+    const path = await import("path");
+    const { fileURLToPath } = await import("url");
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const serverEntryPoint = path.join(__dirname, "server-main.ts");
+
+    const args = ["--port=" + options.port];
+    if (options.tunnel) {
+      args.push("--tunnel");
+    }
+
+    console.log(`Starting server via Node.js on port ${options.port}...`);
+
+    // Spawn the server using npx tsx (which runs TypeScript with Node.js)
+    const proc = spawn("npx", ["tsx", serverEntryPoint, ...args], {
+      stdio: "inherit",
+      cwd: path.join(__dirname, ".."),
+    });
+
+    proc.on("error", (err) => {
+      console.error("Failed to start server:", err.message);
+      console.error("Make sure 'tsx' is installed: npm install -D tsx");
+      process.exit(1);
+    });
+
+    proc.on("exit", (code) => {
+      process.exit(code || 0);
     });
   });
 
@@ -539,10 +567,8 @@ serve
   .description("Set or reset the server password")
   .argument("[action]", "Action: set or reset", "set")
   .action(async (action) => {
-    const { interactivePasswordSetup, setServerPassword } = await import("./server/index");
-
     if (action === "reset") {
-      // Clear password
+      // Clear password - can run directly without Node.js
       const { getClaudectlDir } = await import("./core/config");
       const fs = await import("fs");
       const path = await import("path");
@@ -559,7 +585,23 @@ serve
       return;
     }
 
-    await interactivePasswordSetup();
+    // Password setup must run under Node.js for bcrypt compatibility
+    const { spawn } = await import("child_process");
+    const path = await import("path");
+    const { fileURLToPath } = await import("url");
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const serverEntryPoint = path.join(__dirname, "server-main.ts");
+
+    const proc = spawn("npx", ["tsx", serverEntryPoint, "auth", "set"], {
+      stdio: "inherit",
+      cwd: path.join(__dirname, ".."),
+    });
+
+    proc.on("exit", (code) => {
+      process.exit(code || 0);
+    });
   });
 
 export { program };

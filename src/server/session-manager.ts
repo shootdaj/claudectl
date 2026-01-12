@@ -1,16 +1,18 @@
 /**
  * Session Manager - handles PTY sessions and WebSocket clients
+ * Uses node-pty for PTY management (Node.js compatible)
  */
 
 import * as pty from "node-pty";
-import { type ServerWebSocket } from "bun";
+import type { WebSocket } from "ws";
 import { findSession, type Session } from "../core/sessions";
+import { sendPushNotification } from "./push";
 
 interface ManagedSession {
   id: string;
   session: Session;
   pty: pty.IPty | null;
-  clients: Set<ServerWebSocket<WebSocketData>>;
+  clients: Set<WebSocket>;
   scrollback: string;
   isActive: boolean;
 }
@@ -59,63 +61,73 @@ export async function getOrCreateManagedSession(
  */
 export function spawnPty(managed: ManagedSession, cols = 120, rows = 30): void {
   if (managed.pty) {
-    return; // Already running
+    console.log(`[PTY] Session ${managed.id} already has PTY running`);
+    return;
   }
 
   console.log(`[PTY] Spawning Claude for session ${managed.id}`);
   console.log(`[PTY] Working directory: ${managed.session.workingDirectory}`);
+  console.log(`[PTY] Terminal size: ${cols}x${rows}`);
 
-  const shell = process.platform === "win32" ? "cmd.exe" : "bash";
-  const shellArgs = process.platform === "win32" ? [] : ["-c", `claude --resume ${managed.id}`];
+  const command = "claude";
+  const args = ["--resume", managed.id];
 
-  // On non-Windows, we use bash -c to run claude
-  // On Windows, we'd need a different approach
-  const command = process.platform === "win32" ? "claude" : shell;
-  const args = process.platform === "win32" ? ["--resume", managed.id] : shellArgs;
+  console.log(`[PTY] Command: ${command} ${args.join(" ")}`);
 
-  managed.pty = pty.spawn(command, args, {
-    name: "xterm-256color",
-    cols,
-    rows,
-    cwd: managed.session.workingDirectory,
-    env: {
-      ...process.env,
-      TERM: "xterm-256color",
-      COLORTERM: "truecolor",
-    },
-  });
-
-  managed.isActive = true;
-
-  // Handle PTY output
-  managed.pty.onData((data) => {
-    // Add to scrollback
-    managed.scrollback += data;
-    if (managed.scrollback.length > MAX_SCROLLBACK) {
-      managed.scrollback = managed.scrollback.slice(-MAX_SCROLLBACK);
-    }
-
-    // Broadcast to all clients
-    broadcastToClients(managed, {
-      type: "output",
-      data,
+  try {
+    managed.pty = pty.spawn(command, args, {
+      name: "xterm-256color",
+      cols,
+      rows,
+      cwd: managed.session.workingDirectory,
+      env: {
+        ...process.env,
+        TERM: "xterm-256color",
+        COLORTERM: "truecolor",
+      } as Record<string, string>,
     });
 
-    // Check for patterns that might need push notification
-    checkForNotificationTriggers(managed, data);
-  });
+    console.log(`[PTY] Spawned successfully, PID: ${managed.pty.pid}`);
+    managed.isActive = true;
 
-  // Handle PTY exit
-  managed.pty.onExit(({ exitCode }) => {
-    console.log(`[PTY] Session ${managed.id} exited with code ${exitCode}`);
+    // Handle PTY output
+    managed.pty.onData((data) => {
+      console.log(`[PTY] Output from ${managed.id}: ${data.length} bytes`);
+
+      // Add to scrollback
+      managed.scrollback += data;
+      if (managed.scrollback.length > MAX_SCROLLBACK) {
+        managed.scrollback = managed.scrollback.slice(-MAX_SCROLLBACK);
+      }
+
+      // Broadcast to all clients
+      console.log(`[PTY] Broadcasting to ${managed.clients.size} clients`);
+      broadcastToClients(managed, {
+        type: "output",
+        data,
+      });
+
+      // Check for patterns that might need push notification
+      checkForNotificationTriggers(managed, data);
+    });
+
+    // Handle PTY exit
+    managed.pty.onExit(({ exitCode }) => {
+      console.log(`[PTY] Session ${managed.id} exited with code ${exitCode}`);
+      managed.isActive = false;
+      managed.pty = null;
+
+      broadcastToClients(managed, {
+        type: "exit",
+        code: exitCode,
+      });
+    });
+
+  } catch (err) {
+    console.error(`[PTY] Failed to spawn PTY for session ${managed.id}:`, err);
     managed.isActive = false;
     managed.pty = null;
-
-    broadcastToClients(managed, {
-      type: "exit",
-      code: exitCode,
-    });
-  });
+  }
 }
 
 /**
@@ -124,9 +136,11 @@ export function spawnPty(managed: ManagedSession, cols = 120, rows = 30): void {
 export function sendInput(sessionId: string, data: string): boolean {
   const managed = sessions.get(sessionId);
   if (!managed || !managed.pty) {
+    console.log(`[PTY] sendInput failed - no managed session or PTY for ${sessionId}`);
     return false;
   }
 
+  console.log(`[PTY] Sending input to ${sessionId}: ${data.length} bytes`);
   managed.pty.write(data);
   return true;
 }
@@ -140,6 +154,7 @@ export function resizePty(sessionId: string, cols: number, rows: number): boolea
     return false;
   }
 
+  console.log(`[PTY] Resizing ${sessionId} to ${cols}x${rows}`);
   managed.pty.resize(cols, rows);
   return true;
 }
@@ -149,17 +164,20 @@ export function resizePty(sessionId: string, cols: number, rows: number): boolea
  */
 export function addClient(
   sessionId: string,
-  ws: ServerWebSocket<WebSocketData>
+  ws: WebSocket
 ): ManagedSession | null {
   const managed = sessions.get(sessionId);
   if (!managed) {
+    console.log(`[WS] addClient failed - no managed session for ${sessionId}`);
     return null;
   }
 
   managed.clients.add(ws);
+  console.log(`[WS] Added client to ${sessionId}, now ${managed.clients.size} clients`);
 
   // Send scrollback to new client
   if (managed.scrollback) {
+    console.log(`[WS] Sending ${managed.scrollback.length} bytes scrollback to new client`);
     ws.send(
       JSON.stringify({
         type: "scrollback",
@@ -169,6 +187,7 @@ export function addClient(
   }
 
   // Send current status
+  console.log(`[WS] Sending status: isActive=${managed.isActive}, title=${managed.session.title}`);
   ws.send(
     JSON.stringify({
       type: "status",
@@ -184,19 +203,13 @@ export function addClient(
 /**
  * Remove a WebSocket client from a session
  */
-export function removeClient(
-  sessionId: string,
-  ws: ServerWebSocket<WebSocketData>
-): void {
+export function removeClient(sessionId: string, ws: WebSocket): void {
   const managed = sessions.get(sessionId);
   if (!managed) {
     return;
   }
 
   managed.clients.delete(ws);
-
-  // If no clients and PTY is running, we keep it running
-  // The user might reconnect
   console.log(
     `[WS] Client disconnected from ${sessionId}, ${managed.clients.size} clients remaining`
   );
@@ -259,7 +272,9 @@ function broadcastToClients(
   const data = JSON.stringify(message);
   for (const client of managed.clients) {
     try {
-      client.send(data);
+      if (client.readyState === 1) { // WebSocket.OPEN
+        client.send(data);
+      }
     } catch (err) {
       console.error(`[WS] Error sending to client:`, err);
       managed.clients.delete(client);
@@ -274,9 +289,6 @@ function checkForNotificationTriggers(
   managed: ManagedSession,
   data: string
 ): void {
-  // Import here to avoid circular dependency
-  const { sendPushNotification } = require("./push");
-
   // Check for question patterns (Claude asking for input)
   const questionPatterns = [
     /\?\s*$/,                    // Ends with question mark
