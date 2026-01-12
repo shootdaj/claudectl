@@ -168,6 +168,46 @@ bun test src/core/search-index.test.ts
 | 2026-01-07 | Schema v2: Added is_deleted, deleted_at columns with migration | Soft-delete feature |
 | 2026-01-12 | Session renames now SQLite-only (removed JSON file dual storage) | Simplification |
 | 2026-01-12 | Added `updateSessionPath()` for session move/promote | Feature |
+| 2026-01-13 | Mocked better-sqlite3 in tests for Bun CI compatibility | CI fix |
+
+---
+
+## Gotchas & Edge Cases (Test Mocking)
+
+### better-sqlite3 Not Supported in Bun
+**Symptom**: `error: 'better-sqlite3' is not yet supported in Bun`
+**Cause**: Bun has its own `bun:sqlite` module; `better-sqlite3` doesn't work
+**Solution**: Mock `better-sqlite3` in test files using `mock.module()`:
+
+```typescript
+// At the top of test file, BEFORE any imports that use search-index
+import { mock } from "bun:test";
+
+class MockDatabase {
+  prepare() {
+    return {
+      run: () => ({ lastInsertRowid: 1 }),
+      get: () => null,
+      all: () => [],
+    };
+  }
+  exec() {}
+  close() {}
+  transaction(fn: Function) { return fn; }
+}
+
+mock.module("better-sqlite3", () => ({
+  default: MockDatabase,
+}));
+
+// Then import modules that depend on search-index
+const { someFunction } = await import("./module-that-uses-search-index");
+```
+
+**Affected test files**:
+- `src/core/sessions.test.ts` - mocks better-sqlite3
+- `src/core/title-generator.test.ts` - mocks better-sqlite3 with custom logic
+- `src/core/search-index.test.ts` - uses `describe.skip()` (tests actual SQLite)
 
 ---
 

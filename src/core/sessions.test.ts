@@ -1,12 +1,33 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import { join } from "path";
-import {
+
+// Mock better-sqlite3 to avoid "not supported in Bun" error
+// See: https://github.com/oven-sh/bun/issues/4290
+class MockDatabase {
+  prepare() {
+    return {
+      run: () => ({ lastInsertRowid: 1 }),
+      get: () => null,
+      all: () => [],
+    };
+  }
+  exec() {}
+  close() {}
+  transaction(fn: Function) { return fn; }
+}
+
+mock.module("better-sqlite3", () => ({
+  default: MockDatabase,
+}));
+
+// Import after mocking
+const {
   discoverSessions,
   findSession,
   getSessionsForDirectory,
   formatRelativeTime,
-  type Session,
-} from "./sessions";
+} = await import("./sessions");
+type Session = Awaited<ReturnType<typeof discoverSessions>>[number];
 
 const FIXTURES_DIR = join(import.meta.dir, "../test-fixtures/sessions/projects");
 
