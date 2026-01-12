@@ -1,18 +1,15 @@
-import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, rm, mkdir, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
+import { SearchIndex } from "./search-index";
 
-// Skip all tests in this file - better-sqlite3 is not supported in Bun
-// These tests require Node.js to run
-// See: https://github.com/oven-sh/bun/issues/4290
-describe.skip("SearchIndex", () => {
-  // @ts-ignore - We can't import SearchIndex because better-sqlite3 doesn't work in Bun
-  let SearchIndex: any;
+// Tests now work with bun:sqlite (replaced better-sqlite3)
+describe("SearchIndex", () => {
   let tempDir: string;
   let dbPath: string;
   let projectsDir: string;
-  let index: any;
+  let index: SearchIndex | null;
 
   beforeEach(async () => {
     // Create temp directories for each test
@@ -597,7 +594,7 @@ describe.skip("SearchIndex", () => {
   describe("close", () => {
     test("closes database connection", () => {
       index = new SearchIndex(dbPath, projectsDir);
-      expect(() => index.close()).not.toThrow();
+      expect(() => index!.close()).not.toThrow();
     });
   });
 });

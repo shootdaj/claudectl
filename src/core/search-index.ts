@@ -4,10 +4,10 @@
  * The database serves as a cache/index - JSONL files remain the source of truth.
  * Uses FTS5 for full-text search with Porter stemming.
  *
- * Compatible with both Bun and Node.js (uses better-sqlite3).
+ * Uses Bun's built-in bun:sqlite for high performance.
  */
 
-import Database from "better-sqlite3";
+import { Database } from "bun:sqlite";
 import { readdir, stat } from "fs/promises";
 import { statSync } from "fs";
 import { join } from "path";
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS session_titles (
 // ============================================
 
 export class SearchIndex {
-  private db: InstanceType<typeof Database>;
+  private db: Database;
   private projectsDir: string;
   private homeDir: string;
 
