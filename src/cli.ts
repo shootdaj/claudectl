@@ -529,7 +529,7 @@ serve
   .action(async (options) => {
     const { startServer } = await import("./server/index");
     await startServer({
-      port: parseInt(options.port),
+      port: parseInt(options.port, 10),
       tunnel: options.tunnel,
     });
   });

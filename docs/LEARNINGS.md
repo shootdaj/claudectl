@@ -40,3 +40,47 @@
 - Modern browsers support SVG in manifest.json
 - Set `"sizes": "any"` for vector icons
 - Some older mobile browsers may need PNG fallback
+
+## 2026-01-14
+
+### E2E Testing Rules (CRITICAL)
+- **E2E tests must run as a real user would** - launch the actual app, send real keyboard commands
+- **DO NOT** just call internal functions or CLI commands as a substitute for real testing
+- **DO NOT** write tests that pass without the actual functionality working
+- Use `node-pty` to spawn the TUI and send keystrokes:
+  ```typescript
+  const term = pty.spawn("bun", ["run", "src/index.ts"], {...});
+  term.write("j");  // Real keystroke
+  term.write("p");  // Real keystroke
+  ```
+- Use Playwright for web UI testing - actually navigate, click, verify
+- After making changes, **actually run the app** and verify behavior matches expectations
+
+### UI/UX Design Principles
+- **Show available actions in the footer** - users shouldn't have to guess what keys work
+- **Different actions need different keys** - don't conflate unrelated flows:
+  - `n` = New session (create something new)
+  - `p` = Promote (act on current selection)
+  - These are DIFFERENT operations, not variations of the same thing
+- **Never remove existing functionality** when adding new features
+  - Adding `p Promote` should NOT remove `n New`
+- **Context-sensitive UI** - footer should change based on selection:
+  - Non-scratch session: show default options
+  - Scratch session: show `p Promote` in addition to other options
+
+### Path Encoding for Hidden Directories
+- Hidden directories (starting with `.`) use double hyphen: `/.` → `--`
+- Example: `~/.claudectl/scratch` → `-Users-anshul--claudectl-scratch`
+- The `isScratchPath()` function checks if a path is in the scratch directory
+- Session launch must re-decode from `encodedPath` to handle legacy sessions
+
+### bun:sqlite API (NOT better-sqlite3)
+- Use `.prepare().run()` not `.run("sql", [params])`
+- Use `.prepare().all()` not `.query()`
+- Use `.exec()` for raw SQL without parameters
+- File size: use `statSync(path).size` not `Bun.file(path).size`
+
+### Key Bindings in Blessed
+- `p` key was previously used for "preview" - repurposed for "promote" on scratch sessions
+- For non-scratch sessions, `p` still shows preview (backward compatible)
+- Footer updates dynamically based on selected session type

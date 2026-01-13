@@ -111,6 +111,23 @@ for (const session of sessions) {
 
 ## Gotchas & Edge Cases
 
+### bun:sqlite API Differences
+**Symptom**: "this.db.run is not a function" or unexpected behavior
+**Cause**: bun:sqlite has different API than better-sqlite3
+**Solution**: Use the correct bun:sqlite patterns:
+```typescript
+// WRONG (better-sqlite3 pattern):
+db.run("INSERT INTO t VALUES (?)", [value]);
+db.query("SELECT * FROM t WHERE id = ?");
+
+// CORRECT (bun:sqlite pattern):
+db.prepare("INSERT INTO t VALUES (?)").run(value);
+db.prepare("SELECT * FROM t WHERE id = ?").all();  // or .get() for single row
+
+// For raw SQL without parameters:
+db.exec("DELETE FROM t");  // Use .exec() not .run()
+```
+
 ### BM25 Must Be In Direct FTS5 Query
 **Symptom**: "unable to use function bm25 in the requested context"
 **Cause**: bm25() ranking function can only be used in direct FTS5 queries, not in CTEs or subqueries
@@ -168,6 +185,7 @@ bun test src/core/search-index.test.ts
 | 2026-01-07 | Schema v2: Added is_deleted, deleted_at columns with migration | Soft-delete feature |
 | 2026-01-12 | Session renames now SQLite-only (removed JSON file dual storage) | Simplification |
 | 2026-01-12 | Added `updateSessionPath()` for session move/promote | Feature |
+| 2026-01-14 | Fixed bun:sqlite API usage: .query()→.prepare(), .run()→.prepare().run() | Bug fix |
 
 ---
 

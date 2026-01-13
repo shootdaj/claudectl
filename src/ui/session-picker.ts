@@ -340,17 +340,30 @@ export async function showSessionPicker(
   });
 
   // Footer keybindings
+  const defaultFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+  const scratchFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}p{/#ffff00-fg} Promote  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+
   const footer = blessed.box({
     parent: mainBox,
     bottom: 0,
     left: 0,
     width: "100%-2",
     height: 1,
-    content:
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit",
+    content: defaultFooter,
     tags: true,
     style: { fg: "gray" },
   });
+
+  // Update footer based on selected session
+  function updateFooter() {
+    const idx = table.selected;
+    const session = filteredSessions[idx];
+    if (session && isScratchPath(session.workingDirectory)) {
+      footer.setContent(scratchFooter);
+    } else {
+      footer.setContent(defaultFooter);
+    }
+  }
 
   // Search box (hidden by default)
   const searchBox = blessed.textbox({
@@ -633,6 +646,8 @@ export async function showSessionPicker(
     } else {
       updateDetails();
     }
+    // Update footer to show 'p Promote' for scratch sessions
+    updateFooter();
     screen.render();
   });
 
@@ -640,6 +655,7 @@ export async function showSessionPicker(
   const initialIndex = Math.min(options.selectedIndex ?? 0, filteredSessions.length - 1);
   table.select(Math.max(0, initialIndex));
   updateDetails();
+  updateFooter();
 
   // Keybindings
   table.key(["enter"], async () => {
@@ -1067,18 +1083,65 @@ export async function showSessionPicker(
     return code === 0;
   }
 
-  // Start menu (n) - unified entry point for new sessions
+  // New session (n) - always shows new session menu (Quick question / Clone repo)
   table.key(["n"], async () => {
     const idx = table.selected;
-    const session = filteredSessions[idx];
-
-    // Check if current session is a scratch session (can be promoted)
-    const isScratch = session && isScratchPath(session.workingDirectory);
 
     stopAnimations();
     screen.destroy();
     await showNewProjectWizard({
-      scratchSession: isScratch ? session : undefined,
+      onComplete: () => showSessionPicker({ ...options, selectedIndex: idx }),
+      onCancel: () => showSessionPicker({ ...options, selectedIndex: idx }),
+    });
+  });
+
+  // Promote (p) - directly promote scratch session to project
+  table.key(["p"], async () => {
+    const idx = table.selected;
+    const session = filteredSessions[idx];
+    if (!session) return;
+
+    // Only works for scratch sessions
+    if (!isScratchPath(session.workingDirectory)) {
+      // Show preview instead (existing behavior)
+      const previewBox = blessed.box({
+        parent: screen,
+        top: "center",
+        left: "center",
+        width: "80%",
+        height: "80%",
+        content: await getSessionPreview(session),
+        tags: true,
+        border: { type: "line" },
+        style: {
+          border: { fg: theme.pink },
+          fg: "white",
+        },
+        scrollable: true,
+        keys: true,
+        vi: true,
+        scrollbar: {
+          ch: "▌",
+          style: { fg: theme.pink },
+        },
+        label: ` {#ff00ff-fg}${session.title || session.id}{/#ff00ff-fg} `,
+      });
+
+      previewBox.key(["escape", "q", "p"], () => {
+        previewBox.destroy();
+        screen.render();
+      });
+
+      previewBox.focus();
+      screen.render();
+      return;
+    }
+
+    // For scratch sessions, show promote flow
+    stopAnimations();
+    screen.destroy();
+    await showNewProjectWizard({
+      scratchSession: session,
       onComplete: () => showSessionPicker({ ...options, selectedIndex: idx }),
       onCancel: () => showSessionPicker({ ...options, selectedIndex: idx }),
     });

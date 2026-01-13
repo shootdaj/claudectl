@@ -39,3 +39,7 @@ claudectl serve --tunnel
 ### Pending
 - Add proper PNG icons for full PWA compliance (currently using SVG)
 - Test on actual mobile devices
+- **Auto-start server**: Server should run automatically (daemon mode) so users can connect to any open Claude session at any time. Options to consider:
+  - Persistent daemon via launchd/systemd
+  - Hybrid approach: view history remotely, spawn `claude --resume` in PTY for interaction
+  - tmux-based for full terminal sharing
