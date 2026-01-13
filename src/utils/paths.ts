@@ -25,6 +25,7 @@ function toPlatformPath(path: string): string {
 /**
  * Encode a filesystem path to Claude's directory name format.
  * /Users/anshul/Code → -Users-anshul-Code
+ * /Users/anshul/.claudectl/scratch → -Users-anshul--claudectl-scratch (hidden folders use --)
  * C:\Users\anshul\Code → C--Users-anshul-Code (Windows)
  */
 export function encodePath(path: string): string {
@@ -35,16 +36,20 @@ export function encodePath(path: string): string {
   if (isWindows && /^[A-Za-z]:/.test(normalized)) {
     const drive = normalized[0];
     const rest = normalized.slice(2); // Remove "C:"
-    return drive + rest.replace(/\//g, "-");
+    // Hidden directories: /. becomes --
+    return drive + rest.replace(/\/\./g, "--").replace(/\//g, "-");
   }
 
-  return normalized.replace(/\//g, "-");
+  // Hidden directories: /. becomes --
+  // Regular directories: / becomes -
+  return normalized.replace(/\/\./g, "--").replace(/\//g, "-");
 }
 
 /**
  * Decode a Claude directory name back to a filesystem path.
  * Handles ambiguous cases where folder names contain hyphens by checking filesystem.
  * -Users-anshul-Code-research-hub → /Users/anshul/Code/research-hub
+ * -Users-anshul--claudectl-scratch → /Users/anshul/.claudectl/scratch (hidden folders)
  * C--Users-anshul-Code → C:\Users\anshul\Code (Windows)
  */
 export function decodePath(encoded: string): string {
@@ -54,7 +59,7 @@ export function decodePath(encoded: string): string {
   if (/^[A-Za-z]-/.test(encoded)) {
     const drive = encoded[0];
     const rest = encoded.slice(1); // Remove drive letter, keep leading hyphen
-    const parts = rest.slice(1).split("-"); // Remove leading hyphen, split
+    const parts = splitEncodedPath(rest.slice(1)); // Remove leading hyphen, then split
     const resolved = findValidPathWindows(drive, parts);
     return toPlatformPath(resolved);
   }
@@ -64,12 +69,71 @@ export function decodePath(encoded: string): string {
     return encoded.replace(/-/g, "/");
   }
 
-  // Remove leading hyphen
-  const withoutLeading = encoded.slice(1);
-  const parts = withoutLeading.split("-");
+  // Remove leading hyphen and split, handling hidden directories (--folder means .folder)
+  // Special case: if path starts with "--", it means a hidden folder at root (/.hidden)
+  let withoutLeading = encoded.slice(1);
+  let startsWithHidden = false;
+  if (withoutLeading.startsWith("-")) {
+    // This is a hidden folder at root, mark it and remove the extra hyphen
+    startsWithHidden = true;
+    withoutLeading = withoutLeading.slice(1);
+  }
+  const parts = splitEncodedPath(withoutLeading);
+
+  // If we had a leading hidden folder, add the dot prefix to the first part
+  if (startsWithHidden && parts.length > 0 && !parts[0].startsWith(".")) {
+    parts[0] = "." + parts[0];
+  }
 
   // Try to find the actual path by testing which combinations exist
-  return "/" + findValidPath(parts);
+  const result = "/" + findValidPath(parts);
+
+  // Normalize any remaining double slashes
+  return result.replace(/\/+/g, "/");
+}
+
+/**
+ * Split an encoded path string into parts, handling hidden directories.
+ * Double hyphen (--) before a name means it's a hidden folder (.name).
+ * Example: "Users-anshul--claudectl-scratch" -> ["Users", "anshul", ".claudectl", "scratch"]
+ */
+function splitEncodedPath(encoded: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let i = 0;
+
+  while (i < encoded.length) {
+    if (encoded[i] === "-") {
+      // Check if this is a double hyphen (hidden folder indicator)
+      if (i + 1 < encoded.length && encoded[i + 1] === "-") {
+        // Save current part if not empty
+        if (current) {
+          parts.push(current);
+          current = "";
+        }
+        // Skip the double hyphen and start next part with a dot
+        i += 2;
+        current = ".";
+      } else {
+        // Single hyphen - end of current part
+        if (current) {
+          parts.push(current);
+          current = "";
+        }
+        i++;
+      }
+    } else {
+      current += encoded[i];
+      i++;
+    }
+  }
+
+  // Don't forget the last part
+  if (current) {
+    parts.push(current);
+  }
+
+  return parts;
 }
 
 /**

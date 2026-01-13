@@ -242,6 +242,21 @@ async function discoverSessionsFromFiles(
 }
 
 /**
+ * Get a session by exact ID
+ */
+export async function getSessionById(
+  sessionId: string,
+  options: DiscoverOptions = {}
+): Promise<Session | undefined> {
+  const sessions = await discoverSessions({
+    ...options,
+    includeAgents: true,
+    includeEmpty: true,
+  });
+  return sessions.find((s) => s.id === sessionId);
+}
+
+/**
  * Find a session by ID, slug, or title (exact or partial match)
  */
 export async function findSession(
@@ -315,7 +330,9 @@ export async function launchSession(
   }
 
   const command = `claude ${args.join(" ")}`;
-  const cwd = session.workingDirectory;
+  // Re-decode from encodedPath to fix any legacy bugs in stored working directory
+  // This ensures we always use the current (fixed) path decoding logic
+  const cwd = session.encodedPath ? decodePath(session.encodedPath) : session.workingDirectory;
 
   if (options.dryRun) {
     return { command, cwd };

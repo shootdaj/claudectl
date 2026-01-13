@@ -3,10 +3,13 @@
  *
  * The database serves as a cache/index - JSONL files remain the source of truth.
  * Uses FTS5 for full-text search with Porter stemming.
+ *
+ * Uses Bun's built-in bun:sqlite for high performance.
  */
 
 import { Database } from "bun:sqlite";
 import { readdir, stat } from "fs/promises";
+import { statSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import { existsSync, mkdirSync } from "fs";
@@ -201,18 +204,18 @@ export class SearchIndex {
 
   private initSchema(): void {
     // Check if schema exists and is current version
-    const versionRow = this.db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_info'").get();
+    const versionRow = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_info'").get();
 
     if (!versionRow) {
       // Fresh database - create schema
       this.db.exec(SCHEMA_SQL);
-      this.db.run("INSERT OR REPLACE INTO schema_info (version) VALUES (?)", [SCHEMA_VERSION]);
+      this.db.prepare("INSERT OR REPLACE INTO schema_info (version) VALUES (?)").run(SCHEMA_VERSION);
     } else {
       // Check version and migrate if needed
-      const currentVersion = this.db.query("SELECT MAX(version) as v FROM schema_info").get() as { v: number } | null;
+      const currentVersion = this.db.prepare("SELECT MAX(version) as v FROM schema_info").get() as { v: number } | null;
       if (!currentVersion || currentVersion.v < SCHEMA_VERSION) {
         this.migrateSchema(currentVersion?.v || 0);
-        this.db.run("INSERT OR REPLACE INTO schema_info (version) VALUES (?)", [SCHEMA_VERSION]);
+        this.db.prepare("INSERT OR REPLACE INTO schema_info (version) VALUES (?)").run(SCHEMA_VERSION);
       }
     }
   }
@@ -221,8 +224,8 @@ export class SearchIndex {
     // Migration v1 -> v2: Add is_deleted and deleted_at columns
     if (fromVersion < 2) {
       try {
-        this.db.run("ALTER TABLE files ADD COLUMN is_deleted INTEGER DEFAULT 0");
-        this.db.run("ALTER TABLE files ADD COLUMN deleted_at TEXT");
+        this.db.exec("ALTER TABLE files ADD COLUMN is_deleted INTEGER DEFAULT 0");
+        this.db.exec("ALTER TABLE files ADD COLUMN deleted_at TEXT");
       } catch {
         // Columns might already exist
       }
@@ -248,7 +251,7 @@ export class SearchIndex {
     const diskFileMap = new Map(diskFiles.map(f => [f.filePath, f]));
 
     // Get all indexed files from database (including deleted ones)
-    const indexedFiles = this.db.query("SELECT id, file_path, mtime_ms, size_bytes, is_deleted FROM files").all() as Array<{
+    const indexedFiles = this.db.prepare("SELECT id, file_path, mtime_ms, size_bytes, is_deleted FROM files").all() as Array<{
       id: number;
       file_path: string;
       mtime_ms: number;
@@ -262,12 +265,12 @@ export class SearchIndex {
       if (!diskFileMap.has(indexed.file_path)) {
         if (!indexed.is_deleted) {
           // Mark as deleted instead of removing
-          this.db.run("UPDATE files SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?", [indexed.id]);
+          this.db.prepare("UPDATE files SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?").run(indexed.id);
           stats.deleted++;
         }
       } else if (indexed.is_deleted) {
         // File reappeared (was restored) - mark as not deleted
-        this.db.run("UPDATE files SET is_deleted = 0, deleted_at = NULL WHERE id = ?", [indexed.id]);
+        this.db.prepare("UPDATE files SET is_deleted = 0, deleted_at = NULL WHERE id = ?").run(indexed.id);
         stats.updated++;
       }
     }
@@ -287,7 +290,7 @@ export class SearchIndex {
         )
       ) {
         // Changed file - re-index it (but preserve is_deleted status)
-        this.db.run("DELETE FROM files WHERE id = ?", [indexed.id]);
+        this.db.prepare("DELETE FROM files WHERE id = ?").run(indexed.id);
         await this.indexFile(diskFile);
         stats.updated++;
       } else if (!indexed.is_deleted) {
@@ -366,14 +369,14 @@ export class SearchIndex {
     };
 
     // Insert file record
-    const result = this.db.run(`
+    const result = this.db.prepare(`
       INSERT INTO files (
         file_path, mtime_ms, size_bytes, session_id, encoded_path,
         working_directory, short_path, slug, first_user_message, git_branch, model,
         created_at, last_accessed_at, message_count, user_message_count,
         assistant_message_count, total_input_tokens, total_output_tokens
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
+    `).run(
       fileInfo.filePath,
       fileInfo.mtimeMs,
       fileInfo.sizeBytes,
@@ -392,7 +395,7 @@ export class SearchIndex {
       metadata.assistantMessageCount,
       metadata.totalInputTokens,
       metadata.totalOutputTokens,
-    ]);
+    );
 
     const fileId = result.lastInsertRowid;
 
@@ -451,7 +454,7 @@ export class SearchIndex {
     // Sort: active sessions by last_accessed, then deleted sessions by deleted_at
     sql += ` ORDER BY f.is_deleted ASC, COALESCE(f.deleted_at, f.last_accessed_at) DESC`;
 
-    const rows = this.db.query(sql).all() as any[];
+    const rows = this.db.prepare(sql).all() as any[];
 
     return rows.map(row => ({
       id: row.session_id,
@@ -503,7 +506,7 @@ export class SearchIndex {
       ORDER BY bm25(messages_fts)
     `;
 
-    const matchedMessages = this.db.query(matchesSql).all(ftsQuery) as Array<{
+    const matchedMessages = this.db.prepare(matchesSql).all(ftsQuery) as Array<{
       id: number;
       file_id: number;
       type: string;
@@ -538,7 +541,7 @@ export class SearchIndex {
       LIMIT ?
     `;
 
-    const files = this.db.query(filesSql).all(...fileIds, maxResults) as any[];
+    const files = this.db.prepare(filesSql).all(...fileIds, maxResults) as any[];
 
     return files.map(f => {
       const fileMatches = matchesByFile.get(f.id) || [];
@@ -588,17 +591,17 @@ export class SearchIndex {
    * Set a custom title for a session
    */
   setSessionTitle(sessionId: string, title: string): void {
-    this.db.run(`
+    this.db.prepare(`
       INSERT OR REPLACE INTO session_titles (session_id, title, renamed_at)
       VALUES (?, ?, datetime('now'))
-    `, [sessionId, title]);
+    `).run(sessionId, title);
   }
 
   /**
    * Get custom title for a session
    */
   getSessionTitle(sessionId: string): string | undefined {
-    const row = this.db.query("SELECT title FROM session_titles WHERE session_id = ?").get(sessionId) as { title: string } | null;
+    const row = this.db.prepare("SELECT title FROM session_titles WHERE session_id = ?").get(sessionId) as { title: string } | null;
     return row?.title;
   }
 
@@ -612,27 +615,26 @@ export class SearchIndex {
     newShortPath: string,
     newEncodedPath: string
   ): void {
-    this.db.run(`
+    this.db.prepare(`
       UPDATE files SET
         file_path = ?,
         working_directory = ?,
         short_path = ?,
         encoded_path = ?
       WHERE session_id = ?
-    `, [newFilePath, newWorkingDirectory, newShortPath, newEncodedPath, sessionId]);
+    `).run(newFilePath, newWorkingDirectory, newShortPath, newEncodedPath, sessionId);
   }
 
   /**
    * Get index statistics
    */
   getStats(): { sessions: number; messages: number; dbSize: number } {
-    const sessions = (this.db.query("SELECT COUNT(*) as c FROM files").get() as { c: number }).c;
-    const messages = (this.db.query("SELECT COUNT(*) as c FROM messages").get() as { c: number }).c;
+    const sessions = (this.db.prepare("SELECT COUNT(*) as c FROM files").get() as { c: number }).c;
+    const messages = (this.db.prepare("SELECT COUNT(*) as c FROM messages").get() as { c: number }).c;
 
     let dbSize = 0;
     try {
-      const statResult = Bun.file(INDEX_DB_PATH).size;
-      dbSize = statResult;
+      dbSize = statSync(INDEX_DB_PATH).size;
     } catch {}
 
     return { sessions, messages, dbSize };
@@ -643,8 +645,8 @@ export class SearchIndex {
    */
   async rebuild(): Promise<SyncStats> {
     // Clear all data
-    this.db.run("DELETE FROM messages");
-    this.db.run("DELETE FROM files");
+    this.db.exec("DELETE FROM messages");
+    this.db.exec("DELETE FROM files");
     // Keep session_titles - user renames should persist
 
     // Re-sync
