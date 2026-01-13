@@ -126,6 +126,12 @@ for (const session of sessions) {
 **Cause**: `getSearchIndex()` returns singleton, `closeSearchIndex()` closes it
 **Solution**: Let the singleton manage lifecycle; only close on app exit
 
+### Hidden Directory Path Decoding Bug
+**Symptom**: Paths like `/Users/anshul//claudectl/scratch` with double slash
+**Cause**: Claude encodes `.claudectl` as `--claudectl` (dot becomes hyphen). Old decodePath() used `.filter(Boolean)` on split("-") which lost the dot information.
+**Solution**: Use `splitEncodedPath()` that handles double-hyphen as dot prefix. Also `launchSession()` re-decodes from encodedPath to ensure fixed decoding is used even with stale DB data.
+**Fix Commit**: Fixed in paths.ts - `splitEncodedPath()` function
+
 ---
 
 ## Dependencies
@@ -169,6 +175,7 @@ bun test src/core/search-index.test.ts
 | 2026-01-12 | Session renames now SQLite-only (removed JSON file dual storage) | Simplification |
 | 2026-01-12 | Added `updateSessionPath()` for session move/promote | Feature |
 | 2026-01-13 | Mocked better-sqlite3 in tests for Bun CI compatibility | CI fix |
+| 2026-01-13 | Fixed hidden directory path decoding (double hyphen = dot prefix) | Bug fix |
 
 ---
 

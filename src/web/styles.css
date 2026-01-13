@@ -20,6 +20,7 @@
 
   --sidebar-width: 280px;
   --header-height: 48px;
+  --mobile-input-height: 60px;
 }
 
 * {
@@ -211,6 +212,8 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
 }
 
 .session-item .path {
@@ -265,15 +268,15 @@ html, body {
   }
 }
 
-/* Terminal Area */
-#terminal-area {
+/* Main Content Area */
+#main-area {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-#terminal-header {
+#main-header {
   height: var(--header-height);
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
@@ -281,6 +284,13 @@ html, body {
   align-items: center;
   justify-content: space-between;
   background: var(--bg-dark);
+  flex-shrink: 0;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .session-info {
@@ -308,12 +318,7 @@ html, body {
   color: var(--fg-muted);
 }
 
-.terminal-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
+/* Connection Status */
 .status {
   font-size: 12px;
   padding: 4px 10px;
@@ -336,10 +341,12 @@ html, body {
   color: var(--yellow);
 }
 
+/* Terminal Container */
 #terminal-container {
   flex: 1;
   position: relative;
   background: var(--bg);
+  min-height: 0;
 }
 
 #terminal {
@@ -362,6 +369,62 @@ html, body {
   justify-content: center;
   color: var(--fg-muted);
   font-size: 15px;
+}
+
+/* Mobile Input Bar */
+#mobile-input-bar {
+  height: var(--mobile-input-height);
+  padding: 8px 12px;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+#mobile-input {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  color: var(--fg);
+  font-size: 16px; /* Prevents iOS zoom on focus */
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#mobile-input:focus {
+  border-color: var(--cyan);
+}
+
+#mobile-input::placeholder {
+  color: var(--fg-muted);
+}
+
+#send-input {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--blue);
+  color: var(--bg-dark);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+#send-input:hover {
+  background: var(--cyan);
+}
+
+#send-input:active {
+  transform: scale(0.9);
 }
 
 /* Mobile */
@@ -394,6 +457,33 @@ html, body {
     color: var(--fg-muted);
     cursor: pointer;
     padding: 4px;
+  }
+
+  /* Mobile input bar always visible on mobile */
+  #mobile-input-bar {
+    display: flex !important;
+  }
+
+  /* Mobile touch targets - at least 48px */
+  #send-input {
+    width: 48px;
+    height: 48px;
+  }
+
+  #mobile-input {
+    padding: 14px 18px;
+  }
+
+  /* Adjust terminal container for mobile input bar */
+  #terminal-container {
+    bottom: var(--mobile-input-height);
+  }
+}
+
+/* Desktop - hide mobile input bar */
+@media (min-width: 769px) {
+  #mobile-input-bar {
+    display: none;
   }
 }
 
@@ -432,4 +522,12 @@ html, body {
 .xterm-viewport::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 4px;
+}
+
+/* Safe area insets for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #mobile-input-bar {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    height: calc(var(--mobile-input-height) + env(safe-area-inset-bottom));
+  }
 }

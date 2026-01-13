@@ -1,74 +1,63 @@
 # Remote Server Expertise
 
 ## Overview
-The `claudectl serve` command provides remote web access to Claude Code sessions via WebSocket.
+The `claudectl serve` command provides remote web access to Claude Code sessions.
+
+**Current Architecture (v1.5)**: Terminal-only web interface using xterm.js with tmux-based PTY synchronization. Works on both desktop and mobile with mobile-friendly input bar.
 
 ## Key Files
 
 ### Server Core
 - `src/server/index.ts` - HTTP server, WebSocket handling, API routes
-- `src/server/session-manager.ts` - PTY session management, client broadcasting
 - `src/server/auth.ts` - bcrypt password hashing, JWT token generation/verification
 - `src/server/push.ts` - Web push notifications (VAPID keys)
+- `src/server/session-manager.ts` - tmux-based session management (polling, input forwarding)
 
 ### Entry Points
 - `src/server-main.ts` - Dedicated Node.js entry point for the server
 - `src/cli.ts` - CLI integration (spawns Node.js for serve command)
 
 ### Web Interface
-- `src/web/` - Static files (PWA, xterm.js terminal)
+- `src/web/index.html` - Terminal UI with mobile input bar
+- `src/web/app.js` - Client-side JS (WebSocket, xterm.js, mobile input)
+- `src/web/styles.css` - Responsive styles with mobile-first design
 
-## Critical: Node.js Requirement
+## Architecture
 
-**The server MUST run under Node.js, not Bun.**
+```
+Mac (tmux):  Claude runs in tmux session "claudectl-{8-char-id}"
+Web UI:      xterm.js terminal + WebSocket for real-time sync
+Mobile:      Same terminal UI + bottom input bar for keyboard input
+```
 
-### Why?
-Bun's Terminal API has a bug (GitHub issue #25779) where `terminal.write()` bypasses PTY line discipline. This means input written to the PTY never reaches the underlying process (Claude).
+### tmux Integration (Key Innovation)
+**node-pty doesn't work with Bun** - callbacks don't fire. We use tmux instead:
 
-### Implementation
-The CLI spawns a Node.js process via `npx tsx`:
+1. Claude runs in a detached tmux session
+2. Server polls `tmux capture-pane` every 100ms for output
+3. Input sent via `tmux send-keys -l` for literal characters
 
 ```typescript
-// In src/cli.ts serve command
-const proc = spawn("npx", ["tsx", serverEntryPoint, ...args], {
-  stdio: "inherit",
-  cwd: path.join(__dirname, ".."),
-});
+// Session naming
+function getTmuxSessionName(sessionId: string): string {
+  return `claudectl-${sessionId.slice(0, 8)}`;
+}
+
+// Start session
+tmux new-session -d -s "claudectl-0e2a91cd" -c "/path/to/project" -x 120 -y 30 "claude --resume '0e2a91cd-...'"
+
+// Capture output (polls every 100ms)
+tmux capture-pane -t "claudectl-0e2a91cd" -p -S -500
+
+// Send input
+tmux send-keys -t "claudectl-0e2a91cd" -l 'user message'
 ```
 
-## Dependencies
-
-### Node.js Compatibility
-Changed from Bun-specific to Node.js-compatible:
-- `bun:sqlite` → `better-sqlite3`
-- `Bun.file()` → `fs.readFile()`
-- `Bun.password.hash/verify` → `bcrypt`
-- `Bun.serve()` → Node.js `http` + `ws` package
-
-### Key Packages
-- `node-pty` - Terminal emulation (PTY management)
-- `better-sqlite3` - SQLite for search index
-- `bcrypt` - Password hashing
-- `ws` - WebSocket server
-- `web-push` - Push notifications
-
-## PTY Spawning
-
-```typescript
-// In session-manager.ts
-managed.pty = pty.spawn("claude", ["--resume", managed.id], {
-  name: "xterm-256color",
-  cols, rows,
-  cwd: managed.session.workingDirectory,
-  env: { ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" },
-});
-```
-
-### spawn-helper Permissions
-The `node-pty` package includes a `spawn-helper` binary that needs execute permissions:
-```bash
-chmod +x node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper
-```
+### Polling-Based Output Sync
+- Server stores `lastCapturedContent` to detect changes
+- On change, sends ANSI clear + full new content to client
+- Broadcasts to all connected WebSocket clients
+- Polling stops when no clients connected, restarts on reconnect
 
 ## API Endpoints
 
@@ -85,71 +74,117 @@ chmod +x node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper
 
 ## WebSocket Protocol
 
-### Connection
 ```
 ws://localhost:3847/ws/session/:sessionId?token=<jwt>
 ```
 
-### Messages
-
-Client → Server:
+### Client → Server
 ```json
-{ "type": "input", "data": "hello\n" }
-{ "type": "resize", "cols": 120, "rows": 30 }
-{ "type": "spawn", "cols": 120, "rows": 30 }
+{ "type": "spawn" }           // Start/attach tmux session
+{ "type": "input", "data": "text" }  // Send user input
+{ "type": "resize", "cols": 120, "rows": 30 }  // Resize terminal
 ```
 
-Server → Client:
+### Server → Client
 ```json
+{ "type": "output", "data": "terminal output" }
+{ "type": "scrollback", "data": "previous output" }
 { "type": "status", "isActive": true, "sessionTitle": "...", "workingDirectory": "..." }
-{ "type": "scrollback", "data": "..." }
-{ "type": "output", "data": "..." }
 { "type": "exit", "code": 0 }
+{ "type": "error", "message": "..." }
 ```
 
-## ES Module Compatibility
+## Mobile UX
 
-### __dirname in ESM
+### Input Bar
+- Bottom-fixed input bar with text field + send button
+- Uses `autocorrect="on"` and `autocapitalize="sentences"` for phone keyboard
+- Visible on screens <= 768px via CSS media query
+
+### Sidebar Toggle
+- Hamburger menu button (mobile-only) shows session sidebar
+- Sidebar slides in from left with `transform: translateX()`
+
+### URL-Based Session Selection
+Added in app.js to support direct linking:
+```javascript
+const pathMatch = window.location.pathname.match(/\/session\/([a-f0-9-]+)/);
+if (pathMatch) {
+  setTimeout(() => selectSession(pathMatch[1]), 500);
+}
+```
+
+## Session Manager Details
+
+### ManagedSession Structure
 ```typescript
-import { fileURLToPath } from "url";
-import { dirname } from "path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+interface ManagedSession {
+  id: string;
+  session: Session;           // From core/sessions
+  clients: Set<WebSocket>;    // Connected clients
+  scrollback: string;         // Output buffer (max 50KB)
+  isActive: boolean;          // tmux session running
+  pollInterval: ReturnType<typeof setInterval> | null;
+  lastCapturedContent: string;  // For diff detection
+}
 ```
 
-### No CommonJS require()
-Static imports only - no `require()` in ESM mode.
+### Key Functions
+- `getOrCreateManagedSession(sessionId)` - Find or create session
+- `spawnPty(managed, cols, rows)` - Start tmux session
+- `startPolling(managed)` - Begin capture-pane polling
+- `sendInput(sessionId, data)` - Send via tmux send-keys
+- `resizePty(sessionId, cols, rows)` - Resize tmux window
+- `addClient(sessionId, ws)` - Add WebSocket client + restart polling
+- `removeClient(sessionId, ws)` - Remove client + stop polling if empty
 
 ## Gotchas
 
-1. **Bun Terminal API Bug** - Input doesn't reach PTY. Must use Node.js + node-pty.
+1. **node-pty + Bun**: Doesn't work - use tmux instead. Callbacks never fire.
 
-2. **spawn-helper Permissions** - node-pty's spawn-helper needs `chmod +x`.
+2. **Polling restart**: When clients reconnect to an active session, need to restart polling (fixed in `addClient()`).
 
-3. **better-sqlite3 API** - Uses `db.prepare(sql).run()` not `db.run(sql, params)`.
+3. **Browser caching**: HTML/JS/CSS must use `no-cache, no-store` headers. Static assets (images) can use longer cache.
 
-4. **ESM __dirname** - Use `import.meta.url` with `fileURLToPath`.
+4. **Keyboard scrambling**: Playwright's `page.keyboard.type()` can scramble characters when typing to xterm.js. Real user typing works fine.
 
-5. **url.parse Deprecation** - Node.js warns about `url.parse()`. Use WHATWG URL API.
+5. **Input button ID**: It's `#send-input`, not `#send-btn`.
+
+6. **Sidebar on mobile**: Hidden by default, toggle via `#toggle-sidebar` button. Uses `.open` class.
+
+7. **tmux capture-pane**: Use `-S -500` to get last 500 lines. Output is full pane content, not incremental.
 
 ## Testing
 
-### Manual Test
 ```bash
 # Start server
 npx tsx src/server-main.ts
 
-# Test API
+# Test auth
 curl http://localhost:3847/api/auth/status
 
-# Test WebSocket
-node -e "const ws = new (require('ws'))('ws://localhost:3847/ws/session/ID?token=TOKEN'); ws.on('open', () => console.log('Connected'));"
+# Login
+TOKEN=$(curl -s http://localhost:3847/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"password":"test123"}' | jq -r '.token')
+
+# Check sessions
+curl "http://localhost:3847/api/sessions" \
+  -H "Authorization: Bearer $TOKEN"
 ```
+
+### Manual Testing Checklist
+1. Desktop: Login → Select session → Terminal renders → Type → Claude responds
+2. Mobile: Login → Toggle sidebar → Select session → Terminal renders → Mobile input → Send → Claude responds
+3. Reconnect: Disconnect client → Reconnect → Terminal shows scrollback + continues updating
 
 ## Change Log
 
-- 2026-01-13: Fixed dates, verified full terminal I/O working
-- 2026-01-13: Initial creation
-- 2026-01-13: Migrated from Bun to Node.js due to Terminal API bug
-- 2026-01-13: Added better-sqlite3, bcrypt, ws packages for Node.js compatibility
+- 2026-01-13: Fixed URL-based session selection for direct mobile linking
+- 2026-01-13: Fixed mobile input button ID (#send-input not #send-btn)
+- 2026-01-13: Verified bidirectional sync working (browser → tmux, tmux → browser)
+- 2026-01-13: Fixed polling restart on client reconnect
+- 2026-01-13: Fixed browser cache policy for HTML/JS/CSS
+- 2026-01-13: Switched from node-pty to tmux-based session management
+- 2026-01-13: Simplified to terminal-only UI (removed chat view)
+- 2026-01-13: Initial creation with chat UI concept

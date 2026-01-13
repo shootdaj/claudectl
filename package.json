@@ -29,6 +29,7 @@
     "@types/blessed": "^0.1.25",
     "@types/bun": "latest",
     "@types/web-push": "^3.6.4",
+    "playwright": "^1.57.0",
     "typescript": "^5.7.2"
   }
 }

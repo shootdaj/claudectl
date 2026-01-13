@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#24283b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="Remote Claude Code terminal access">
+  <meta name="description" content="Remote Claude Code access">
 
   <title>claudectl</title>
 
@@ -84,14 +84,14 @@
       </div>
     </aside>
 
-    <!-- Terminal Area -->
-    <main id="terminal-area">
-      <div id="terminal-header">
+    <!-- Main Terminal Area -->
+    <main id="main-area">
+      <div id="main-header">
         <div class="session-info">
           <span id="current-session-title">No session selected</span>
           <span id="current-session-path" class="muted"></span>
         </div>
-        <div class="terminal-controls">
+        <div class="header-controls">
           <span id="connection-status" class="status disconnected">Disconnected</span>
           <button id="toggle-sidebar" class="mobile-only" title="Toggle sidebar">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -103,11 +103,23 @@
         </div>
       </div>
 
+      <!-- Terminal Container -->
       <div id="terminal-container">
         <div id="terminal"></div>
         <div id="no-session" class="placeholder">
           <p>Select a session from the sidebar to begin</p>
         </div>
+      </div>
+
+      <!-- Mobile Input Bar -->
+      <div id="mobile-input-bar" class="hidden">
+        <input type="text" id="mobile-input" placeholder="Type here..." autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true">
+        <button id="send-input" title="Send">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
       </div>
     </main>
   </div>

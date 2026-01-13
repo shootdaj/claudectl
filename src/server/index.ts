@@ -21,14 +21,25 @@ import {
 import {
   getOrCreateManagedSession,
   spawnPty,
-  sendInput,
+  sendInput as sendPtyInput,
   resizePty,
   addClient,
   removeClient,
   cleanup,
 } from "./session-manager";
 import { getPublicVapidKey } from "./push";
-import { discoverSessions } from "../core/sessions";
+import { discoverSessions, getSessionById } from "../core/sessions";
+import { JsonlWatcher, type JsonlMessage } from "./jsonl-watcher";
+import { toChatMessage, toTerminalMessage, type ChatMessage, type TerminalMessage } from "./message-converter";
+import {
+  isTmuxAvailable,
+  listTmuxSessions,
+  isSessionRunning,
+  startSession as startTmuxSession,
+  sendInput as sendTmuxInput,
+  sendKey as sendTmuxKey,
+  sendCancel as sendTmuxCancel,
+} from "./tmux-manager";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,6 +52,15 @@ interface ServeOptions {
 
 // Store WebSocket session associations
 const wsSessionMap = new WeakMap<WebSocket, string>();
+
+// Store active JSONL watchers per session
+const sessionWatchers = new Map<string, JsonlWatcher>();
+
+// Store WebSocket clients per session for v2 (JSONL-based) connections
+const v2Clients = new Map<string, Set<WebSocket>>();
+
+// Track which mode each client is using
+const clientMode = new WeakMap<WebSocket, "terminal" | "chat">();
 
 /**
  * Start the claudectl web server
@@ -91,7 +111,14 @@ export async function startServer(options: ServeOptions = {}): Promise<void> {
     const url = parseUrl(req.url || "/", true);
     const path = url.pathname || "/";
 
-    // Extract session ID from path: /ws/session/:id
+    // V2 path: /ws/v2/session/:id - JSONL-based
+    const v2Match = path.match(/^\/ws\/v2\/session\/([^/]+)$/);
+    if (v2Match) {
+      await handleV2WebSocket(ws, v2Match[1], url.query.token as string, url.query.mode as string);
+      return;
+    }
+
+    // V1 path: /ws/session/:id - PTY-based (legacy)
     const match = path.match(/^\/ws\/session\/([^/]+)$/);
     if (!match) {
       ws.close(1002, "Invalid WebSocket path");
@@ -135,7 +162,7 @@ export async function startServer(options: ServeOptions = {}): Promise<void> {
         switch (data.type) {
           case "input":
             console.log(`[WS] Processing input: ${data.data?.length} bytes`);
-            const success = sendInput(sessionId, data.data);
+            const success = sendPtyInput(sessionId, data.data);
             console.log(`[WS] sendInput result: ${success}`);
             break;
 
@@ -167,6 +194,177 @@ export async function startServer(options: ServeOptions = {}): Promise<void> {
       }
     });
   });
+
+  /**
+   * Handle V2 WebSocket connections (JSONL-based)
+   */
+  async function handleV2WebSocket(
+    ws: WebSocket,
+    sessionId: string,
+    token: string,
+    mode: string = "chat"
+  ): Promise<void> {
+    // Verify token
+    if (!token || !verifyToken(token)) {
+      ws.close(1008, "Unauthorized");
+      return;
+    }
+
+    // Get session info
+    const session = await getSessionById(sessionId);
+    if (!session) {
+      ws.close(1011, "Session not found");
+      return;
+    }
+
+    console.log(`[WS v2] Client connected to session ${sessionId} (mode: ${mode})`);
+
+    // Store associations
+    wsSessionMap.set(ws, sessionId);
+    clientMode.set(ws, mode === "terminal" ? "terminal" : "chat");
+
+    // Add to v2 clients
+    if (!v2Clients.has(sessionId)) {
+      v2Clients.set(sessionId, new Set());
+    }
+    v2Clients.get(sessionId)!.add(ws);
+
+    // Get or create watcher for this session
+    let watcher = sessionWatchers.get(sessionId);
+    if (!watcher) {
+      watcher = new JsonlWatcher(sessionId, session.workingDirectory, { readFromStart: true });
+
+      // Forward messages to all connected clients
+      let msgCount = 0;
+      watcher.on("message", (msg: JsonlMessage) => {
+        msgCount++;
+        const clients = v2Clients.get(sessionId);
+        if (!clients) {
+          console.log(`[WS v2] No clients for session ${sessionId}`);
+          return;
+        }
+
+        // Always convert to chat format (has all info, client can display as terminal)
+        const converted = toChatMessage(msg);
+
+        for (const client of clients) {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: "message",
+              data: converted,
+            }));
+          } else {
+            console.log(`[WS v2] Client not open, readyState: ${client.readyState}`);
+          }
+        }
+        if (msgCount % 100 === 0) {
+          console.log(`[WS v2] Sent ${msgCount} messages for ${sessionId}`);
+        }
+      });
+
+      watcher.on("error", (err) => {
+        console.error(`[WS v2] Watcher error for ${sessionId}:`, err);
+      });
+
+      sessionWatchers.set(sessionId, watcher);
+      console.log(`[WS v2] Starting watcher for ${sessionId}, file: ${watcher.getFilePath()}`);
+      await watcher.start();
+      console.log(`[WS v2] Watcher started, total messages sent: ${msgCount}`);
+    } else {
+      // Send existing messages to new client (always in chat format)
+      const existingMessages = await watcher.readAllMessages();
+
+      for (const msg of existingMessages) {
+        ws.send(JSON.stringify({
+          type: "message",
+          data: toChatMessage(msg),
+        }));
+      }
+    }
+
+    // Send initial status
+    const tmuxRunning = await isSessionRunning(sessionId);
+    ws.send(JSON.stringify({
+      type: "status",
+      sessionId,
+      title: session.title,
+      workingDirectory: session.workingDirectory,
+      tmuxRunning,
+    }));
+
+    // Handle client messages
+    ws.on("message", async (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log(`[WS v2] Message received: type=${data.type}`);
+
+        switch (data.type) {
+          case "send":
+            // Send text to tmux
+            if (data.text) {
+              const running = await isSessionRunning(sessionId);
+              if (!running) {
+                await startTmuxSession(sessionId, session.workingDirectory);
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              await sendTmuxInput(sessionId, data.text);
+            }
+            break;
+
+          case "key":
+            // Send single key to tmux
+            if (data.key) {
+              const running = await isSessionRunning(sessionId);
+              if (running) {
+                await sendTmuxKey(sessionId, data.key);
+              }
+            }
+            break;
+
+          case "cancel":
+            // Send Ctrl+C
+            const running = await isSessionRunning(sessionId);
+            if (running) {
+              await sendTmuxCancel(sessionId);
+            }
+            break;
+
+          case "mode":
+            // Switch between chat and terminal mode
+            if (data.mode === "chat" || data.mode === "terminal") {
+              clientMode.set(ws, data.mode);
+              ws.send(JSON.stringify({ type: "mode_changed", mode: data.mode }));
+            }
+            break;
+
+          default:
+            console.log(`[WS v2] Unknown message type: ${data.type}`);
+        }
+      } catch (err) {
+        console.error(`[WS v2] Error processing message:`, err);
+      }
+    });
+
+    // Handle close
+    ws.on("close", () => {
+      console.log(`[WS v2] Client disconnected from session ${sessionId}`);
+
+      const clients = v2Clients.get(sessionId);
+      if (clients) {
+        clients.delete(ws);
+
+        // Stop watcher if no more clients
+        if (clients.size === 0) {
+          const watcher = sessionWatchers.get(sessionId);
+          if (watcher) {
+            watcher.stop();
+            sessionWatchers.delete(sessionId);
+          }
+          v2Clients.delete(sessionId);
+        }
+      }
+    });
+  }
 
   server.listen(port, () => {
     console.log(`[Server] Server running at http://localhost:${port}`);
@@ -292,6 +490,183 @@ async function handleApi(
     return;
   }
 
+  // ===== V2 API: JSONL-based chat/terminal =====
+
+  // Get session messages (chat or terminal format)
+  const messagesMatch = path.match(/^\/api\/session\/([^/]+)\/messages$/);
+  if (messagesMatch && req.method === "GET") {
+    const sessionId = messagesMatch[1];
+    const url = parseUrl(req.url || "/", true);
+    const format = url.query.format as string || "chat";
+
+    try {
+      const session = await getSessionById(sessionId);
+      if (!session) {
+        res.writeHead(404);
+        res.end(JSON.stringify({ error: "Session not found" }));
+        return;
+      }
+
+      // Create temporary watcher to read all messages
+      const watcher = new JsonlWatcher(sessionId, session.workingDirectory, { readFromStart: false });
+      const messages = await watcher.readAllMessages();
+
+      if (format === "terminal") {
+        const terminalMessages = messages.map(toTerminalMessage);
+        res.writeHead(200);
+        res.end(JSON.stringify({ messages: terminalMessages, format: "terminal" }));
+      } else {
+        const chatMessages = messages.map(toChatMessage);
+        res.writeHead(200);
+        res.end(JSON.stringify({ messages: chatMessages, format: "chat" }));
+      }
+    } catch (err: any) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message || "Failed to load messages" }));
+    }
+    return;
+  }
+
+  // Send message to session (via tmux)
+  const sendMatch = path.match(/^\/api\/session\/([^/]+)\/send$/);
+  if (sendMatch && req.method === "POST") {
+    const sessionId = sendMatch[1];
+
+    try {
+      const body = JSON.parse(await readBody()) as { text: string };
+
+      if (!body.text) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: "text is required" }));
+        return;
+      }
+
+      // Check if session exists in tmux
+      const running = await isSessionRunning(sessionId);
+      if (!running) {
+        // Try to start it
+        const session = await getSessionById(sessionId);
+        if (!session) {
+          res.writeHead(404);
+          res.end(JSON.stringify({ error: "Session not found" }));
+          return;
+        }
+
+        // Start Claude in tmux
+        await startTmuxSession(sessionId, session.workingDirectory);
+        // Wait a moment for it to start
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+
+      // Send input via tmux
+      await sendTmuxInput(sessionId, body.text);
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true }));
+    } catch (err: any) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message || "Failed to send message" }));
+    }
+    return;
+  }
+
+  // Send single key to session (via tmux)
+  const keyMatch = path.match(/^\/api\/session\/([^/]+)\/key$/);
+  if (keyMatch && req.method === "POST") {
+    const sessionId = keyMatch[1];
+
+    try {
+      const body = JSON.parse(await readBody()) as { key: string };
+
+      if (!body.key) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: "key is required" }));
+        return;
+      }
+
+      const running = await isSessionRunning(sessionId);
+      if (!running) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: "Session not running in tmux" }));
+        return;
+      }
+
+      await sendTmuxKey(sessionId, body.key);
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true }));
+    } catch (err: any) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message || "Failed to send key" }));
+    }
+    return;
+  }
+
+  // Cancel current operation (Ctrl+C via tmux)
+  const cancelMatch = path.match(/^\/api\/session\/([^/]+)\/cancel$/);
+  if (cancelMatch && req.method === "POST") {
+    const sessionId = cancelMatch[1];
+
+    try {
+      const running = await isSessionRunning(sessionId);
+      if (!running) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: "Session not running in tmux" }));
+        return;
+      }
+
+      await sendTmuxCancel(sessionId);
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true }));
+    } catch (err: any) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message || "Failed to cancel" }));
+    }
+    return;
+  }
+
+  // Get tmux status
+  if (path === "/api/tmux/status" && req.method === "GET") {
+    try {
+      const available = await isTmuxAvailable();
+      const sessions = available ? await listTmuxSessions() : [];
+      res.writeHead(200);
+      res.end(JSON.stringify({ available, sessions }));
+    } catch (err: any) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // Start session in tmux
+  const startMatch = path.match(/^\/api\/session\/([^/]+)\/start$/);
+  if (startMatch && req.method === "POST") {
+    const sessionId = startMatch[1];
+
+    try {
+      const session = await getSessionById(sessionId);
+      if (!session) {
+        res.writeHead(404);
+        res.end(JSON.stringify({ error: "Session not found" }));
+        return;
+      }
+
+      const running = await isSessionRunning(sessionId);
+      if (running) {
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, alreadyRunning: true }));
+        return;
+      }
+
+      await startTmuxSession(sessionId, session.workingDirectory);
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true, alreadyRunning: false }));
+    } catch (err: any) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message || "Failed to start session" }));
+    }
+    return;
+  }
+
   res.writeHead(404);
   res.end(JSON.stringify({ error: "Not found" }));
 }
@@ -332,7 +707,9 @@ function serveStaticFile(path: string, res: ServerResponse): void {
   const contentType = getContentType(path);
 
   res.setHeader("Content-Type", contentType);
-  res.setHeader("Cache-Control", path.includes(".") ? "max-age=31536000" : "no-cache");
+  // Only cache static assets (not HTML/JS/CSS during development)
+  const isStaticAsset = /\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|svg)$/i.test(path);
+  res.setHeader("Cache-Control", isStaticAsset ? "max-age=86400" : "no-cache, no-store, must-revalidate");
   res.writeHead(200);
   res.end(content);
 }
