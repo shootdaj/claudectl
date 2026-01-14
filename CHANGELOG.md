@@ -2,46 +2,70 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 
-## [1.0.37] - 2025-01-05
+---
+
+## [2.1.0] - 2026-01-15 - Remote Web Server
+
+Access Claude Code from any device via web browser.
 
 ### Added
-- **Update notification**: Shows `[UPDATE vX.X.X]` badge in title bar when new version available
-- **In-app update**: Press `u` to update claudectl directly from TUI
-- **Auto-launch after update**: Automatically relaunches ccl after updating
-- **Auto-backup**: Hourly automatic backup of all Claude Code sessions to `~/.claudectl/backup/`
-- **MCP Manager**: Press `m` to view and manage MCP server configurations
-- **Skip permissions mode**: Press `d` to toggle `--dangerously-skip-permissions` for launches
-- **Agent Expert integration**: Press `a` to auto-install agent-expert in new sessions
-- **Full-text search**: `ccl sessions search <query>` searches across all session content
-- **Settings preservation**: User settings (skip-permissions, etc.) persist across updates
-- **Directory change**: Terminal changes to session directory before launching Claude
+- **Web server** (`claudectl serve`) - Full terminal access from browser
+- **WebSocket terminal** with xterm.js - Real-time PTY I/O
+- **Password authentication** with JWT tokens
+- **PWA support** - Install as app on mobile/desktop
+- **Push notifications** - Get notified when Claude needs input
+- **Cloudflare Tunnel** (`--tunnel`) - Secure remote access
+- **Multi-client support** - Multiple browsers, same session
+- **OPEN badge** - See which sessions have active PTY
+- **Ctrl+Up/Down** - Scroll search preview without moving selection
 
 ### Fixed
-- Session list scrolling only triggers at boundaries, not on every selection
-- Table height properly calculated to avoid overlap with bottom pane
-- Install script version extraction made more robust with validation
-- Settings.json and backup folder preserved during updates
+- Session spawning on WebSocket connect
+- GitHub repo creation in promote flow
+- Hidden directory path encoding (`.claudectl/scratch`)
 
-### Changed
-- Improved install script with better error handling
-- Cleaner bottom pane layout with proper spacing
+---
 
-## [1.0.0] - 2024-12-28
+## [2.0.0] - 2026-01-07 - SQLite Search Index
+
+Fast full-text search across all sessions.
 
 ### Added
-- Initial release
-- Global session view across all Claude Code projects
-- Rich TUI with Dark Midnight theme (Nord-inspired colors)
-- Session management: launch, rename, preview
-- Search sessions by title
-- Usage statistics (token counts)
-- Keyboard navigation with vim-style bindings
-- Install script with version support
+- **SQLite FTS5 search index** - Sub-second search across thousands of sessions
+- **Incremental sync** - Only re-index changed files
+- **Soft-delete** - Deleted sessions stay in DB for recovery
+- **Session renames** - Persist in SQLite (no more JSON files)
+- **Quick question workflow** - `n` key for scratch sessions in `~/.claudectl/scratch/`
+- **Promote to project** - `p` key to convert scratch to full project with GitHub repo
+- **Clone from GitHub** - `n` → Clone repo option
+- **Windows support** - Cross-platform path handling
+
+### Fixed
+- Empty session filtering (require user messages)
+- Session cleanup disabled by default (max retention)
+- Index auto-sync on startup
+
+---
+
+## [1.0.0] - 2024-12-28 - Initial Release
+
+Global session management for Claude Code.
+
+### Added
+- **TUI session picker** - Browse all sessions across projects
+- **Keyboard navigation** - vim-style j/k, search with /
+- **Session details** - Preview messages, see stats
+- **Launch sessions** - Open in correct working directory
+- **MCP management** - View/edit MCP server configs (`m` key)
+- **Auto-updates** - `claudectl update` command
+- **Dark midnight theme** - Nord-inspired colors
+- **Skip permissions mode** - `d` key toggle
+- **Auto-backup** - Hourly backup to `~/.claudectl/backup/`
 
 ### Technical
-- Source distribution via Bun (blessed library incompatible with compiled binaries)
+- Source distribution via Bun (blessed incompatible with compiled binaries)
 - GitHub Actions CI/CD pipeline
 - Semantic versioning with release automation
