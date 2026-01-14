@@ -4,22 +4,24 @@
  */
 
 import * as pty from "node-pty";
-import type { WebSocket } from "ws";
+import type { ServerWebSocket } from "bun";
 import { findSession, type Session } from "../core/sessions";
 import { sendPushNotification } from "./push";
+
+export interface WebSocketData {
+  sessionId: string;
+  authenticated: boolean;
+}
+
+type WSClient = ServerWebSocket<WebSocketData>;
 
 interface ManagedSession {
   id: string;
   session: Session;
   pty: pty.IPty | null;
-  clients: Set<WebSocket>;
+  clients: Set<WSClient>;
   scrollback: string;
   isActive: boolean;
-}
-
-export interface WebSocketData {
-  sessionId: string;
-  authenticated: boolean;
 }
 
 const MAX_SCROLLBACK = 50 * 1024; // 50KB of scrollback buffer
@@ -164,7 +166,7 @@ export function resizePty(sessionId: string, cols: number, rows: number): boolea
  */
 export function addClient(
   sessionId: string,
-  ws: WebSocket
+  ws: WSClient
 ): ManagedSession | null {
   const managed = sessions.get(sessionId);
   if (!managed) {
@@ -203,7 +205,7 @@ export function addClient(
 /**
  * Remove a WebSocket client from a session
  */
-export function removeClient(sessionId: string, ws: WebSocket): void {
+export function removeClient(sessionId: string, ws: WSClient): void {
   const managed = sessions.get(sessionId);
   if (!managed) {
     return;
