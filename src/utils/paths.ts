@@ -25,6 +25,7 @@ function toPlatformPath(path: string): string {
 /**
  * Encode a filesystem path to Claude's directory name format.
  * /Users/anshul/Code → -Users-anshul-Code
+ * /Users/anshul/.claudectl/scratch → -Users-anshul--claudectl-scratch (hidden folders use --)
  * C:\Users\anshul\Code → C--Users-anshul-Code (Windows)
  */
 export function encodePath(path: string): string {
@@ -35,10 +36,13 @@ export function encodePath(path: string): string {
   if (isWindows && /^[A-Za-z]:/.test(normalized)) {
     const drive = normalized[0];
     const rest = normalized.slice(2); // Remove "C:"
-    return drive + rest.replace(/\//g, "-");
+    // Hidden directories: /. becomes --
+    return drive + rest.replace(/\/\./g, "--").replace(/\//g, "-");
   }
 
-  return normalized.replace(/\//g, "-");
+  // Hidden directories: /. becomes --
+  // Regular directories: / becomes -
+  return normalized.replace(/\/\./g, "--").replace(/\//g, "-");
 }
 
 /**

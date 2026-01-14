@@ -1,29 +1,28 @@
 # Progress
 
-## 2026-01-13
+## 2026-01-15
 
 ### Completed
-- **Fixed Remote Server Terminal I/O**: Debugged blank terminal issue in web interface
-  - Root cause: Bun's Terminal API bug (GitHub #25779) - `terminal.write()` bypasses PTY line discipline
-  - Solution: Migrated server to Node.js compatibility, spawned via `npx tsx`
-- **Node.js Compatibility for Server**:
-  - `bun:sqlite` → `better-sqlite3`
-  - `Bun.file()` → Node.js `fs` module
-  - `Bun.password.hash/verify` → `bcrypt`
-  - Fixed ES module `__dirname` issue with `import.meta.url`
-- **CLI Integration**: Updated `claudectl serve` to spawn Node.js process for server
-- **Created `experts/remote-server.md`**: Documented server architecture and gotchas
+- **Fixed Ctrl+Up/Down scrolling**: Search preview now scrolls without moving table selection
+  - Disabled built-in `keys: true` and `vi: true` on table
+  - Implemented manual navigation via `table.on("keypress")`
+  - Ctrl+Up/Down scrolls preview, plain Up/Down/j/k navigates table
+- **Fixed WebSocket session spawning**: Sessions now properly spawn PTY when clicked
+  - Bug: `addClient()` returned null for new sessions (no managed session existed)
+  - Fix: Call `getOrCreateManagedSession()` before `addClient()` in WebSocket open handler
+- **Added "OPEN" badge for running sessions**: Web UI shows which sessions have active PTY
+  - Added `isActive` flag to sessions API response
+  - Green dot + "OPEN" badge in session list
+  - Refreshes on WebSocket connect/disconnect
+- **Fixed GitHub repo creation in promote flow**: `--push` fails on empty repos
+  - Removed `--push` flag, manually add remote after repo creation
+- **Added auth logging**: Server logs login attempts for debugging
 
 ### Current State
-- Remote server fully functional with working terminal I/O
-- Input reaches Claude through PTY correctly
-- All API endpoints and WebSocket protocol working
-
-### Usage
-```bash
-claudectl serve              # Start on port 3847
-claudectl serve --tunnel     # With Cloudflare tunnel
-```
+- All tests passing (172 tests)
+- TypeScript compiles clean
+- Web server functional (login, session list, terminal)
+- Ready to merge to main
 
 ---
 
@@ -66,3 +65,29 @@ claudectl serve --tunnel
 ### Pending
 - Add proper PNG icons for full PWA compliance (currently using SVG)
 - Test on actual mobile devices
+
+---
+
+## Server Session Management - TODO
+
+**Goal:** See which sessions are "open" (Claude running) vs "closed" (not running)
+
+**North star:** Continue on the web after leaving machine, then continue when coming back
+
+**Current state:**
+- `isSessionActive()` only checks if CCL server spawned a PTY
+- Doesn't detect Claude running locally in terminal
+
+**Simplest model:**
+- OPEN = CCL server has PTY running for this session
+- CLOSED = no PTY, just the session file
+- Click closed → spawn PTY
+- Click open → reconnect to existing PTY
+- PTY persists even when browser closes
+
+**Open questions to resolve:**
+- Should we detect locally-running Claude processes (ps aux)?
+- Should we prevent multiple instances of same session?
+- What happens if user starts via web, then wants to continue in local terminal?
+
+**Resume this discussion after merging current branch.**
