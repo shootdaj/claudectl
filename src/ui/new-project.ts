@@ -462,18 +462,21 @@ async function promoteSession(
     console.log(`Initialized git repository`);
   }
 
-  // 3. Create private GitHub repo
+  // 3. Create private GitHub repo and link it
   console.log(`Creating private GitHub repo...`);
   const ghCreate = Bun.spawnSync(
-    ["gh", "repo", "create", projectName, "--private", "--source", ".", "--push"],
-    {
-      cwd: projectPath,
-      stdio: ["inherit", "inherit", "inherit"],
-    }
+    ["gh", "repo", "create", projectName, "--private", "--clone=false"],
+    { cwd: projectPath }
   );
 
-  if (ghCreate.exitCode !== 0) {
-    console.log(`\nNote: GitHub repo creation may have failed. You can create it manually.`);
+  if (ghCreate.exitCode === 0) {
+    // Get GitHub username and add remote
+    const whoami = Bun.spawnSync(["gh", "api", "user", "-q", ".login"]);
+    const ghUser = whoami.stdout.toString().trim() || "user";
+    Bun.spawnSync(["git", "remote", "add", "origin", `git@github.com:${ghUser}/${projectName}.git`], { cwd: projectPath });
+    console.log(`Created repo: github.com/${ghUser}/${projectName}`);
+  } else {
+    console.log(`\nNote: GitHub repo creation failed. You can create it manually.`);
   }
 
   // 4. Move the session to new location

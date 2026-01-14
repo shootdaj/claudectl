@@ -238,8 +238,18 @@ html, body {
   background: var(--fg-muted);
 }
 
-.session-item .status-dot.active {
+.session-item .status-dot.running {
   background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+.session-item .badge {
+  background: var(--green);
+  color: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .sidebar-footer {

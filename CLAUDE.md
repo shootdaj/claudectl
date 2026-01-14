@@ -77,26 +77,66 @@ Create `src/test-fixtures/` with sample data:
 - Sample config files (`.claude.json`, `settings.json`)
 - Various edge cases (empty files, malformed data)
 
-### E2E Tests (Manual)
-These tests depend on actual Claude sessions on the machine. Run manually after each feature:
+### E2E Tests (CRITICAL)
 
+**E2E tests must be run as if you are the user.** This means:
+- Launch the actual application (`bun run src/index.ts`)
+- Send real keyboard commands (j, k, /, n, p, q, etc.)
+- Verify the behavior matches what a user would expect
+- DO NOT just call internal functions or CLI commands as a substitute
+
+**Use node-pty for TUI testing:**
+```typescript
+import pty from "node-pty";
+
+const term = pty.spawn("bun", ["run", "src/index.ts"], {
+  name: "xterm-256color",
+  cols: 100,
+  rows: 30,
+  cwd: process.cwd(),
+  env: process.env,
+});
+
+// Send keystrokes
+term.write("j");     // Move down
+term.write("/");     // Search
+term.write("text");  // Type search term
+term.write("\x1b");  // Escape
+term.write("q");     // Quit
+
+term.onExit(({ exitCode }) => {
+  // Verify clean exit
+});
+```
+
+**TUI flows to test:**
+| Flow | Keys | Expected |
+|------|------|----------|
+| Session picker loads | (wait) | Shows session list |
+| Navigation | j/k | Selection moves up/down |
+| Search | /text | Filters sessions |
+| New project | n | Opens Quick question/Clone menu |
+| Promote | p (on scratch) | Opens promote dialog |
+| Help | ? | Shows keyboard shortcuts |
+| Quit | q | Exits cleanly |
+
+**CLI commands to test:**
 | Command | What to verify |
 |---------|----------------|
-| `claudectl sessions list` | Shows sessions from all projects, sorted by recency |
-| `claudectl sessions list --json` | Outputs valid JSON with correct structure |
-| `claudectl sessions launch <id>` | Opens Claude in the correct working directory |
-| `claudectl sessions launch <id> --dry-run` | Shows what would happen without launching |
-| `claudectl sessions stats` | Shows accurate cost/usage totals |
-| `claudectl mcp list` | Lists all configured MCP servers |
-| `claudectl` (no args) | Shows interactive menu |
+| `sessions list` | Shows sessions with correct paths (including ~/.claudectl/scratch) |
+| `sessions search <query>` | Returns matching results |
+| `sessions launch <id> --dry-run` | Shows correct CWD |
+| `sessions stats` | Shows totals |
+| `serve` | Server starts, login works, sessions display |
 
-**Expected behaviors:**
-- Commands complete without errors
-- Output is properly formatted (colors, tables)
-- Session launch opens Claude in correct `cwd`
-- `--dry-run` shows intended action without executing
-- Invalid session IDs show helpful error messages
-- Empty states (no sessions) show friendly message
+**Remote server testing (use Playwright):**
+```typescript
+import { chromium } from "playwright";
+const browser = await chromium.launch();
+const page = await browser.newPage();
+await page.goto("http://localhost:3847");
+// Login, verify sessions load, etc.
+```
 
 ---
 
