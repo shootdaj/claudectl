@@ -290,7 +290,7 @@ export async function showSessionPicker(
     tags: true,
   });
 
-  // Session list
+  // Session list - keys:false so we can handle Ctrl+Up/Down separately
   const table = blessed.list({
     parent: mainBox,
     top: 2,
@@ -298,8 +298,8 @@ export async function showSessionPicker(
     width: "100%-2",
     height: "100%-9",
     tags: true,
-    keys: true,
-    vi: true,
+    keys: false,  // Disable built-in key handling
+    vi: false,    // Disable vi mode
     mouse: true,
     scrollable: true,
     scrollbar: {
@@ -766,44 +766,6 @@ export async function showSessionPicker(
     process.exit(0);
   });
 
-  table.key(["p"], async () => {
-    const idx = table.selected;
-    const session = filteredSessions[idx];
-    if (!session) return;
-
-    // Show more details in a popup
-    const previewBox = blessed.box({
-      parent: screen,
-      top: "center",
-      left: "center",
-      width: "80%",
-      height: "80%",
-      content: await getSessionPreview(session),
-      tags: true,
-      border: { type: "line" },
-      style: {
-        border: { fg: theme.pink },
-        fg: "white",
-      },
-      scrollable: true,
-      keys: true,
-      vi: true,
-      scrollbar: {
-        ch: "▌",
-        style: { fg: theme.pink },
-      },
-      label: ` {#ff00ff-fg}${session.title || session.id}{/#ff00ff-fg} `,
-    });
-
-    previewBox.key(["escape", "q", "p"], () => {
-      previewBox.destroy();
-      screen.render();
-    });
-
-    previewBox.focus();
-    screen.render();
-  });
-
   // Rename textbox (hidden by default)
   const renameBox = blessed.textbox({
     parent: mainBox,
@@ -926,7 +888,7 @@ export async function showSessionPicker(
     // Show context hint if we have search results
     if (isSearchMode && searchResults.length > 0) {
       footer.setContent(
-        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}c{/#ffff00-fg} Context  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
+        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#ffff00-fg}C-↑↓{/#ffff00-fg} Scroll  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}c{/#ffff00-fg} Context  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
       );
     } else {
       footer.setContent(
@@ -1145,6 +1107,48 @@ export async function showSessionPicker(
       onComplete: () => showSessionPicker({ ...options, selectedIndex: idx }),
       onCancel: () => showSessionPicker({ ...options, selectedIndex: idx }),
     });
+  });
+
+  // Manual navigation since we disabled keys:true on table
+  // This gives us full control over Ctrl+Up/Down for scrolling preview
+  function navigateTable(direction: "up" | "down") {
+    if (filteredSessions.length === 0) return;
+    const current = table.selected;
+    const newIdx = direction === "up"
+      ? Math.max(0, current - 1)
+      : Math.min(filteredSessions.length - 1, current + 1);
+    table.select(newIdx);
+    if (isSearchMode && searchResults.length > 0) {
+      updateContextPreview();
+      updateSearchPreview();
+    } else {
+      updateDetails();
+    }
+    updateFooter();
+    screen.render();
+  }
+
+  table.on("keypress", (ch: string, key: any) => {
+    if (!key) return;
+
+    // Ctrl+Up/Down: scroll preview
+    if (key.ctrl && (key.name === "up" || key.name === "down")) {
+      if (isSearchMode && searchResults.length > 0 && !contextPreview.hidden) {
+        contextPreview.scroll(key.name === "up" ? -3 : 3);
+        screen.render();
+      }
+      return;
+    }
+
+    // Normal Up/Down/j/k: navigate table
+    if (key.name === "up" || key.name === "k") {
+      navigateTable("up");
+      return;
+    }
+    if (key.name === "down" || key.name === "j") {
+      navigateTable("down");
+      return;
+    }
   });
 
   // Clear search with escape when table is focused
