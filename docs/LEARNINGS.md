@@ -84,3 +84,31 @@
 - `p` key was previously used for "preview" - repurposed for "promote" on scratch sessions
 - For non-scratch sessions, `p` still shows preview (backward compatible)
 - Footer updates dynamically based on selected session type
+
+### Blessed Ctrl+Arrow Key Handling (CRITICAL)
+- **Problem**: `keys: true` and `vi: true` on lists/tables binds up/down keys internally
+- Blessed's built-in handlers run regardless of Ctrl modifier
+- `return false` does NOT prevent built-in handlers from running
+- `screen.on("keypress")` fires but doesn't block element handlers
+
+**Solution**: Disable built-in key handling and implement manually:
+```typescript
+const table = blessed.list({
+  keys: false,  // Disable built-in
+  vi: false,    // Disable vi mode
+  ...
+});
+
+table.on("keypress", (ch, key) => {
+  if (key.ctrl && key.name === "up") {
+    // Handle Ctrl+Up (e.g., scroll preview)
+    return;
+  }
+  if (key.name === "up" || key.name === "k") {
+    // Handle plain Up (navigate table)
+    table.select(Math.max(0, table.selected - 1));
+  }
+});
+```
+
+This gives full control over modifier key combinations.
