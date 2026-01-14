@@ -297,6 +297,9 @@ UI components are split into:
 | 2026-01-12 | Added remote web server (`claudectl serve`) with Tokyo Night Storm theme | Feature |
 | 2026-01-12 | Added PWA support with push notifications | Feature |
 | 2026-01-12 | Added WebSocket-based terminal I/O with xterm.js | Feature |
+| 2026-01-15 | Fixed Ctrl+Up/Down scrolling (disable built-in keys, manual handling) | Bug fix |
+| 2026-01-15 | Added "OPEN" badge for sessions with running PTY | Feature |
+| 2026-01-15 | Fixed WebSocket session spawning (getOrCreateManagedSession before addClient) | Bug fix |
 
 ---
 

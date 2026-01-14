@@ -21,6 +21,7 @@ import {
   addClient,
   removeClient,
   cleanup,
+  isSessionActive,
   type WebSocketData,
 } from "./session-manager";
 import { getPublicVapidKey } from "./push";
@@ -82,13 +83,23 @@ export async function startServer(options: ServeOptions = {}): Promise<void> {
     },
 
     websocket: {
-      open(ws) {
+      async open(ws) {
         const sessionId = ws.data.sessionId;
         console.log(`[WS] Client connected to session ${sessionId}`);
 
-        const managed = addClient(sessionId, ws);
-        if (managed && !managed.isActive) {
-          // Auto-spawn PTY when first client connects
+        // First ensure the managed session exists
+        const managed = await getOrCreateManagedSession(sessionId);
+        if (!managed) {
+          console.log(`[WS] Session ${sessionId} not found`);
+          ws.close(1008, "Session not found");
+          return;
+        }
+
+        // Add this client to the session
+        addClient(sessionId, ws);
+
+        // Spawn PTY if not already active
+        if (!managed.isActive) {
           spawnPty(managed);
         }
       },
@@ -169,19 +180,24 @@ async function handleApi(
 
   // Auth endpoints (no token required)
   if (path === "/api/auth/login" && req.method === "POST") {
+    console.log("[Auth] Login attempt received");
     try {
       const body = await req.json() as { password: string };
+      console.log("[Auth] Password length:", body.password?.length || 0);
       const token = await authenticate(body.password);
 
       if (token) {
+        console.log("[Auth] Login successful, token generated");
         return Response.json({ token, expiresIn: "7d" }, { headers: jsonHeaders });
       } else {
+        console.log("[Auth] Login failed - invalid password");
         return Response.json(
           { error: "Invalid password" },
           { status: 401, headers: jsonHeaders }
         );
       }
     } catch (err) {
+      console.log("[Auth] Login error:", err);
       return Response.json(
         { error: "Invalid request" },
         { status: 400, headers: jsonHeaders }
@@ -219,6 +235,7 @@ async function handleApi(
         shortPath: s.shortPath,
         lastAccessedAt: s.lastAccessedAt,
         messageCount: s.messageCount,
+        isActive: isSessionActive(s.id),  // PTY is running in server
       }));
       return Response.json({ sessions: sessionList }, { headers: jsonHeaders });
     } catch (err) {
