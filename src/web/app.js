@@ -53,6 +53,7 @@ const sidebar = document.getElementById('sidebar');
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+  console.log('[App] Initializing...');
   // Check if we have a valid token
   if (token && await validateToken()) {
     showApp();
@@ -100,19 +101,24 @@ function showApp() {
 
 async function handleLogin(e) {
   e.preventDefault();
+  console.log('[App] Login form submitted');
   loginError.textContent = '';
 
   const password = passwordInput.value;
+  console.log('[App] Password length:', password?.length || 0);
   if (!password) return;
 
   try {
+    console.log('[App] Sending login request...');
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
     });
 
+    console.log('[App] Response status:', res.status);
     const data = await res.json();
+    console.log('[App] Response data:', data);
 
     if (res.ok) {
       token = data.token;
@@ -124,6 +130,7 @@ async function handleLogin(e) {
       passwordInput.select();
     }
   } catch (err) {
+    console.log('[App] Login error:', err);
     loginError.textContent = 'Connection error';
   }
 }
@@ -158,30 +165,32 @@ async function loadSessions() {
 }
 
 function renderSessionList() {
-  sessionList.innerHTML = sessions.map(session => `
-    <div class="session-item ${session.id === currentSessionId ? 'active' : ''}"
-         data-id="${session.id}">
-      <div class="title">
-        <span class="status-dot ${isSessionActive(session.id) ? 'active' : ''}"></span>
-        ${escapeHtml(session.title)}
+  sessionList.innerHTML = sessions.map(session => {
+    const isRunning = session.isActive;  // PTY running on server
+    const isSelected = session.id === currentSessionId;
+    const statusClass = isRunning ? 'running' : '';
+
+    return `
+      <div class="session-item ${isSelected ? 'active' : ''} ${statusClass}"
+           data-id="${session.id}">
+        <div class="title">
+          <span class="status-dot ${isRunning ? 'running' : ''}"></span>
+          ${escapeHtml(session.title)}
+        </div>
+        <div class="path">${escapeHtml(session.shortPath || session.workingDirectory)}</div>
+        <div class="meta">
+          <span>${formatTime(session.lastAccessedAt)}</span>
+          <span>${session.messageCount} messages</span>
+          ${isRunning ? '<span class="badge">OPEN</span>' : ''}
+        </div>
       </div>
-      <div class="path">${escapeHtml(session.shortPath || session.workingDirectory)}</div>
-      <div class="meta">
-        <span>${formatTime(session.lastAccessedAt)}</span>
-        <span>${session.messageCount} messages</span>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   // Add click handlers
   sessionList.querySelectorAll('.session-item').forEach(el => {
     el.addEventListener('click', () => selectSession(el.dataset.id));
   });
-}
-
-function isSessionActive(id) {
-  // We'll update this when WebSocket connects
-  return id === currentSessionId && ws?.readyState === WebSocket.OPEN;
 }
 
 function selectSession(sessionId) {
@@ -282,6 +291,9 @@ function connectWebSocket(sessionId) {
       const { cols, rows } = terminal;
       ws.send(JSON.stringify({ type: 'resize', cols, rows }));
     }
+
+    // Refresh session list to show active status
+    loadSessions();
   };
 
   ws.onmessage = (event) => {
@@ -315,6 +327,8 @@ function connectWebSocket(sessionId) {
     console.log('WebSocket disconnected');
     setConnectionStatus('disconnected');
     ws = null;
+    // Refresh session list to update active status
+    loadSessions();
   };
 
   ws.onerror = (err) => {
