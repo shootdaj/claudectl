@@ -9,6 +9,7 @@ export interface NewProjectOptions {
   onComplete?: (projectPath?: string) => void;
   onCancel?: () => void;
   scratchSession?: Session; // If set, show promote flow instead
+  skipPermissions?: boolean; // Use --dangerously-skip-permissions
 }
 
 // Fetch user's GitHub repos
@@ -136,9 +137,16 @@ async function startQuickQuestion(options: NewProjectOptions): Promise<void> {
   const scratchDir = getScratchDir();
 
   console.log(`\nStarting quick question session...`);
-  console.log(`Location: ${scratchDir}\n`);
+  console.log(`Location: ${scratchDir}`);
 
-  const claude = Bun.spawn(["claude"], {
+  const args = ["claude"];
+  if (options.skipPermissions) {
+    args.push("--dangerously-skip-permissions");
+    console.log(`Mode: --dangerously-skip-permissions`);
+  }
+  console.log("");
+
+  const claude = Bun.spawn(args, {
     cwd: scratchDir,
     stdio: ["inherit", "inherit", "inherit"],
   });
