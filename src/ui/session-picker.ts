@@ -1054,6 +1054,7 @@ export async function showSessionPicker(
     await showNewProjectWizard({
       onComplete: () => showSessionPicker({ ...options, selectedIndex: idx }),
       onCancel: () => showSessionPicker({ ...options, selectedIndex: idx }),
+      skipPermissions: settings.skipPermissions,
     });
   });
 
@@ -1106,6 +1107,7 @@ export async function showSessionPicker(
       scratchSession: session,
       onComplete: () => showSessionPicker({ ...options, selectedIndex: idx }),
       onCancel: () => showSessionPicker({ ...options, selectedIndex: idx }),
+      skipPermissions: settings.skipPermissions,
     });
   });
 
