@@ -358,19 +358,19 @@ export async function showSessionPicker(
   function getSettingsIndicators(): string {
     const skipColor = settings.skipPermissions ? "#ff8800" : "#666666";
     const expertColor = settings.autoAddAgentExpert ? "#00ff00" : "#666666";
-    return `{${skipColor}-fg}d{/${skipColor}-fg}:skip {${expertColor}-fg}x{/${expertColor}-fg}:expert`;
+    return `{${skipColor}-fg}d{/${skipColor}-fg} skip  {${expertColor}-fg}x{/${expertColor}-fg} expert`;
   }
 
   function getDefaultFooter(): string {
-    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#00ffff-fg}n{/#00ffff-fg}New {#ff00ff-fg}r{/#ff00ff-fg}Rename {#ffff00-fg}a{/#ffff00-fg}Archive {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+    return ` {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}a{/#ffff00-fg} Archive  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg} Quit`;
   }
 
   function getScratchFooter(): string {
-    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#ffff00-fg}p{/#ffff00-fg}Promote {#00ffff-fg}n{/#00ffff-fg}New {#ffff00-fg}a{/#ffff00-fg}Archive {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+    return ` {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}p{/#ffff00-fg} Promote  {#00ffff-fg}n{/#00ffff-fg} New  {#ffff00-fg}a{/#ffff00-fg} Archive  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg} Quit`;
   }
 
   function getArchiveFooter(): string {
-    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#00ff00-fg}a{/#00ff00-fg}Restore {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+    return ` {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ff00-fg}a{/#00ff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg} Quit`;
   }
 
   const footer = blessed.box({
