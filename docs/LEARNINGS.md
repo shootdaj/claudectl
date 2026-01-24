@@ -1,5 +1,45 @@
 # Learnings
 
+## 2026-01-25
+
+### Blessed Form Tab Navigation (CRITICAL)
+- **Problem**: Tab key inserts tab character in textbox instead of navigating to next field
+- **Root Cause**: `inputOnFocus: true` makes textbox enter "editing mode" where all keystrokes are captured by internal `_listener`
+- **Failed Attempts**:
+  - `screen.key(["tab"])` - never fires when textbox has focus
+  - `textbox.key(["tab"])` - doesn't work in edit mode
+  - Patching `_listener` prototype - too fragile
+  - Using `keypress` event - event fires but textbox still processes tab
+
+**Solution**: Use `blessed.form` with `keys: true` as parent:
+```typescript
+const form = blessed.form({
+  parent: mainBox,
+  keys: true,  // Enables Tab/Shift+Tab navigation
+}) as blessed.Widgets.FormElement<any>;
+
+const nameInput = blessed.textbox({
+  parent: form,  // MUST be parent of form, not mainBox
+  name: "name",  // REQUIRED for form to track
+  inputOnFocus: true,
+  // ...
+});
+```
+
+**Key requirements**:
+- All form elements MUST have `name` attribute
+- All form elements MUST have `parent: form` (not outer container)
+- `keys: true` on form enables Tab/Shift+Tab
+- Form emits "submit" event on Enter
+
+### SQLite Schema Migrations
+- Use version number in schema (e.g., `PRAGMA user_version = 3`)
+- Check version on startup and run migrations sequentially
+- Add columns with `ALTER TABLE ... ADD COLUMN ... DEFAULT`
+- Always provide defaults for new columns to handle existing rows
+
+---
+
 ## 2026-01-13
 
 ### Bun Terminal API Bug (Critical)

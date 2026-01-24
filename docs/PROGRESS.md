@@ -1,5 +1,31 @@
 # Progress
 
+## 2026-01-25
+
+### Completed
+- **Archive Sessions Feature**: Hide sessions without deleting them
+  - `a` key to archive/restore selected session
+  - `A` (Shift+A) to toggle archive view
+  - SQLite schema v3 with `is_archived` and `archived_at` columns
+  - Archive status persists across restarts
+  - Visual indicators: `[ARCHIVE]` badge in title, footer shows "Restore" in archive view
+- **Form Tab Navigation Fix**: Fixed Tab key inserting tab character instead of navigating
+  - Root cause: textbox with `inputOnFocus: true` captures all keystrokes in edit mode
+  - Solution: Use `blessed.form` with `keys: true` as parent container
+  - All form elements need `name` attribute and `parent: form`
+- **Create Project Wizard**: Added template selection (Empty, TypeScript, React, Node API)
+  - Tab/Shift+Tab navigation between form fields
+  - Create button at end of form
+  - Visibility toggle (private/public)
+
+### Current State
+- All tests passing (184 tests)
+- TypeScript compiles clean
+- On branch `feature/create-project-wizard`
+- Ready to merge to main
+
+---
+
 ## 2026-01-15
 
 ### Completed

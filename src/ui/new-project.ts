@@ -181,9 +181,19 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
     tags: true,
   });
 
+  // Use blessed Form for built-in tab navigation
+  const form = blessed.form({
+    parent: mainBox,
+    top: 0,
+    left: 0,
+    width: "100%-2",
+    height: "100%-2",
+    keys: true,
+  }) as blessed.Widgets.FormElement<any>;
+
   // Project name input
   const nameLabel = blessed.text({
-    parent: mainBox,
+    parent: form,
     top: 1,
     left: 2,
     content: `{${theme.yellow}-fg}Project name:{/${theme.yellow}-fg}`,
@@ -191,7 +201,8 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
   });
 
   const nameInput = blessed.textbox({
-    parent: mainBox,
+    parent: form,
+    name: "name",
     top: 1,
     left: 18,
     width: "100%-22",
@@ -206,7 +217,7 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
 
   // Description input
   const descLabel = blessed.text({
-    parent: mainBox,
+    parent: form,
     top: 3,
     left: 2,
     content: `{${theme.muted}-fg}Description:{/${theme.muted}-fg}`,
@@ -214,7 +225,8 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
   });
 
   const descInput = blessed.textbox({
-    parent: mainBox,
+    parent: form,
+    name: "desc",
     top: 3,
     left: 18,
     width: "100%-22",
@@ -229,7 +241,7 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
 
   // Visibility toggle
   const visLabel = blessed.text({
-    parent: mainBox,
+    parent: form,
     top: 5,
     left: 2,
     content: `{${theme.muted}-fg}Visibility:{/${theme.muted}-fg}`,
@@ -238,10 +250,11 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
 
   let isPrivate = true;
   const visToggle = blessed.button({
-    parent: mainBox,
+    parent: form,
+    name: "visibility",
     top: 5,
     left: 18,
-    width: 20,
+    width: 26,
     height: 1,
     content: isPrivate ? " [x] Private  [ ] Public" : " [ ] Private  [x] Public",
     style: {
@@ -258,7 +271,7 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
 
   // Template selection
   const templateLabel = blessed.text({
-    parent: mainBox,
+    parent: form,
     top: 7,
     left: 2,
     content: `{${theme.muted}-fg}Template:{/${theme.muted}-fg}`,
@@ -274,7 +287,8 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
   let templateIdx = 0;
 
   const templateBtn = blessed.button({
-    parent: mainBox,
+    parent: form,
+    name: "template",
     top: 7,
     left: 18,
     width: 30,
@@ -292,13 +306,29 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
     screen.render();
   });
 
+  // Create button
+  const createBtn = blessed.button({
+    parent: form,
+    name: "create",
+    top: 9,
+    left: 18,
+    width: 12,
+    height: 1,
+    content: " [ Create ] ",
+    style: {
+      fg: "white",
+      bg: "#333333",
+      focus: { fg: theme.green, bg: "#444444" },
+    },
+  });
+
   // Status/output area
   const statusBox = blessed.box({
     parent: mainBox,
-    top: 9,
+    top: 11,
     left: 2,
     width: "100%-6",
-    height: 5,
+    height: 3,
     content: "",
     tags: true,
     style: { fg: theme.muted },
@@ -311,25 +341,12 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
     left: 0,
     width: "100%-2",
     height: 1,
-    content: ` {${theme.pink}-fg}Tab{/${theme.pink}-fg} Next  {${theme.green}-fg}Enter{/${theme.green}-fg} Create  {${theme.muted}-fg}Esc{/${theme.muted}-fg} Cancel`,
+    content: ` {${theme.pink}-fg}Tab{/${theme.pink}-fg} Next  {${theme.pink}-fg}S-Tab{/${theme.pink}-fg} Prev  {${theme.green}-fg}Enter{/${theme.green}-fg} Create  {${theme.muted}-fg}Esc{/${theme.muted}-fg} Cancel`,
     tags: true,
     style: { fg: "gray" },
   });
 
-  const focusables = [nameInput, descInput, visToggle, templateBtn];
-  let focusIdx = 0;
-
-  function focusNext() {
-    focusIdx = (focusIdx + 1) % focusables.length;
-    focusables[focusIdx].focus();
-    screen.render();
-  }
-
-  // Tab navigation
-  screen.key(["tab"], focusNext);
-
-  // Create project on Enter from name field
-  nameInput.key(["enter"], async () => {
+  async function doCreate() {
     const projectName = nameInput.getValue().trim();
     if (!projectName) {
       statusBox.setContent(`{red-fg}Error: Project name is required{/red-fg}`);
@@ -345,10 +362,11 @@ async function showCreateFlow(options: NewProjectOptions): Promise<void> {
     }
 
     await createProject(projectName);
-  });
+  }
 
-  // Also handle Enter on other fields
-  descInput.key(["enter"], () => nameInput.emit("keypress", null, { name: "enter" }));
+  // Handle form submit
+  form.on("submit", doCreate);
+  createBtn.on("press", doCreate);
 
   async function createProject(projectName: string) {
     const description = descInput.getValue().trim();
