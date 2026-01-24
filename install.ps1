@@ -197,6 +197,12 @@ $AliasCmd | Out-File -FilePath "$BunBin\ccl.cmd" -Encoding ASCII
 "$BunExe" run "$InstallDir\src\index.ts" serve %*
 "@ | Out-File -FilePath "$BunBin\cclw.cmd" -Encoding ASCII
 
+# cclh - Help
+@"
+@echo off
+"$BunExe" run "$InstallDir\src\index.ts" help %*
+"@ | Out-File -FilePath "$BunBin\cclh.cmd" -Encoding ASCII
+
 # Add to PATH if not already there
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($UserPath -notlike "*$BunBin*") {
@@ -218,6 +224,7 @@ Write-Host "  cclc              Clone from GitHub" -ForegroundColor Green
 Write-Host "  cclr              Resume last session" -ForegroundColor Green
 Write-Host "  ccll              List sessions" -ForegroundColor Green
 Write-Host "  cclw              Start web server" -ForegroundColor Green
+Write-Host "  cclh              Show help" -ForegroundColor Green
 Write-Host ""
 Write-Yellow "Uninstall: irm https://raw.githubusercontent.com/shootdaj/claudectl/main/uninstall.ps1 | iex"
 Write-Host ""
