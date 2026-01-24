@@ -26,6 +26,7 @@ import { showMcpManager } from "./mcp-manager";
 import { showNewProjectWizard } from "./new-project";
 import { autoBackup, restoreSession as restoreSessionFromBackup } from "../core/backup";
 import { basename as pathBasename } from "../utils/paths";
+import { buildFooter, buildHelpContent } from "./keybindings";
 
 const isWindows = process.platform === "win32";
 
@@ -354,23 +355,19 @@ export async function showSessionPicker(
     style: { fg: "white" },
   });
 
-  // Footer keybindings - generate dynamically to show settings state
-  function getSettingsIndicators(): string {
-    const skipColor = settings.skipPermissions ? "#ff8800" : "#666666";
-    const expertColor = settings.autoAddAgentExpert ? "#00ff00" : "#666666";
-    return `{${skipColor}-fg}d{/${skipColor}-fg}:skip {${expertColor}-fg}x{/${expertColor}-fg}:expert`;
-  }
+  // Footer keybindings - generate dynamically using centralized keybindings config
+  const settingsState = () => ({ skipPermissions: settings.skipPermissions, autoAddAgentExpert: settings.autoAddAgentExpert });
 
   function getDefaultFooter(): string {
-    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#00ffff-fg}n{/#00ffff-fg}New {#ff00ff-fg}r{/#ff00ff-fg}Rename {#ffff00-fg}a{/#ffff00-fg}Archive {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+    return buildFooter(["launch", "new", "rename", "archive", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
   }
 
   function getScratchFooter(): string {
-    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#ffff00-fg}p{/#ffff00-fg}Promote {#00ffff-fg}n{/#00ffff-fg}New {#ffff00-fg}a{/#ffff00-fg}Archive {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+    return buildFooter(["launch", "promote", "new", "archive", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
   }
 
   function getArchiveFooter(): string {
-    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#00ff00-fg}a{/#00ff00-fg}Restore {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+    return buildFooter(["launch", "restore", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
   }
 
   const footer = blessed.box({
@@ -972,16 +969,7 @@ export async function showSessionPicker(
     // Keep search results, just hide the box and focus list
     searchBox.hide();
     table.focus();
-    // Show context hint if we have search results
-    if (isSearchMode && searchResults.length > 0) {
-      footer.setContent(
-        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#ffff00-fg}C-↑↓{/#ffff00-fg} Scroll  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}c{/#ffff00-fg} Context  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}Esc{/#aa88ff-fg} Clear  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
-      );
-    } else {
-      footer.setContent(
-        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}R{/#ffff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
-      );
-    }
+    updateFooter();
     screen.render();
   });
 
@@ -995,9 +983,7 @@ export async function showSessionPicker(
     contextPreview.hide();
     updateTable();
     table.focus();
-    footer.setContent(
-      " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}R{/#ffff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
-    );
+    updateFooter();
     screen.render();
   });
 
@@ -1249,9 +1235,7 @@ export async function showSessionPicker(
       filteredSessions = [...sessions];
       contextPreview.hide();
       updateTable();
-      footer.setContent(
-        " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}R{/#ffff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit"
-      );
+      updateFooter();
       screen.render();
     }
   });
@@ -1271,40 +1255,11 @@ export async function showSessionPicker(
       keys: true,
     });
 
-    const helpContent = `{bold}Keybindings{/bold}
-
-  {${theme.green}-fg}↵{/${theme.green}-fg} Enter      Launch session
-  {${theme.pink}-fg}↑↓{/${theme.pink}-fg} or {${theme.pink}-fg}jk{/${theme.pink}-fg}   Navigate sessions
-  {${theme.blue}-fg}n{/${theme.blue}-fg}            New session menu
-  {${theme.blue}-fg}p{/${theme.blue}-fg}            Promote scratch to project
-  {${theme.pink}-fg}r{/${theme.pink}-fg}            Rename session
-  {${theme.yellow}-fg}a{/${theme.yellow}-fg}            Archive/Restore session
-  {${theme.purple}-fg}A{/${theme.purple}-fg}            Toggle archive view
-  {${theme.blue}-fg}/{/${theme.blue}-fg}            Search sessions
-  {${theme.pink}-fg}c{/${theme.pink}-fg}            Copy session ID
-  {${theme.purple}-fg}m{/${theme.purple}-fg}            MCP server manager
-  {${theme.yellow}-fg}d{/${theme.yellow}-fg}            Toggle skip permissions
-  {${theme.yellow}-fg}x{/${theme.yellow}-fg}            Toggle agent-expert
-  {${theme.purple}-fg}u{/${theme.purple}-fg}            Check for updates
-  {${theme.muted}-fg}?{/${theme.muted}-fg}            This help
-  {${theme.muted}-fg}q{/${theme.muted}-fg}            Quit
-
-{bold}CLI Aliases{/bold}
-
-  {${theme.green}-fg}ccl{/${theme.green}-fg}          Session picker
-  {${theme.green}-fg}ccls{/${theme.green}-fg}         Scratch session
-  {${theme.green}-fg}cclr{/${theme.green}-fg}         Resume last session
-  {${theme.green}-fg}ccln{/${theme.green}-fg}         New project
-  {${theme.green}-fg}cclc{/${theme.green}-fg}         Clone from GitHub
-  {${theme.green}-fg}ccll{/${theme.green}-fg}         List sessions
-  {${theme.green}-fg}cclw{/${theme.green}-fg}         Web server
-  {${theme.green}-fg}cclh{/${theme.green}-fg}         Help`;
-
     blessed.text({
       parent: helpBox,
       top: 1,
       left: 2,
-      content: helpContent,
+      content: buildHelpContent(),
       tags: true,
     });
 
