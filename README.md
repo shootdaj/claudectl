@@ -5,21 +5,9 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-```
-┌─ claudectl ──────────────────────────────────────────── 42 sessions ─┐
-│ TITLE                           PROJECT       TIME     MSGS   MODEL  │
-│ ▶ Fix authentication bug        myapp         2h ago     12   sonnet │
-│   Refactor database layer       backend       1d ago     28   opus   │
-│   Add dark mode toggle          frontend      3d ago      8   sonnet │
-│   API rate limiting             backend       5d ago     45   opus   │
-├──────────────────────────────────────────────────────────────────────┤
-│ Fix authentication bug  abc123ef                                     │
-│ path ~/Code/myapp  branch main                                       │
-│ model claude-sonnet-4-20250514                                       │
-├──────────────────────────────────────────────────────────────────────┤
-│ ↑↓ Nav  ↵ Launch  n New  r Rename  / Search  ? Help  q Quit         │
-└──────────────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="assets/sessions-list.png" alt="Session list" width="700">
+</p>
 
 ## Quick Start
 
@@ -127,22 +115,9 @@ ccl help                       # Show all keybindings & aliases
 
 ## Keybindings
 
-| Key | Action |
-|-----|--------|
-| `↑` `↓` or `j` `k` | Navigate sessions |
-| `Enter` | Launch session |
-| `n` | New session menu |
-| `p` | Promote scratch to project |
-| `r` | Rename session |
-| `/` | Search sessions |
-| `a` | Archive session |
-| `A` | View archived sessions |
-| `c` | Copy session ID |
-| `m` | MCP server manager |
-| `d` | Toggle skip-permissions mode |
-| `u` | Check for updates |
-| `?` | Show help popup |
-| `q` | Quit |
+<p align="center">
+  <img src="assets/help-screenshot.png" alt="Help and keybindings" width="500">
+</p>
 
 ## Features
 
