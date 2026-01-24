@@ -104,7 +104,13 @@ program
 
     switch (options.mode) {
       case "scratch":
-        await startQuickQuestion(wizardOptions);
+        // After scratch session ends, return to session picker
+        await startQuickQuestion({
+          ...wizardOptions,
+          onComplete: async () => {
+            await showSessionPicker();
+          },
+        });
         break;
       case "clone":
         await showCloneFlow(wizardOptions);

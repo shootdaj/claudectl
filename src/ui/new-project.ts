@@ -109,8 +109,14 @@ export async function showNewSessionMenu(options: NewProjectOptions): Promise<vo
   menuList.on("select", async (item, index) => {
     screen.destroy();
     if (index === 0) {
-      // Quick question in scratch folder
-      await startQuickQuestion(options);
+      // Quick question in scratch folder - always return to session picker after
+      const { showSessionPicker } = await import("./session-picker");
+      await startQuickQuestion({
+        ...options,
+        onComplete: async () => {
+          await showSessionPicker();
+        },
+      });
     } else if (index === 1) {
       // Create new GitHub repo + project
       await showCreateFlow(options);
