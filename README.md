@@ -5,6 +5,15 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
+## Demo
+
+**Session Picker & Search**
+
+https://github.com/shootdaj/claudectl/raw/main/assets/demo-1.mp4
+
+**New Project Wizard**
+
+https://github.com/shootdaj/claudectl/raw/main/assets/demo-2.mp4
 
 ## Quick Start
 
