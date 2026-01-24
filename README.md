@@ -5,9 +5,6 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-<p align="center">
-  <img src="assets/sessions-list.png" alt="Session list" width="700">
-</p>
 
 ## Quick Start
 
@@ -115,9 +112,22 @@ ccl help                       # Show all keybindings & aliases
 
 ## Keybindings
 
-<p align="center">
-  <img src="assets/help-screenshot.png" alt="Help and keybindings" width="500">
-</p>
+| Key | Action |
+|-----|--------|
+| `↑` `↓` or `j` `k` | Navigate sessions |
+| `Enter` | Launch session |
+| `n` | New session menu |
+| `p` | Promote scratch to project |
+| `r` | Rename session |
+| `/` | Search sessions |
+| `a` | Archive session |
+| `A` | View archived sessions |
+| `c` | Copy session ID |
+| `m` | MCP server manager |
+| `d` | Toggle skip-permissions mode |
+| `u` | Check for updates |
+| `?` | Show help popup |
+| `q` | Quit |
 
 ## Features
 
