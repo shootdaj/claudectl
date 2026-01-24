@@ -80,6 +80,7 @@ ${pc.bold("Commands")}
   ${pc.cyan("ccl new --mode")} ${pc.dim("<mode>")}   Start session (scratch/create/clone)
   ${pc.cyan("ccl serve")}               Start web server
   ${pc.cyan("ccl update")}              Update to latest version
+  ${pc.cyan("ccl update")} ${pc.dim("<branch>")}     Install prerelease from branch
   ${pc.cyan("ccl backup")}              Backup sessions
   ${pc.cyan("ccl config")}              Show config paths
 
@@ -427,13 +428,37 @@ program
 
 // Update command
 program
-  .command("update")
-  .description("Update claudectl to the latest version")
+  .command("update [version]")
+  .description("Update claudectl to the latest version or a specific version/branch")
   .option("-c, --check", "Check for updates without installing")
   .option("-f, --force", "Force reinstall even if on latest version")
-  .action(async (options) => {
+  .option("-l, --list", "List available prereleases")
+  .action(async (version, options) => {
     const installDir = join(homedir(), ".claudectl");
     const versionFile = join(installDir, ".version");
+
+    // List prereleases
+    if (options.list) {
+      console.log(pc.cyan("\nAvailable prereleases:\n"));
+      try {
+        const response = await fetch("https://api.github.com/repos/shootdaj/claudectl/releases?per_page=20");
+        const releases = await response.json() as Array<{ tag_name: string; prerelease: boolean; published_at: string }>;
+        const prereleases = releases.filter(r => r.prerelease);
+        if (prereleases.length === 0) {
+          console.log(pc.dim("  No prereleases available.\n"));
+        } else {
+          for (const r of prereleases) {
+            const date = new Date(r.published_at);
+            const branchName = r.tag_name.replace(/^v[\d.]+-/, "");
+            console.log(`  ${pc.green(branchName.padEnd(30))} ${pc.dim(r.tag_name)} ${pc.dim(formatRelativeTime(date))}`);
+          }
+          console.log(pc.dim(`\nInstall with: ${pc.cyan("ccl update <branch-name>")}\n`));
+        }
+      } catch {
+        console.log(pc.red("Failed to fetch releases.\n"));
+      }
+      return;
+    }
 
     // Get current version
     let currentVersion = "unknown";
@@ -444,8 +469,36 @@ program
       // Version file doesn't exist
     }
 
-    // Fetch latest version from GitHub
-    console.log(pc.cyan("\nChecking for updates..."));
+    // Determine target version
+    let targetVersion = "latest";
+    if (version) {
+      // Check if it's a full version tag or a branch name
+      if (version.startsWith("v")) {
+        targetVersion = version;
+      } else {
+        // It's a branch name - find matching prerelease
+        console.log(pc.cyan(`\nLooking for prerelease matching "${version}"...`));
+        try {
+          const response = await fetch("https://api.github.com/repos/shootdaj/claudectl/releases?per_page=50");
+          const releases = await response.json() as Array<{ tag_name: string; prerelease: boolean }>;
+          const match = releases.find(r => r.prerelease && r.tag_name.endsWith(`-${version}`));
+          if (match) {
+            targetVersion = match.tag_name;
+            console.log(pc.green(`Found: ${targetVersion}`));
+          } else {
+            console.log(pc.red(`No prerelease found for branch "${version}"`));
+            console.log(pc.dim(`Run ${pc.cyan("ccl update --list")} to see available prereleases.\n`));
+            process.exit(1);
+          }
+        } catch {
+          console.log(pc.red("Failed to fetch releases."));
+          process.exit(1);
+        }
+      }
+    }
+
+    // Fetch latest version from GitHub (for comparison)
+    console.log(pc.cyan("\nChecking versions..."));
 
     let latestVersion = "unknown";
     try {
@@ -458,19 +511,27 @@ program
     }
 
     console.log(`Current version: ${pc.yellow(currentVersion)}`);
-    console.log(`Latest version:  ${pc.green(latestVersion)}`);
+    if (targetVersion === "latest") {
+      console.log(`Latest version:  ${pc.green(latestVersion)}`);
+      targetVersion = latestVersion;
+    } else {
+      console.log(`Target version:  ${pc.magenta(targetVersion)} ${pc.dim("(prerelease)")}`);
+      console.log(`Latest stable:   ${pc.dim(latestVersion)}`);
+    }
 
-    if (currentVersion === latestVersion && !options.force) {
-      console.log(pc.green("\n✓ You're on the latest version!\n"));
+    if (currentVersion === targetVersion && !options.force) {
+      console.log(pc.green("\n✓ Already on this version!\n"));
       return;
     }
 
     if (options.check) {
-      console.log(pc.yellow(`\n↑ Update available! Run ${pc.cyan("ccl update")} to install.\n`));
+      if (targetVersion !== currentVersion) {
+        console.log(pc.yellow(`\n↑ Update available! Run ${pc.cyan("ccl update")} to install.\n`));
+      }
       return;
     }
 
-    if (options.force && currentVersion === latestVersion) {
+    if (options.force && currentVersion === targetVersion) {
       console.log(pc.yellow("\nForce reinstalling..."));
     }
 
@@ -478,13 +539,17 @@ program
     console.log(pc.cyan("\nUpdating..."));
 
     let proc;
+    const env = { ...process.env, VERSION: targetVersion };
+
     if (isWindows) {
-      proc = Bun.spawn(["powershell", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/shootdaj/claudectl/main/install.ps1 | iex"], {
+      proc = Bun.spawn(["powershell", "-ExecutionPolicy", "Bypass", "-Command", `$env:VERSION='${targetVersion}'; irm https://raw.githubusercontent.com/shootdaj/claudectl/main/install.ps1 | iex`], {
         stdio: ["inherit", "inherit", "inherit"],
+        env,
       });
     } else {
-      proc = Bun.spawn(["bash", "-c", "curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash"], {
+      proc = Bun.spawn(["bash", "-c", `VERSION=${targetVersion} curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash`], {
         stdio: ["inherit", "inherit", "inherit"],
+        env,
       });
     }
 
