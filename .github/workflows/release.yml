@@ -2,7 +2,11 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feature/**'
+      - 'fix/**'
+      - 'feat/**'
     tags: ['v*']
 
 permissions:
@@ -45,6 +49,9 @@ jobs:
       - name: Get version
         id: version
         run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          IS_MAIN=$([[ "$BRANCH" == "main" ]] && echo "true" || echo "false")
+
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             # Manual tag push - use that version
             VERSION="${GITHUB_REF#refs/tags/}"
@@ -53,21 +60,49 @@ jobs:
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
             echo "is_tag_push=true" >> $GITHUB_OUTPUT
-          else
-            # Push to main - auto increment patch
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          elif [[ "$IS_MAIN" == "true" ]]; then
+            # Push to main - auto increment patch (stable release)
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            echo "Latest tag: $LATEST_TAG"
-            VERSION="${LATEST_TAG#v}"
+            # Strip any prerelease suffix to get base version
+            BASE_TAG=$(echo "$LATEST_TAG" | sed 's/-[^0-9].*//')
+            echo "Latest tag: $LATEST_TAG (base: $BASE_TAG)"
+            VERSION="${BASE_TAG#v}"
             IFS='.' read -r major minor patch <<< "$VERSION"
             NEW_VERSION="v$major.$minor.$((patch + 1))"
             echo "New version: $NEW_VERSION"
             echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
             echo "prev_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
             echo "is_tag_push=false" >> $GITHUB_OUTPUT
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          else
+            # Feature branch - create prerelease with branch suffix
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            # Strip any prerelease suffix to get base version
+            BASE_TAG=$(echo "$LATEST_TAG" | sed 's/-[^0-9].*//')
+            VERSION="${BASE_TAG#v}"
+            IFS='.' read -r major minor patch <<< "$VERSION"
+            # Sanitize branch name: feature/foo-bar -> foo-bar
+            BRANCH_SUFFIX=$(echo "$BRANCH" | sed 's|.*/||' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+            NEW_VERSION="v$major.$minor.$((patch + 1))-${BRANCH_SUFFIX}"
+            echo "Prerelease version: $NEW_VERSION (branch: $BRANCH)"
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "prev_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+            echo "is_tag_push=false" >> $GITHUB_OUTPUT
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if tag exists
+        id: tag_check
+        run: |
+          if git rev-parse "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Create tag
-        if: steps.version.outputs.is_tag_push != 'true'
+        if: steps.version.outputs.is_tag_push != 'true' && steps.tag_check.outputs.exists != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -78,8 +113,19 @@ jobs:
         run: |
           PREV_TAG="${{ steps.version.outputs.prev_tag }}"
           NEW_TAG="${{ steps.version.outputs.version }}"
+          IS_PRERELEASE="${{ steps.version.outputs.is_prerelease }}"
 
-          echo "## What's Changed" > notes.md
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            echo "## ⚠️ Pre-release" > notes.md
+            echo "" >> notes.md
+            echo "This is a test release from a feature branch. Install with:" >> notes.md
+            echo '```bash' >> notes.md
+            echo "VERSION=$NEW_TAG curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash" >> notes.md
+            echo '```' >> notes.md
+            echo "" >> notes.md
+          fi
+
+          echo "## What's Changed" >> notes.md
           echo "" >> notes.md
 
           if [ "$PREV_TAG" != "v0.0.0" ]; then
@@ -92,9 +138,11 @@ jobs:
           fi
 
       - name: Create GitHub Release
+        if: steps.tag_check.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
           body_path: notes.md
+          prerelease: ${{ steps.version.outputs.is_prerelease == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
