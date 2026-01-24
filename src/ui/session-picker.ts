@@ -734,6 +734,19 @@ export async function showSessionPicker(
     screen.render();
   });
 
+  // Toggle agent expert auto-install
+  table.key(["x"], async () => {
+    settings.autoAddAgentExpert = !settings.autoAddAgentExpert;
+    await saveClaudectlSettings(settings);
+    updateTitleBar();
+
+    const status = settings.autoAddAgentExpert
+      ? "{#00ff00-fg}ON{/#00ff00-fg} - agent-expert will be auto-installed on new projects"
+      : "{#ff8800-fg}OFF{/#ff8800-fg} - agent-expert disabled";
+    detailsBox.setContent(`{#ff00ff-fg}Agent Expert:{/#ff00ff-fg} ${status}`);
+    screen.render();
+  });
+
   // Archive/Unarchive session
   table.key(["a"], async () => {
     const idx = table.selected;
@@ -1255,6 +1268,7 @@ export async function showSessionPicker(
   {${theme.pink}-fg}c{/${theme.pink}-fg}            Copy session ID
   {${theme.purple}-fg}m{/${theme.purple}-fg}            MCP server manager
   {${theme.yellow}-fg}d{/${theme.yellow}-fg}            Toggle skip permissions
+  {${theme.yellow}-fg}x{/${theme.yellow}-fg}            Toggle agent-expert
   {${theme.purple}-fg}u{/${theme.purple}-fg}            Check for updates
   {${theme.muted}-fg}?{/${theme.muted}-fg}            This help
   {${theme.muted}-fg}q{/${theme.muted}-fg}            Quit

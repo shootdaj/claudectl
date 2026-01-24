@@ -57,6 +57,7 @@ ${pc.bold("Keybindings")} (in session picker)
   ${pc.magenta("c")}            Copy session ID
   ${pc.blue("m")}            MCP server manager
   ${pc.yellow("d")}            Toggle skip permissions
+  ${pc.yellow("x")}            Toggle agent-expert auto-install
   ${pc.blue("u")}            Check for updates
   ${pc.dim("?")}            Show help popup
   ${pc.dim("q")}            Quit
