@@ -39,6 +39,15 @@ This limitation was discovered during v1.0.0 development and is why we switched 
 - Manual tags/releases will conflict with CI and cause failures
 - Just push to main and wait ~30 seconds for the release
 
+## Branching Strategy
+
+**All new work must be on a feature branch.** Do not commit directly to main.
+
+- Create branch: `git checkout -b feature/short-description`
+- Make changes, commit, push branch
+- Merge to main only when feature is complete and tested
+- Main should always be in a releasable state
+
 ---
 
 ## Testing Requirements
