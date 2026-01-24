@@ -1,0 +1,33 @@
+{
+  "nodes": [
+    {
+      "nodeId": "node-1769294743740-0",
+      "sessionId": "session-1769294743745-6r13sec27",
+      "agentId": "claude",
+      "agentName": "Claude Code",
+      "command": "claude --dangerously-skip-permissions",
+      "cwd": "/Users/anshul/Anshul/Code/openui-test-1",
+      "createdAt": "2026-01-24T22:45:43.770Z",
+      "customName": "openui-test-1",
+      "position": {
+        "x": 864,
+        "y": 480
+      }
+    },
+    {
+      "nodeId": "node-1769294894476-0",
+      "sessionId": "session-1769294894478-kjwngnqjs",
+      "agentId": "claude",
+      "agentName": "Claude Code",
+      "command": "claude --dangerously-skip-permissions",
+      "cwd": "/users/anshul/anshu/code/rtydtrh",
+      "createdAt": "2026-01-24T22:48:14.500Z",
+      "customName": "rtydtrh",
+      "position": {
+        "x": 1296,
+        "y": 504
+      }
+    }
+  ],
+  "categories": []
+}

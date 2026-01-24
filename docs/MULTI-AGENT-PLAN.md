@@ -360,6 +360,59 @@ claude-team --max-revisions 3 "Fix the login bug"
 
 ---
 
+## Alternative: Claude Code Plugin
+
+This could also be implemented as a Claude Code plugin instead of a standalone CLI.
+
+### Plugin Structure
+
+```
+claude-team-plugin/
+├── .claude-plugin/
+│   └── plugin.json           # Plugin metadata
+├── agents/
+│   ├── coordinator.md        # Coordinator system prompt
+│   ├── qa.md                 # QA agent (strict mode)
+│   ├── frontend.md
+│   ├── backend.md
+│   ├── database.md
+│   ├── security.md
+│   └── user.md               # End-user testing agent
+├── commands/
+│   └── team.md               # /team slash command
+├── hooks/
+│   └── accountability.ts     # PreToolUse hook to enforce QA approval
+├── skills/
+│   └── review-loop/          # QA review workflow skill
+│       └── SKILL.md
+└── README.md
+```
+
+### Plugin Capabilities Used
+
+| Feature | Purpose |
+|---------|---------|
+| **Slash commands** | `/team "add auth"` kicks off orchestration |
+| **Subagents** | Specialist agents spawned via Task tool |
+| **Hooks** | `PreToolUse` blocks commits until QA approves |
+| **Skills** | Reusable review/approval workflows |
+
+### Pros vs Standalone CLI
+
+| Plugin | Standalone CLI |
+|--------|----------------|
+| Integrated into Claude Code | Separate tool |
+| Single `claude plugin add` | Separate install |
+| Uses existing Task tool | Full control over spawning |
+| Limited by plugin API | Unlimited flexibility |
+| Easier adoption | More complex but powerful |
+
+### Recommendation
+
+**Start as plugin.** If limitations are hit, extract to standalone CLI.
+
+---
+
 ## Future Enhancements (Post-MVP)
 
 - **PM Agent** - Writes PRDs, clarifies requirements before dev starts
@@ -368,3 +421,4 @@ claude-team --max-revisions 3 "Fix the login bug"
 - **Web UI** - Visual orchestration dashboard
 - **claudectl integration** - View team sessions in claudectl
 - **Cost tracking** - Track API costs per agent per task
+- **Plugin version** - Implement as Claude Code plugin for easier adoption

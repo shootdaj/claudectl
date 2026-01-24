@@ -9,11 +9,13 @@
 
 **Session Picker & Search**
 
-<video src="https://github.com/shootdaj/claudectl/raw/main/assets/demo-1.mp4" controls autoplay muted loop></video>
+https://github.com/user-attachments/assets/5d76d8cb-d759-4961-af7e-017d3f96e813
+
+https://github.com/user-attachments/assets/b88d84a8-eabb-469e-afe0-e98b0d2ded65
 
 **New Project Wizard**
 
-<video src="https://github.com/shootdaj/claudectl/raw/main/assets/demo-2.mp4" controls autoplay muted loop></video>
+https://github.com/user-attachments/assets/4af9cacc-e8e0-473a-9dd0-8238fcaddc18
 
 ## Quick Start
 
