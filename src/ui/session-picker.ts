@@ -359,15 +359,15 @@ export async function showSessionPicker(
   const settingsState = () => ({ skipPermissions: settings.skipPermissions, autoAddAgentExpert: settings.autoAddAgentExpert });
 
   function getDefaultFooter(): string {
-    return buildFooter(["launch", "new", "rename", "archive", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
+    return buildFooter(["launch", "new", "rename", "archive", "search", "mcp", "update", "help", "skipPerms", "agentExpert", "quit"], settingsState());
   }
 
   function getScratchFooter(): string {
-    return buildFooter(["launch", "promote", "new", "archive", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
+    return buildFooter(["launch", "promote", "new", "archive", "search", "mcp", "update", "help", "skipPerms", "agentExpert", "quit"], settingsState());
   }
 
   function getArchiveFooter(): string {
-    return buildFooter(["launch", "restore", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
+    return buildFooter(["launch", "restore", "search", "mcp", "update", "help", "skipPerms", "agentExpert", "quit"], settingsState());
   }
 
   const footer = blessed.box({

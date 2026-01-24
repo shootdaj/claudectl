@@ -84,6 +84,7 @@ export const cliAliases = [
   { alias: "cclc", description: "Clone from GitHub" },
   { alias: "ccll", description: "List sessions" },
   { alias: "cclw", description: "Web server" },
+  { alias: "cclu", description: "Update claudectl" },
   { alias: "cclh", description: "Help" },
 ];
 
