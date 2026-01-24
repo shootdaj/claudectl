@@ -85,7 +85,7 @@ interface FileInfo {
 
 const CLAUDECTL_DIR = join(homedir(), ".claudectl");
 const INDEX_DB_PATH = join(CLAUDECTL_DIR, "index.db");
-const SCHEMA_VERSION = 3; // v3: added is_archived column
+const SCHEMA_VERSION = 4; // v4: added settings table
 
 // ============================================
 // Schema
@@ -181,6 +181,13 @@ CREATE TABLE IF NOT EXISTS session_titles (
     title TEXT NOT NULL,
     renamed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- claudectl settings (key-value store)
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `;
 
 // ============================================
@@ -243,6 +250,46 @@ export class SearchIndex {
         // Columns might already exist
       }
     }
+    // Migration v3 -> v4: Add settings table and migrate from JSON
+    if (fromVersion < 4) {
+      try {
+        this.db.exec(`
+          CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          )
+        `);
+        // Migrate settings from JSON file if it exists
+        this.migrateSettingsFromJson();
+      } catch {
+        // Table might already exist
+      }
+    }
+  }
+
+  /**
+   * Migrate settings from legacy JSON file to SQLite
+   */
+  private migrateSettingsFromJson(): void {
+    const jsonPath = join(CLAUDECTL_DIR, "settings.json");
+    if (!existsSync(jsonPath)) return;
+
+    try {
+      const text = require("fs").readFileSync(jsonPath, "utf-8");
+      const settings = JSON.parse(text);
+
+      const insertSetting = this.db.prepare(`
+        INSERT OR REPLACE INTO settings (key, value, updated_at)
+        VALUES (?, ?, datetime('now'))
+      `);
+
+      for (const [key, value] of Object.entries(settings)) {
+        insertSetting.run(key, JSON.stringify(value));
+      }
+    } catch {
+      // Ignore migration errors - settings will use defaults
+    }
   }
 
   /**
@@ -263,13 +310,18 @@ export class SearchIndex {
     const diskFiles = await this.getAllSessionFiles();
     const diskFileMap = new Map(diskFiles.map(f => [f.filePath, f]));
 
-    // Get all indexed files from database (including deleted ones)
-    const indexedFiles = this.db.prepare("SELECT id, file_path, mtime_ms, size_bytes, is_deleted FROM files").all() as Array<{
+    // Get all indexed files from database (including deleted and archived ones)
+    const indexedFiles = this.db.prepare(`
+      SELECT id, file_path, mtime_ms, size_bytes, is_deleted, is_archived, archived_at
+      FROM files
+    `).all() as Array<{
       id: number;
       file_path: string;
       mtime_ms: number;
       size_bytes: number;
       is_deleted: number;
+      is_archived: number;
+      archived_at: string | null;
     }>;
     const indexedMap = new Map(indexedFiles.map(f => [f.file_path, f]));
 
@@ -302,9 +354,13 @@ export class SearchIndex {
           indexed.size_bytes !== diskFile.sizeBytes
         )
       ) {
-        // Changed file - re-index it (but preserve is_deleted status)
+        // Changed file - re-index it, preserving user metadata (archive status, etc.)
+        const preservedState = {
+          isArchived: indexed.is_archived === 1,
+          archivedAt: indexed.archived_at,
+        };
         this.db.prepare("DELETE FROM files WHERE id = ?").run(indexed.id);
-        await this.indexFile(diskFile);
+        await this.indexFile(diskFile, preservedState);
         stats.updated++;
       } else if (!indexed.is_deleted) {
         // Unchanged - skip
@@ -363,8 +419,12 @@ export class SearchIndex {
 
   /**
    * Index a single session file
+   * @param preserveState Optional state to restore (archive status, etc.) when re-indexing
    */
-  private async indexFile(fileInfo: FileInfo): Promise<void> {
+  private async indexFile(
+    fileInfo: FileInfo,
+    preserveState?: { isArchived: boolean; archivedAt: string | null }
+  ): Promise<void> {
     const messages = await parseJsonl(fileInfo.filePath);
     const metadata = extractMetadata(messages);
 
@@ -381,14 +441,15 @@ export class SearchIndex {
       return new Date().toISOString();
     };
 
-    // Insert file record
+    // Insert file record (preserving user metadata like archive status if provided)
     const result = this.db.prepare(`
       INSERT INTO files (
         file_path, mtime_ms, size_bytes, session_id, encoded_path,
         working_directory, short_path, slug, first_user_message, git_branch, model,
         created_at, last_accessed_at, message_count, user_message_count,
-        assistant_message_count, total_input_tokens, total_output_tokens
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        assistant_message_count, total_input_tokens, total_output_tokens,
+        is_archived, archived_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       fileInfo.filePath,
       fileInfo.mtimeMs,
@@ -408,6 +469,8 @@ export class SearchIndex {
       metadata.assistantMessageCount,
       metadata.totalInputTokens,
       metadata.totalOutputTokens,
+      preserveState?.isArchived ? 1 : 0,
+      preserveState?.archivedAt || null,
     );
 
     const fileId = result.lastInsertRowid;
@@ -681,6 +744,49 @@ export class SearchIndex {
     return row?.is_archived === 1;
   }
 
+  // ============================================
+  // Settings Management
+  // ============================================
+
+  /**
+   * Get a setting value from the database
+   */
+  getSetting<T>(key: string, defaultValue: T): T {
+    const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | null;
+    if (!row) return defaultValue;
+    try {
+      return JSON.parse(row.value) as T;
+    } catch {
+      return defaultValue;
+    }
+  }
+
+  /**
+   * Set a setting value in the database
+   */
+  setSetting<T>(key: string, value: T): void {
+    this.db.prepare(`
+      INSERT OR REPLACE INTO settings (key, value, updated_at)
+      VALUES (?, ?, datetime('now'))
+    `).run(key, JSON.stringify(value));
+  }
+
+  /**
+   * Get all settings as an object
+   */
+  getAllSettings(): Record<string, unknown> {
+    const rows = this.db.prepare("SELECT key, value FROM settings").all() as Array<{ key: string; value: string }>;
+    const settings: Record<string, unknown> = {};
+    for (const row of rows) {
+      try {
+        settings[row.key] = JSON.parse(row.value);
+      } catch {
+        settings[row.key] = row.value;
+      }
+    }
+    return settings;
+  }
+
   /**
    * Get index statistics
    */
@@ -698,15 +804,34 @@ export class SearchIndex {
 
   /**
    * Rebuild the entire index from scratch
+   * Preserves user metadata (archive status, renames)
    */
   async rebuild(): Promise<SyncStats> {
+    // Save archive status before wiping (session_id -> archived_at)
+    const archivedSessions = this.db.prepare(`
+      SELECT session_id, archived_at FROM files WHERE is_archived = 1
+    `).all() as Array<{ session_id: string; archived_at: string }>;
+    const archivedMap = new Map(archivedSessions.map(s => [s.session_id, s.archived_at]));
+
     // Clear all data
     this.db.exec("DELETE FROM messages");
     this.db.exec("DELETE FROM files");
     // Keep session_titles - user renames should persist
 
     // Re-sync
-    return this.sync();
+    const stats = await this.sync();
+
+    // Restore archive status
+    if (archivedMap.size > 0) {
+      const restoreArchive = this.db.prepare(`
+        UPDATE files SET is_archived = 1, archived_at = ? WHERE session_id = ?
+      `);
+      for (const [sessionId, archivedAt] of archivedMap) {
+        restoreArchive.run(archivedAt, sessionId);
+      }
+    }
+
+    return stats;
   }
 }
 

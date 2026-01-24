@@ -107,45 +107,38 @@ export function isScratchPath(path: string): boolean {
 }
 
 /**
- * Get the path to claudectl's settings file.
+ * Get the path to claudectl's settings file (legacy - now uses SQLite).
+ * @deprecated Use loadClaudectlSettings() which reads from SQLite
  */
 export function getClaudectlSettingsPath(): string {
   return join(getClaudectlDir(), "settings.json");
 }
 
 /**
- * Load claudectl settings from disk.
+ * Load claudectl settings from SQLite database.
  */
 export function loadClaudectlSettings(): ClaudectlSettings {
-  const settingsPath = getClaudectlSettingsPath();
+  // Lazy import to avoid circular dependency
+  const { getSearchIndex } = require("./search-index");
+  const index = getSearchIndex();
 
-  if (!existsSync(settingsPath)) {
-    return { ...DEFAULT_SETTINGS };
-  }
-
-  try {
-    const file = Bun.file(settingsPath);
-    const text = require("fs").readFileSync(settingsPath, "utf-8");
-    const parsed = JSON.parse(text);
-    return { ...DEFAULT_SETTINGS, ...parsed };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
+  return {
+    skipPermissions: index.getSetting("skipPermissions", DEFAULT_SETTINGS.skipPermissions),
+    autoAddAgentExpert: index.getSetting("autoAddAgentExpert", DEFAULT_SETTINGS.autoAddAgentExpert),
+  };
 }
 
 /**
- * Save claudectl settings to disk.
+ * Save claudectl settings to SQLite database.
  */
 export async function saveClaudectlSettings(settings: ClaudectlSettings): Promise<void> {
-  const dir = getClaudectlDir();
-  const settingsPath = getClaudectlSettingsPath();
+  // Lazy import to avoid circular dependency
+  const { getSearchIndex } = require("./search-index");
+  const index = getSearchIndex();
 
-  // Ensure directory exists
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
+  for (const [key, value] of Object.entries(settings)) {
+    index.setSetting(key, value);
   }
-
-  await Bun.write(settingsPath, JSON.stringify(settings, null, 2));
 }
 
 // ============================================

@@ -752,13 +752,55 @@ describe("SearchIndex", () => {
       // Rebuild the index
       await index.rebuild();
 
-      // Session should still exist but archive status is lost (file is re-indexed)
-      // This is expected behavior - archive is metadata, not in file
+      // Archive status should be preserved during rebuild
       const sessions = index.getSessions({ includeArchived: true });
       expect(sessions.length).toBe(1);
-      // After rebuild, archive status is reset since it's stored in the files table
-      // which gets wiped during rebuild
-      expect(sessions[0].isArchived).toBe(false);
+      expect(sessions[0].isArchived).toBe(true);
+    });
+  });
+
+  describe("settings", () => {
+    test("getSetting returns default for missing key", () => {
+      index = new SearchIndex(dbPath, projectsDir);
+      expect(index.getSetting("nonexistent", "default")).toBe("default");
+      expect(index.getSetting("nonexistent", 42)).toBe(42);
+      expect(index.getSetting("nonexistent", true)).toBe(true);
+    });
+
+    test("setSetting and getSetting work correctly", () => {
+      index = new SearchIndex(dbPath, projectsDir);
+      index.setSetting("testString", "hello");
+      expect(index.getSetting("testString", "default")).toBe("hello");
+
+      index.setSetting("testNumber", 123);
+      expect(index.getSetting("testNumber", 0)).toBe(123);
+
+      index.setSetting("testBoolean", true);
+      expect(index.getSetting("testBoolean", false)).toBe(true);
+
+      index.setSetting("testObject", { foo: "bar" });
+      expect(index.getSetting("testObject", {})).toEqual({ foo: "bar" });
+    });
+
+    test("setSetting overwrites existing value", () => {
+      index = new SearchIndex(dbPath, projectsDir);
+      index.setSetting("testKey", "first");
+      expect(index.getSetting("testKey", "")).toBe("first");
+
+      index.setSetting("testKey", "second");
+      expect(index.getSetting("testKey", "")).toBe("second");
+    });
+
+    test("getAllSettings returns all settings", () => {
+      index = new SearchIndex(dbPath, projectsDir);
+      index.setSetting("setting1", "value1");
+      index.setSetting("setting2", 42);
+      index.setSetting("setting3", true);
+
+      const all = index.getAllSettings();
+      expect(all.setting1).toBe("value1");
+      expect(all.setting2).toBe(42);
+      expect(all.setting3).toBe(true);
     });
   });
 });

@@ -1,7 +1,7 @@
 # Database Expert
 
 > Mental model for SQLite search index operations in this codebase.
-> **Last Updated**: 2026-01-07 (v2.0.1 - soft-delete)
+> **Last Updated**: 2026-01-25 (v2.2.0 - archive persistence & settings in SQLite)
 > **Expertise Level**: expert
 
 ## Quick Reference
@@ -30,10 +30,11 @@ The search index is a SQLite database with FTS5 (Full-Text Search 5) that caches
 ### Component Map
 ```
 ~/.claudectl/index.db
-    ├── files          (session metadata cache)
+    ├── files          (session metadata cache: is_deleted, is_archived)
     ├── messages       (message content for search)
     ├── messages_fts   (FTS5 virtual table)
-    └── session_titles (user-defined renames)
+    ├── session_titles (user-defined renames)
+    └── settings       (claudectl settings: key-value store)
 ```
 
 ### Data Flow
@@ -82,6 +83,44 @@ await index.sync();  // Detects restored file and clears deleted flag
 ```
 
 **Key columns**: `is_deleted INTEGER DEFAULT 0`, `deleted_at TEXT`
+
+### Pattern: Archive Session
+**Purpose**: Hide sessions from main view without deleting
+**When to Use**: User presses `a` in session picker
+
+```typescript
+// Archive a session (hide from main list)
+index.archiveSession(sessionId);
+
+// Restore (unarchive) a session
+index.unarchiveSession(sessionId);
+
+// Query patterns:
+const mainList = index.getSessions();  // excludes archived
+const archived = index.getSessions({ archivedOnly: true });
+const all = index.getSessions({ includeArchived: true });
+```
+
+**Key columns**: `is_archived INTEGER DEFAULT 0`, `archived_at TEXT`
+
+**Critical**: Archive status is preserved during both `sync()` (when file changes) and `rebuild()`. This is done by saving is_archived before delete and restoring after re-index.
+
+### Pattern: Settings in SQLite
+**Purpose**: Store claudectl settings in the database (not JSON files)
+**When to Use**: Any persistent settings (skipPermissions, autoAddAgentExpert, etc.)
+
+```typescript
+// Get a setting (with default value)
+const value = index.getSetting("skipPermissions", false);
+
+// Set a setting
+index.setSetting("skipPermissions", true);
+
+// Get all settings
+const all = index.getAllSettings();
+```
+
+**Migration**: On schema v4 upgrade, settings are migrated from `~/.claudectl/settings.json` to SQLite.
 
 **Anti-pattern** (don't do this):
 ```typescript
@@ -186,6 +225,10 @@ bun test src/core/search-index.test.ts
 | 2026-01-12 | Session renames now SQLite-only (removed JSON file dual storage) | Simplification |
 | 2026-01-12 | Added `updateSessionPath()` for session move/promote | Feature |
 | 2026-01-14 | Fixed bun:sqlite API usage: .query()→.prepare(), .run()→.prepare().run() | Bug fix |
+| 2026-01-25 | Schema v3→v4: Added settings table, archive preserved during sync/rebuild | Bug fix |
+| 2026-01-25 | Settings moved from JSON to SQLite (auto-migrated) | Consolidation |
+| 2026-01-25 | sync() now preserves is_archived when re-indexing changed files | Bug fix |
+| 2026-01-25 | rebuild() now saves and restores archive status | Bug fix |
 
 ---
 
