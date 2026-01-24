@@ -68,6 +68,13 @@ describe("CLI commands", () => {
       expect(backupCmd).toBeDefined();
     });
   });
+
+  describe("help command", () => {
+    test("help command is registered", () => {
+      const helpCmd = program.commands.find(c => c.name() === "help");
+      expect(helpCmd).toBeDefined();
+    });
+  });
 });
 
 describe("CLI alias modes", () => {
