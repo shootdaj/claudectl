@@ -1,5 +1,37 @@
 # Learnings
 
+## 2026-01-25 (Session 2)
+
+### SQLite Data Preservation During Sync/Rebuild (CRITICAL)
+- **Problem**: Archive status lost when files change on disk or index rebuilds
+- **Root Cause**: `sync()` deletes and recreates rows when mtime/size changes, losing metadata
+- **Solution**: Save and restore user metadata (`is_archived`, `archived_at`) during re-indexing
+
+```typescript
+// In sync(): preserve state before delete
+const preservedState = {
+  isArchived: indexed.is_archived === 1,
+  archivedAt: indexed.archived_at,
+};
+this.db.prepare("DELETE FROM files WHERE id = ?").run(indexed.id);
+await this.indexFile(diskFile, preservedState);  // Pass to indexFile
+
+// In indexFile(): accept and use preserved state
+private async indexFile(fileInfo: FileInfo, preserveState?: {...}) {
+  // INSERT includes: is_archived = preserveState?.isArchived ? 1 : 0
+}
+```
+
+For `rebuild()`: save all archived sessions before wipe, restore after sync.
+
+### GitHub Actions Prerelease Workflow
+- Use `prerelease: true` in `softprops/action-gh-release` for feature branches
+- Check for tag existence before creating to avoid duplicates
+- Sanitize branch names for version suffix: `feature/foo-bar` → `foo-bar`
+- Pre-releases skipped by `/releases/latest` API endpoint
+
+---
+
 ## 2026-01-25
 
 ### Blessed Form Tab Navigation (CRITICAL)

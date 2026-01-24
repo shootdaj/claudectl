@@ -1,5 +1,34 @@
 # Progress
 
+## 2026-01-25 (Session 2)
+
+### Completed
+- **Archive/Settings Persistence Bug Fix**: Data was lost across updates
+  - `sync()` now preserves `is_archived` when re-indexing changed files
+  - `rebuild()` saves and restores archive status
+  - Schema v4: Added `settings` table to SQLite
+  - Migrated claudectl settings from JSON to SQLite
+- **Feature Branch Prereleases**: Auto-deploy feature branches as prereleases
+  - `.github/workflows/release.yml` triggers on `feature/*`, `fix/*`, `feat/*`
+  - Creates versions like `v2.2.2-branch-name` marked as prerelease
+  - Won't be installed by default (skipped by `/releases/latest`)
+- **Branch Update Command**: Install prereleases easily
+  - `ccl update <branch>` finds and installs matching prerelease
+  - `ccl update --list` shows available prereleases
+  - `ccl update v2.2.0-archive-fix` for explicit version
+
+### PRs Merged
+- #8: fix: Preserve archive status and consolidate settings in SQLite
+- #9: feat: Add prerelease workflow for feature branches
+- #10: feat: Add branch argument to update command
+
+### Current State
+- All tests passing (206 tests)
+- Latest stable: v2.2.2
+- Prereleases available: v2.2.0-archive-fix, v2.2.1-prerelease-workflow, v2.2.2-update-branch-arg
+
+---
+
 ## 2026-01-25
 
 ### Completed
