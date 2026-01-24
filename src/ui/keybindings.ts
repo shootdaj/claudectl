@@ -75,6 +75,40 @@ export function buildFooter(keys: string[], settingsState?: { skipPermissions: b
   return " " + parts.join("  ");
 }
 
+// Footer context for building session picker footer
+export interface FooterContext {
+  isScratch: boolean;
+  isArchiveView: boolean;
+  settings: { skipPermissions: boolean; autoAddAgentExpert: boolean };
+}
+
+// Base keybindings shown in all footers
+const baseKeys = ["launch", "rename", "search", "mcp", "update", "help", "skipPerms", "agentExpert", "quit"];
+
+// Build footer based on session context
+export function buildSessionFooter(context: FooterContext): string {
+  const keys: string[] = [];
+
+  // Launch is always first
+  keys.push("launch");
+
+  // Context-specific keys
+  if (context.isArchiveView) {
+    keys.push("restore");  // 'a' restores in archive view
+  } else {
+    if (context.isScratch) {
+      keys.push("promote"); // 'p' promotes scratch sessions
+    }
+    keys.push("new");      // 'n' for new session
+    keys.push("archive");  // 'a' archives in normal view
+  }
+
+  // Common keys
+  keys.push("rename", "search", "mcp", "update", "help", "skipPerms", "agentExpert", "quit");
+
+  return buildFooter(keys, context.settings);
+}
+
 // CLI aliases
 export const cliAliases = [
   { alias: "ccl", description: "Session picker" },
@@ -84,6 +118,7 @@ export const cliAliases = [
   { alias: "cclc", description: "Clone from GitHub" },
   { alias: "ccll", description: "List sessions" },
   { alias: "cclw", description: "Web server" },
+  { alias: "cclu", description: "Update claudectl" },
   { alias: "cclh", description: "Help" },
 ];
 
