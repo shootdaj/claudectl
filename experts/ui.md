@@ -338,6 +338,11 @@ UI components are split into:
 | 2026-01-25 | Added archive sessions feature (`a` to archive, `A` to toggle archive view) | Feature |
 | 2026-01-25 | Fixed form Tab navigation using blessed.form with keys: true | Bug fix |
 | 2026-01-25 | Added Create Project wizard with template selection | Feature |
+| 2026-01-25 | Added CLI aliases (ccln, ccls, cclc, cclr, ccll, cclw) | Feature |
+| 2026-01-25 | Added `new` command with `--mode` option for direct mode access | Feature |
+| 2026-01-25 | Added `--continue` flag to `sessions launch` for resuming last session | Feature |
+| 2026-01-25 | Exported startQuickQuestion, showCreateFlow, showCloneFlow from new-project.ts | Refactor |
+| 2026-01-25 | Added uninstall scripts (uninstall.sh, uninstall.ps1) | Feature |
 
 ---
 
@@ -400,6 +405,46 @@ claudectl serve --port 4000  # Custom port
 claudectl serve --tunnel     # With Cloudflare Tunnel
 claudectl serve auth set     # Set password
 claudectl serve auth reset   # Reset password
+```
+
+---
+
+---
+
+## CLI Aliases
+
+### Overview
+Short command aliases for common workflows, installed as wrapper scripts in `~/.bun/bin/`.
+
+### Available Aliases
+| Alias | Command | Action |
+|-------|---------|--------|
+| `claudectl` / `ccl` | `claudectl` | Open TUI session picker |
+| `ccln` | `claudectl new --mode create` | Create new project wizard |
+| `ccls` | `claudectl new --mode scratch` | Start scratch session immediately |
+| `cclc` | `claudectl new --mode clone` | Clone from GitHub |
+| `cclr` | `claudectl sessions launch --continue` | Resume most recent session |
+| `ccll` | `claudectl sessions list` | List sessions (text, not TUI) |
+| `cclw` | `claudectl serve` | Start web server |
+
+### Implementation
+Aliases are created as wrapper scripts by the installer:
+- **Unix**: Bash scripts in `~/.bun/bin/`
+- **Windows**: `.cmd` files in `%USERPROFILE%\.bun\bin\`
+
+### Code Changes
+- `src/cli.ts`: Added `new` command with `--mode` option, added `--continue` to `sessions launch`
+- `src/ui/new-project.ts`: Exported `startQuickQuestion`, `showCreateFlow`, `showCloneFlow`
+- `install.sh` / `install.ps1`: Create wrapper scripts for aliases
+- `uninstall.sh` / `uninstall.ps1`: Remove wrapper scripts on uninstall
+
+### Uninstall
+```bash
+# Unix
+curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/uninstall.sh | bash
+
+# Windows
+irm https://raw.githubusercontent.com/shootdaj/claudectl/main/uninstall.ps1 | iex
 ```
 
 ---

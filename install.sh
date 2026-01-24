@@ -134,6 +134,49 @@ EOF
 chmod +x "$BUN_BIN/claudectl"
 ln -sf "$BUN_BIN/claudectl" "$BUN_BIN/ccl"
 
+# Create alias wrappers
+# ccln - New project (create wizard)
+cat > "$BUN_BIN/ccln" << EOF
+#!/bin/bash
+exec "$BUN" run "$INSTALL_DIR/src/index.ts" new --mode create "\$@"
+EOF
+chmod +x "$BUN_BIN/ccln"
+
+# ccls - Scratch session (quick question)
+cat > "$BUN_BIN/ccls" << EOF
+#!/bin/bash
+exec "$BUN" run "$INSTALL_DIR/src/index.ts" new --mode scratch "\$@"
+EOF
+chmod +x "$BUN_BIN/ccls"
+
+# cclc - Clone repo
+cat > "$BUN_BIN/cclc" << EOF
+#!/bin/bash
+exec "$BUN" run "$INSTALL_DIR/src/index.ts" new --mode clone "\$@"
+EOF
+chmod +x "$BUN_BIN/cclc"
+
+# cclr - Resume most recent session
+cat > "$BUN_BIN/cclr" << EOF
+#!/bin/bash
+exec "$BUN" run "$INSTALL_DIR/src/index.ts" sessions launch --continue "\$@"
+EOF
+chmod +x "$BUN_BIN/cclr"
+
+# ccll - List sessions (text, not TUI)
+cat > "$BUN_BIN/ccll" << EOF
+#!/bin/bash
+exec "$BUN" run "$INSTALL_DIR/src/index.ts" sessions list "\$@"
+EOF
+chmod +x "$BUN_BIN/ccll"
+
+# cclw - Web server
+cat > "$BUN_BIN/cclw" << EOF
+#!/bin/bash
+exec "$BUN" run "$INSTALL_DIR/src/index.ts" serve "\$@"
+EOF
+chmod +x "$BUN_BIN/cclw"
+
 # Add to PATH in shell profiles
 for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile"; do
   [ -f "$profile" ] && ! grep -q 'BUN_INSTALL' "$profile" 2>/dev/null && {
@@ -144,7 +187,17 @@ done
 echo ""
 echo -e "${GREEN}Installation complete!${NC}"
 echo -e "Installed version: ${CYAN}$VERSION${NC}"
-echo -e "Run ${CYAN}claudectl${NC} or ${CYAN}ccl${NC} to get started."
+echo ""
+echo -e "${CYAN}Commands:${NC}"
+echo -e "  ${GREEN}claudectl${NC} / ${GREEN}ccl${NC}   Open session picker"
+echo -e "  ${GREEN}ccln${NC}              Create new project"
+echo -e "  ${GREEN}ccls${NC}              Start scratch session"
+echo -e "  ${GREEN}cclc${NC}              Clone from GitHub"
+echo -e "  ${GREEN}cclr${NC}              Resume last session"
+echo -e "  ${GREEN}ccll${NC}              List sessions"
+echo -e "  ${GREEN}cclw${NC}              Start web server"
+echo ""
+echo -e "${YELLOW}Uninstall:${NC} curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/uninstall.sh | bash"
 echo ""
 
 # Verify
