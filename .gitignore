@@ -1,2 +1,5 @@
 node_modules
 firebase-debug.log
+*.last-run.json
+.claude/settings.local.json
+test-results/
