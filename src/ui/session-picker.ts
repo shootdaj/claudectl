@@ -1233,14 +1233,13 @@ export async function showSessionPicker(
       parent: screen,
       top: "center",
       left: "center",
-      width: 60,
-      height: 24,
+      width: 58,
+      height: 30,
       border: { type: "line" },
       style: { border: { fg: theme.pink } },
       label: ` {${theme.pink}-fg}Help{/${theme.pink}-fg} `,
       tags: true,
       keys: true,
-      scrollable: true,
     });
 
     const helpContent = `{bold}Keybindings{/bold}
@@ -1253,21 +1252,23 @@ export async function showSessionPicker(
   {${theme.yellow}-fg}a{/${theme.yellow}-fg}            Archive/Restore session
   {${theme.purple}-fg}A{/${theme.purple}-fg}            Toggle archive view
   {${theme.blue}-fg}/{/${theme.blue}-fg}            Search sessions
-  {${theme.pink}-fg}c{/${theme.pink}-fg}            Copy session to clipboard
+  {${theme.pink}-fg}c{/${theme.pink}-fg}            Copy session ID
   {${theme.purple}-fg}m{/${theme.purple}-fg}            MCP server manager
   {${theme.yellow}-fg}d{/${theme.yellow}-fg}            Toggle skip permissions
   {${theme.purple}-fg}u{/${theme.purple}-fg}            Check for updates
+  {${theme.muted}-fg}?{/${theme.muted}-fg}            This help
   {${theme.muted}-fg}q{/${theme.muted}-fg}            Quit
 
 {bold}CLI Aliases{/bold}
 
-  {${theme.green}-fg}ccl{/${theme.green}-fg}          Open session picker (this)
-  {${theme.green}-fg}ccln{/${theme.green}-fg}         Create new project
-  {${theme.green}-fg}ccls{/${theme.green}-fg}         Start scratch session
-  {${theme.green}-fg}cclc{/${theme.green}-fg}         Clone from GitHub
+  {${theme.green}-fg}ccl{/${theme.green}-fg}          Session picker
+  {${theme.green}-fg}ccls{/${theme.green}-fg}         Scratch session
   {${theme.green}-fg}cclr{/${theme.green}-fg}         Resume last session
-  {${theme.green}-fg}ccll{/${theme.green}-fg}         List sessions (text)
-  {${theme.green}-fg}cclw{/${theme.green}-fg}         Start web server`;
+  {${theme.green}-fg}ccln{/${theme.green}-fg}         New project
+  {${theme.green}-fg}cclc{/${theme.green}-fg}         Clone from GitHub
+  {${theme.green}-fg}ccll{/${theme.green}-fg}         List sessions
+  {${theme.green}-fg}cclw{/${theme.green}-fg}         Web server
+  {${theme.green}-fg}cclh{/${theme.green}-fg}         Help`;
 
     blessed.text({
       parent: helpBox,
