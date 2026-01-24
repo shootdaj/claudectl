@@ -30,6 +30,11 @@ For `rebuild()`: save all archived sessions before wipe, restore after sync.
 - Sanitize branch names for version suffix: `feature/foo-bar` → `foo-bar`
 - Pre-releases skipped by `/releases/latest` API endpoint
 
+### GitHub Branch Protection
+- Status check names are **case-sensitive**: "Test" ≠ "test"
+- Use `gh api repos/{owner}/{repo}/commits/{sha}/check-runs --jq '.check_runs[].name'` to get exact names
+- `strict: false` allows merging without rebasing to latest main first
+
 ---
 
 ## 2026-01-25
