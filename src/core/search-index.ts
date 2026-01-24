@@ -67,6 +67,8 @@ export interface IndexedSession {
   customTitle?: string;
   isDeleted: boolean;
   deletedAt?: Date;
+  isArchived: boolean;
+  archivedAt?: Date;
 }
 
 interface FileInfo {
@@ -83,7 +85,7 @@ interface FileInfo {
 
 const CLAUDECTL_DIR = join(homedir(), ".claudectl");
 const INDEX_DB_PATH = join(CLAUDECTL_DIR, "index.db");
-const SCHEMA_VERSION = 2; // v2: added is_deleted column
+const SCHEMA_VERSION = 3; // v3: added is_archived column
 
 // ============================================
 // Schema
@@ -127,7 +129,9 @@ CREATE TABLE IF NOT EXISTS files (
     total_input_tokens INTEGER DEFAULT 0,
     total_output_tokens INTEGER DEFAULT 0,
     is_deleted INTEGER DEFAULT 0,
-    deleted_at TEXT
+    deleted_at TEXT,
+    is_archived INTEGER DEFAULT 0,
+    archived_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_files_session_id ON files(session_id);
@@ -226,6 +230,15 @@ export class SearchIndex {
       try {
         this.db.exec("ALTER TABLE files ADD COLUMN is_deleted INTEGER DEFAULT 0");
         this.db.exec("ALTER TABLE files ADD COLUMN deleted_at TEXT");
+      } catch {
+        // Columns might already exist
+      }
+    }
+    // Migration v2 -> v3: Add is_archived and archived_at columns
+    if (fromVersion < 3) {
+      try {
+        this.db.exec("ALTER TABLE files ADD COLUMN is_archived INTEGER DEFAULT 0");
+        this.db.exec("ALTER TABLE files ADD COLUMN archived_at TEXT");
       } catch {
         // Columns might already exist
       }
@@ -428,8 +441,14 @@ export class SearchIndex {
   /**
    * Get all indexed sessions sorted by last accessed
    */
-  getSessions(options: { minMessages?: number; excludeEmpty?: boolean; includeDeleted?: boolean } = {}): IndexedSession[] {
-    const { minMessages = 0, excludeEmpty = true, includeDeleted = true } = options;
+  getSessions(options: {
+    minMessages?: number;
+    excludeEmpty?: boolean;
+    includeDeleted?: boolean;
+    includeArchived?: boolean;
+    archivedOnly?: boolean;
+  } = {}): IndexedSession[] {
+    const { minMessages = 0, excludeEmpty = true, includeDeleted = true, includeArchived = false, archivedOnly = false } = options;
 
     let sql = `
       SELECT
@@ -449,6 +468,13 @@ export class SearchIndex {
     }
     if (!includeDeleted) {
       sql += ` AND (f.is_deleted = 0 OR f.is_deleted IS NULL)`;
+    }
+
+    // Archive filtering
+    if (archivedOnly) {
+      sql += ` AND f.is_archived = 1`;
+    } else if (!includeArchived) {
+      sql += ` AND (f.is_archived = 0 OR f.is_archived IS NULL)`;
     }
 
     // Sort: active sessions by last_accessed, then deleted sessions by deleted_at
@@ -476,6 +502,8 @@ export class SearchIndex {
       customTitle: row.custom_title,
       isDeleted: row.is_deleted === 1,
       deletedAt: row.deleted_at ? new Date(row.deleted_at) : undefined,
+      isArchived: row.is_archived === 1,
+      archivedAt: row.archived_at ? new Date(row.archived_at) : undefined,
     }));
   }
 
@@ -623,6 +651,34 @@ export class SearchIndex {
         encoded_path = ?
       WHERE session_id = ?
     `).run(newFilePath, newWorkingDirectory, newShortPath, newEncodedPath, sessionId);
+  }
+
+  /**
+   * Archive a session (hide from main list)
+   */
+  archiveSession(sessionId: string): void {
+    this.db.prepare(`
+      UPDATE files SET is_archived = 1, archived_at = datetime('now')
+      WHERE session_id = ?
+    `).run(sessionId);
+  }
+
+  /**
+   * Unarchive a session (restore to main list)
+   */
+  unarchiveSession(sessionId: string): void {
+    this.db.prepare(`
+      UPDATE files SET is_archived = 0, archived_at = NULL
+      WHERE session_id = ?
+    `).run(sessionId);
+  }
+
+  /**
+   * Check if a session is archived
+   */
+  isSessionArchived(sessionId: string): boolean {
+    const row = this.db.prepare("SELECT is_archived FROM files WHERE session_id = ?").get(sessionId) as { is_archived: number } | null;
+    return row?.is_archived === 1;
   }
 
   /**
