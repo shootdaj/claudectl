@@ -50,6 +50,10 @@ export interface Session {
   isDeleted?: boolean;
   /** When the session was deleted */
   deletedAt?: Date;
+  /** Whether the session is archived (hidden from main list) */
+  isArchived?: boolean;
+  /** When the session was archived */
+  archivedAt?: Date;
 }
 
 /**
@@ -68,6 +72,10 @@ export interface DiscoverOptions {
   minMessages?: number;
   /** Use SQLite index for fast discovery. Default: true */
   useIndex?: boolean;
+  /** Include archived sessions. Default: false */
+  includeArchived?: boolean;
+  /** Only show archived sessions. Default: false */
+  archivedOnly?: boolean;
 }
 
 /**
@@ -99,10 +107,14 @@ function discoverSessionsFromIndex(options: DiscoverOptions = {}): Session[] {
   const minMessages = options.minMessages ?? 1;
   const includeEmpty = options.includeEmpty ?? false;
   const includeAgents = options.includeAgents ?? false;
+  const includeArchived = options.includeArchived ?? false;
+  const archivedOnly = options.archivedOnly ?? false;
 
   const indexedSessions = index.getSessions({
     minMessages: includeEmpty ? 0 : minMessages,
     excludeEmpty: !includeEmpty,
+    includeArchived,
+    archivedOnly,
   });
 
   // Convert IndexedSession to Session
@@ -126,6 +138,8 @@ function discoverSessionsFromIndex(options: DiscoverOptions = {}): Session[] {
     machine: "local",
     isDeleted: s.isDeleted,
     deletedAt: s.deletedAt,
+    isArchived: s.isArchived,
+    archivedAt: s.archivedAt,
   }));
 
   // Filter agents if needed
@@ -692,4 +706,28 @@ export async function rebuildIndex(): Promise<{ added: number; updated: number; 
 export function getIndexStats(): { sessions: number; messages: number; dbSize: number } {
   const index = getSearchIndex();
   return index.getStats();
+}
+
+/**
+ * Archive a session (hide from main list)
+ */
+export function archiveSession(sessionId: string): void {
+  const index = getSearchIndex();
+  index.archiveSession(sessionId);
+}
+
+/**
+ * Unarchive a session (restore to main list)
+ */
+export function unarchiveSession(sessionId: string): void {
+  const index = getSearchIndex();
+  index.unarchiveSession(sessionId);
+}
+
+/**
+ * Check if a session is archived
+ */
+export function isSessionArchived(sessionId: string): boolean {
+  const index = getSearchIndex();
+  return index.isSessionArchived(sessionId);
 }

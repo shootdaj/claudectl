@@ -9,6 +9,8 @@ import {
   getIndexStats,
   searchSessionContent,
   closeSearchIndex,
+  archiveSession,
+  unarchiveSession,
   type Session,
   type ContentSearchResult,
 } from "../core/sessions";
@@ -67,6 +69,7 @@ interface SessionPickerOptions {
   onExit?: () => void;
   dryRun?: boolean;
   selectedIndex?: number;  // Restore selection when returning from Claude
+  showArchived?: boolean;  // Show archived sessions view
 }
 
 // Neon color scheme
@@ -110,10 +113,17 @@ export async function showSessionPicker(
   // Migrate any renames from JSON file to SQLite index
   await migrateRenamesToIndex();
 
-  const sessions = await discoverSessions();
+  // Load sessions based on archive view mode
+  const showArchived = options.showArchived ?? false;
+  const sessions = await discoverSessions({ archivedOnly: showArchived });
   let settings = loadClaudectlSettings();
 
   if (sessions.length === 0) {
+    if (showArchived) {
+      console.log("No archived sessions. Press Shift+A to return to main view.");
+      // Show main view instead
+      return showSessionPicker({ ...options, showArchived: false });
+    }
     console.log("No sessions found.");
     return;
   }
@@ -158,6 +168,9 @@ export async function showSessionPicker(
   function updateTitleBar() {
     const version = getVersion();
     const badges: string[] = [];
+    if (showArchived) {
+      badges.push("{#ffff00-fg}[ARCHIVE]{/#ffff00-fg}");
+    }
     if (updateAvailable) {
       badges.push(`{#ffff00-fg}[UPDATE ${updateAvailable}]{/#ffff00-fg}`);
     }
@@ -168,8 +181,9 @@ export async function showSessionPicker(
       badges.push("{#00ff00-fg}[AGENT EXPERT]{/#00ff00-fg}");
     }
     const badgeStr = badges.length > 0 ? " " + badges.join(" ") : "";
+    const viewLabel = showArchived ? "archived" : "sessions";
     titleBar.setContent(
-      `{bold}{#ff00ff-fg} ◆ claudectl{/#ff00ff-fg}{/bold} {#888888-fg}${version} │{/#888888-fg} {#00ffff-fg}sessions{/#00ffff-fg}${badgeStr}`
+      `{bold}{#ff00ff-fg} ◆ claudectl{/#ff00ff-fg}{/bold} {#888888-fg}${version} │{/#888888-fg} {#00ffff-fg}${viewLabel}{/#00ffff-fg}${badgeStr}`
     );
   }
   updateTitleBar();
@@ -268,11 +282,12 @@ export async function showSessionPicker(
   }
 
   // Session count on right
+  const countLabel = showArchived ? "archived" : "sessions";
   blessed.text({
     parent: titleBar,
     top: 0,
     right: 1,
-    content: `{#00ff00-fg}${sessions.length}{/#00ff00-fg} {#888888-fg}sessions{/#888888-fg}`,
+    content: `{#00ff00-fg}${sessions.length}{/#00ff00-fg} {#888888-fg}${countLabel}{/#888888-fg}`,
     tags: true,
   });
 
@@ -340,8 +355,9 @@ export async function showSessionPicker(
   });
 
   // Footer keybindings
-  const defaultFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}m{/#aa88ff-fg} MCP  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
-  const scratchFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}p{/#ffff00-fg} Promote  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+  const defaultFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}a{/#ffff00-fg} Archive  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}A{/#aa88ff-fg} View  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+  const scratchFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}p{/#ffff00-fg} Promote  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}a{/#ffff00-fg} Archive  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+  const archiveFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ff00-fg}a{/#00ff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}A{/#aa88ff-fg} Back  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
 
   const footer = blessed.box({
     parent: mainBox,
@@ -349,13 +365,17 @@ export async function showSessionPicker(
     left: 0,
     width: "100%-2",
     height: 1,
-    content: defaultFooter,
+    content: showArchived ? archiveFooter : defaultFooter,
     tags: true,
     style: { fg: "gray" },
   });
 
-  // Update footer based on selected session
+  // Update footer based on selected session and view mode
   function updateFooter() {
+    if (showArchived) {
+      footer.setContent(archiveFooter);
+      return;
+    }
     const idx = table.selected;
     const session = filteredSessions[idx];
     if (session && isScratchPath(session.workingDirectory)) {
@@ -410,6 +430,7 @@ export async function showSessionPicker(
   let searchResults: ContentSearchResult[] = [];
   let isSearchMode = false;
   let searchDebounceTimer: NodeJS.Timeout | null = null;
+  // showArchived is already declared above when loading sessions
 
   // Debounced FTS search function
   function performSearch(query: string) {
@@ -713,17 +734,54 @@ export async function showSessionPicker(
     screen.render();
   });
 
-  // Toggle agent-expert auto-add
+  // Archive/Unarchive session
   table.key(["a"], async () => {
-    settings.autoAddAgentExpert = !settings.autoAddAgentExpert;
-    await saveClaudectlSettings(settings);
-    updateTitleBar();
+    const idx = table.selected;
+    const session = filteredSessions[idx];
+    if (!session) return;
 
-    const status = settings.autoAddAgentExpert
-      ? "{#00ff00-fg}ON{/#00ff00-fg} - new sessions will auto-install agent-expert"
-      : "{#888888-fg}OFF{/#888888-fg} - new sessions start without agent-expert";
-    detailsBox.setContent(`{#ff00ff-fg}Agent Expert:{/#ff00ff-fg} ${status}`);
+    if (showArchived) {
+      // In archive view: unarchive (restore) the session
+      unarchiveSession(session.id);
+      detailsBox.setContent(`{#00ff00-fg}✓ Restored:{/#00ff00-fg} ${session.title}`);
+
+      // Remove from current view
+      filteredSessions.splice(idx, 1);
+      updateTable();
+
+      // Select next item or previous if at end
+      if (filteredSessions.length > 0) {
+        table.select(Math.min(idx, filteredSessions.length - 1));
+        updateDetails();
+      }
+    } else {
+      // In main view: archive the session
+      archiveSession(session.id);
+      detailsBox.setContent(`{#ffff00-fg}Archived:{/#ffff00-fg} ${session.title}`);
+
+      // Remove from current view
+      filteredSessions.splice(idx, 1);
+      const sessionIdx = sessions.findIndex(s => s.id === session.id);
+      if (sessionIdx !== -1) {
+        sessions.splice(sessionIdx, 1);
+      }
+      updateTable();
+
+      // Select next item or previous if at end
+      if (filteredSessions.length > 0) {
+        table.select(Math.min(idx, filteredSessions.length - 1));
+        updateDetails();
+      }
+    }
     screen.render();
+  });
+
+  // Toggle archive view (Shift+A)
+  table.key(["S-a"], async () => {
+    stopAnimations();
+    screen.destroy();
+    // Toggle to opposite view
+    await showSessionPicker({ ...options, showArchived: !showArchived, selectedIndex: 0 });
   });
 
   // Open MCP manager

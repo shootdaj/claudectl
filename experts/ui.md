@@ -218,6 +218,41 @@ table.key(["S-p"], async () => {
 **Cause**: Wrong widget has focus
 **Solution**: Call `widget.focus()` after showing/hiding
 
+### Form Tab Navigation
+**Symptom**: Tab key inserts tab character instead of navigating between fields
+**Cause**: textbox with `inputOnFocus: true` captures all keystrokes in edit mode
+**Solution**: Use `blessed.form` with `keys: true` as the parent container
+
+```typescript
+// CORRECT - Tab navigation works
+const form = blessed.form({
+  parent: mainBox,
+  keys: true,  // Enables Tab/Shift+Tab navigation
+}) as blessed.Widgets.FormElement<any>;
+
+const nameInput = blessed.textbox({
+  parent: form,  // Parent is the form, not mainBox
+  name: "name",  // Required for form to track it
+  inputOnFocus: true,
+  // ...
+});
+
+const descInput = blessed.textbox({
+  parent: form,
+  name: "desc",
+  inputOnFocus: true,
+  // ...
+});
+
+// Form handles Tab navigation automatically
+```
+
+**Key points:**
+- All form elements must have `name` attribute
+- All form elements must have `parent: form` (not the outer container)
+- `keys: true` on the form enables Tab/Shift+Tab navigation
+- Form emits "submit" event when Enter is pressed on last field
+
 ### SIGINT Handling for Child Processes
 **Symptom**: Ctrl+C kills both Claude and claudectl
 **Cause**: SIGINT goes to entire process group
@@ -300,6 +335,31 @@ UI components are split into:
 | 2026-01-15 | Fixed Ctrl+Up/Down scrolling (disable built-in keys, manual handling) | Bug fix |
 | 2026-01-15 | Added "OPEN" badge for sessions with running PTY | Feature |
 | 2026-01-15 | Fixed WebSocket session spawning (getOrCreateManagedSession before addClient) | Bug fix |
+| 2026-01-25 | Added archive sessions feature (`a` to archive, `A` to toggle archive view) | Feature |
+| 2026-01-25 | Fixed form Tab navigation using blessed.form with keys: true | Bug fix |
+| 2026-01-25 | Added Create Project wizard with template selection | Feature |
+
+---
+
+## Archive Sessions
+
+### Overview
+Sessions can be archived to hide them from the main list without deleting them. This is useful for keeping your session list clean while preserving sessions for future reference.
+
+### Keybindings
+- `a` - Archive selected session (in main view) / Restore session (in archive view)
+- `A` (Shift+A) - Toggle between main view and archive view
+
+### Implementation
+- Archive status stored in SQLite `files` table (`is_archived`, `archived_at` columns)
+- Schema version 3 added the archive columns
+- `getSessions()` supports `includeArchived` and `archivedOnly` options
+- Archive/unarchive via `archiveSession(sessionId)` and `unarchiveSession(sessionId)`
+
+### Visual Indicators
+- Title bar shows `[ARCHIVE]` badge when in archive view
+- Session count label changes to "archived" in archive view
+- Footer shows "Restore" instead of "Archive" in archive view
 
 ---
 
