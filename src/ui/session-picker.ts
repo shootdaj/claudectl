@@ -354,10 +354,24 @@ export async function showSessionPicker(
     style: { fg: "white" },
   });
 
-  // Footer keybindings
-  const defaultFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
-  const scratchFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}p{/#ffff00-fg} Promote  {#00ffff-fg}n{/#00ffff-fg} New  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
-  const archiveFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ff00-fg}a{/#00ff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+  // Footer keybindings - generate dynamically to show settings state
+  function getSettingsIndicators(): string {
+    const skipColor = settings.skipPermissions ? "#ff8800" : "#666666";
+    const expertColor = settings.autoAddAgentExpert ? "#00ff00" : "#666666";
+    return `{${skipColor}-fg}d{/${skipColor}-fg}:skip {${expertColor}-fg}x{/${expertColor}-fg}:expert`;
+  }
+
+  function getDefaultFooter(): string {
+    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#00ffff-fg}n{/#00ffff-fg}New {#ff00ff-fg}r{/#ff00ff-fg}Rename {#ffff00-fg}a{/#ffff00-fg}Archive {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+  }
+
+  function getScratchFooter(): string {
+    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#ffff00-fg}p{/#ffff00-fg}Promote {#00ffff-fg}n{/#00ffff-fg}New {#ffff00-fg}a{/#ffff00-fg}Archive {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+  }
+
+  function getArchiveFooter(): string {
+    return ` {#00ff00-fg}↵{/#00ff00-fg}Launch {#00ff00-fg}a{/#00ff00-fg}Restore {#00ffff-fg}/{/#00ffff-fg}Search {#aa88ff-fg}m{/#aa88ff-fg}MCP {#aa88ff-fg}u{/#aa88ff-fg}Update {#aa88ff-fg}?{/#aa88ff-fg}Help  ${getSettingsIndicators()}  {#aa88ff-fg}q{/#aa88ff-fg}Quit`;
+  }
 
   const footer = blessed.box({
     parent: mainBox,
@@ -365,7 +379,7 @@ export async function showSessionPicker(
     left: 0,
     width: "100%-2",
     height: 1,
-    content: showArchived ? archiveFooter : defaultFooter,
+    content: showArchived ? getArchiveFooter() : getDefaultFooter(),
     tags: true,
     style: { fg: "gray" },
   });
@@ -373,15 +387,15 @@ export async function showSessionPicker(
   // Update footer based on selected session and view mode
   function updateFooter() {
     if (showArchived) {
-      footer.setContent(archiveFooter);
+      footer.setContent(getArchiveFooter());
       return;
     }
     const idx = table.selected;
     const session = filteredSessions[idx];
     if (session && isScratchPath(session.workingDirectory)) {
-      footer.setContent(scratchFooter);
+      footer.setContent(getScratchFooter());
     } else {
-      footer.setContent(defaultFooter);
+      footer.setContent(getDefaultFooter());
     }
   }
 
@@ -726,11 +740,12 @@ export async function showSessionPicker(
     settings.skipPermissions = !settings.skipPermissions;
     await saveClaudectlSettings(settings);
     updateTitleBar();
+    updateFooter();
 
     const status = settings.skipPermissions
       ? "{#ff8800-fg}ON{/#ff8800-fg} - launches will use --dangerously-skip-permissions"
       : "{#00ff00-fg}OFF{/#00ff00-fg} - normal permission prompts";
-    detailsBox.setContent(`{#ff00ff-fg}Dangerous Mode:{/#ff00ff-fg} ${status}`);
+    detailsBox.setContent(`{#ff00ff-fg}Skip Permissions:{/#ff00ff-fg} ${status}`);
     screen.render();
   });
 
@@ -739,6 +754,7 @@ export async function showSessionPicker(
     settings.autoAddAgentExpert = !settings.autoAddAgentExpert;
     await saveClaudectlSettings(settings);
     updateTitleBar();
+    updateFooter();
 
     const status = settings.autoAddAgentExpert
       ? "{#00ff00-fg}ON{/#00ff00-fg} - agent-expert will be auto-installed on new projects"
