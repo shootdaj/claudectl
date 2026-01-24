@@ -18,7 +18,7 @@ Write-Cyan "+-----------------------------------------+"
 Write-Host ""
 
 # Remove wrapper scripts and aliases
-$Scripts = @("claudectl.cmd", "ccl.cmd", "ccln.cmd", "ccls.cmd", "cclc.cmd", "cclr.cmd", "ccll.cmd", "cclw.cmd")
+$Scripts = @("claudectl.cmd", "ccl.cmd", "ccln.cmd", "ccls.cmd", "cclc.cmd", "cclr.cmd", "ccll.cmd", "cclw.cmd", "cclh.cmd")
 
 Write-Cyan "Removing command aliases..."
 foreach ($script in $Scripts) {

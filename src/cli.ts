@@ -36,6 +36,57 @@ program
     await showSessionPicker();
   });
 
+// Help command showing keybindings and aliases
+program
+  .command("help")
+  .description("Show keybindings and CLI aliases")
+  .action(() => {
+    console.log(`
+${pc.bold(pc.magenta("claudectl"))} - Global Claude Code session manager
+
+${pc.bold("Keybindings")} (in session picker)
+
+  ${pc.green("Enter")}      Launch session
+  ${pc.magenta("↑↓")} or ${pc.magenta("jk")}   Navigate sessions
+  ${pc.cyan("n")}            New session menu
+  ${pc.cyan("p")}            Promote scratch to project
+  ${pc.magenta("r")}            Rename session
+  ${pc.yellow("a")}            Archive/Restore session
+  ${pc.blue("A")}            Toggle archive view
+  ${pc.cyan("/")}            Search sessions
+  ${pc.magenta("c")}            Copy session ID
+  ${pc.blue("m")}            MCP server manager
+  ${pc.yellow("d")}            Toggle skip permissions
+  ${pc.blue("u")}            Check for updates
+  ${pc.dim("?")}            Show help popup
+  ${pc.dim("q")}            Quit
+
+${pc.bold("CLI Aliases")}
+
+  ${pc.green("ccl")}          Open session picker
+  ${pc.green("ccln")}         Create new project
+  ${pc.green("ccls")}         Start scratch session
+  ${pc.green("cclc")}         Clone from GitHub
+  ${pc.green("cclr")}         Resume last session
+  ${pc.green("ccll")}         List sessions (text)
+  ${pc.green("cclw")}         Start web server
+  ${pc.green("cclh")}         Show this help
+
+${pc.bold("Commands")}
+
+  ${pc.cyan("ccl sessions list")}       List all sessions
+  ${pc.cyan("ccl sessions search")} ${pc.dim("<query>")}  Search sessions
+  ${pc.cyan("ccl sessions stats")}      Usage statistics
+  ${pc.cyan("ccl new --mode")} ${pc.dim("<mode>")}   Start session (scratch/create/clone)
+  ${pc.cyan("ccl serve")}               Start web server
+  ${pc.cyan("ccl update")}              Update to latest version
+  ${pc.cyan("ccl backup")}              Backup sessions
+  ${pc.cyan("ccl config")}              Show config paths
+
+${pc.dim("Learn more: https://github.com/shootdaj/claudectl")}
+`);
+  });
+
 // New session command with mode shortcuts
 program
   .command("new")

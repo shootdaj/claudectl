@@ -177,6 +177,13 @@ exec "$BUN" run "$INSTALL_DIR/src/index.ts" serve "\$@"
 EOF
 chmod +x "$BUN_BIN/cclw"
 
+# cclh - Help
+cat > "$BUN_BIN/cclh" << EOF
+#!/bin/bash
+exec "$BUN" run "$INSTALL_DIR/src/index.ts" help "\$@"
+EOF
+chmod +x "$BUN_BIN/cclh"
+
 # Add to PATH in shell profiles
 for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile"; do
   [ -f "$profile" ] && ! grep -q 'BUN_INSTALL' "$profile" 2>/dev/null && {
@@ -196,6 +203,7 @@ echo -e "  ${GREEN}cclc${NC}              Clone from GitHub"
 echo -e "  ${GREEN}cclr${NC}              Resume last session"
 echo -e "  ${GREEN}ccll${NC}              List sessions"
 echo -e "  ${GREEN}cclw${NC}              Start web server"
+echo -e "  ${GREEN}cclh${NC}              Show help"
 echo ""
 echo -e "${YELLOW}Uninstall:${NC} curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/uninstall.sh | bash"
 echo ""

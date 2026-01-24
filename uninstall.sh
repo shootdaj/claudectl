@@ -21,7 +21,7 @@ echo "└───────────────────────�
 echo -e "${NC}"
 
 # Remove wrapper scripts and aliases
-SCRIPTS=("claudectl" "ccl" "ccln" "ccls" "cclc" "cclr" "ccll" "cclw")
+SCRIPTS=("claudectl" "ccl" "ccln" "ccls" "cclc" "cclr" "ccll" "cclw" "cclh")
 
 echo -e "${CYAN}Removing command aliases...${NC}"
 for script in "${SCRIPTS[@]}"; do

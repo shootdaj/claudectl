@@ -17,6 +17,9 @@ Uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
   - `cclr` - Resume most recent session
   - `ccll` - List sessions (text output)
   - `cclw` - Start web server
+  - `cclh` - Show help (keybindings & aliases)
+- **`help` command** (`ccl help` or `cclh`) showing all keybindings and aliases
+- **Help popup** (`?` key) in session picker
 - **`new` command** with `--mode` option (scratch, create, clone)
 - **`--continue` flag** on `sessions launch` to resume most recent session
 - **Uninstall scripts** (`uninstall.sh` and `uninstall.ps1`)
