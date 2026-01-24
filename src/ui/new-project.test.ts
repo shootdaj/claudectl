@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import * as newProject from "./new-project";
 
 describe("new-project", () => {
   describe("getCommonFolders logic", () => {
@@ -140,6 +141,28 @@ describe("new-project", () => {
       expect(modes).toContain("new");
       expect(modes).toContain("clone");
       expect(modes).toHaveLength(2);
+    });
+  });
+
+  describe("exported functions", () => {
+    test("showNewProjectWizard is exported", () => {
+      expect(typeof newProject.showNewProjectWizard).toBe("function");
+    });
+
+    test("showNewSessionMenu is exported", () => {
+      expect(typeof newProject.showNewSessionMenu).toBe("function");
+    });
+
+    test("startQuickQuestion is exported", () => {
+      expect(typeof newProject.startQuickQuestion).toBe("function");
+    });
+
+    test("showCreateFlow is exported", () => {
+      expect(typeof newProject.showCreateFlow).toBe("function");
+    });
+
+    test("showCloneFlow is exported", () => {
+      expect(typeof newProject.showCloneFlow).toBe("function");
     });
   });
 

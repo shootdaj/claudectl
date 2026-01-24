@@ -36,6 +36,39 @@ program
     await showSessionPicker();
   });
 
+// New session command with mode shortcuts
+program
+  .command("new")
+  .description("Start a new session")
+  .option("-m, --mode <mode>", "Mode: scratch, create, clone")
+  .option("-s, --skip-permissions", "Use --dangerously-skip-permissions")
+  .action(async (options) => {
+    const { startQuickQuestion, showCreateFlow, showCloneFlow } = await import("./ui/new-project");
+
+    const wizardOptions = {
+      skipPermissions: options.skipPermissions,
+      onComplete: () => process.exit(0),
+      onCancel: () => process.exit(0),
+    };
+
+    switch (options.mode) {
+      case "scratch":
+        await startQuickQuestion(wizardOptions);
+        break;
+      case "clone":
+        await showCloneFlow(wizardOptions);
+        break;
+      case "create":
+        await showCreateFlow(wizardOptions);
+        break;
+      default:
+        // No mode specified, show the menu
+        const { showNewSessionMenu } = await import("./ui/new-project");
+        await showNewSessionMenu(wizardOptions);
+        break;
+    }
+  });
+
 // Sessions subcommand
 const sessions = program.command("sessions").description("Manage sessions");
 
@@ -88,9 +121,32 @@ sessions
 sessions
   .command("launch [id]")
   .description("Launch a session by ID or name")
+  .option("-c, --continue", "Continue most recent session")
   .option("-d, --dry-run", "Show what would happen without launching")
   .option("-p, --prompt <prompt>", "Add a prompt when resuming")
   .action(async (id, options) => {
+    if (options.continue) {
+      // Continue most recent session
+      const allSessions = await discoverSessions();
+      if (allSessions.length === 0) {
+        console.log("No sessions found.");
+        process.exit(1);
+      }
+      const mostRecent = allSessions[0]; // Already sorted by lastAccessedAt
+      const result = await launchSession(mostRecent, {
+        dryRun: options.dryRun,
+        prompt: options.prompt,
+      });
+      if (options.dryRun) {
+        console.log("\n┌─ Dry Run ─────────────────────────────────┐");
+        console.log(`│ Session: ${mostRecent.title.slice(0, 32).padEnd(32)}│`);
+        console.log(`│ Command: ${result.command.slice(0, 32).padEnd(32)}│`);
+        console.log(`│ CWD: ${result.cwd.slice(0, 36).padEnd(36)}│`);
+        console.log("└────────────────────────────────────────────┘\n");
+      }
+      return;
+    }
+
     if (!id) {
       // Show TUI picker
       await showSessionPicker({ dryRun: options.dryRun });
