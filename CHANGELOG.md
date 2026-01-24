@@ -7,6 +7,22 @@ Uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 
 ---
 
+## [Unreleased]
+
+### Added
+- **CLI aliases** for quick access to common workflows:
+  - `ccln` - Create new project
+  - `ccls` - Start scratch session
+  - `cclc` - Clone from GitHub
+  - `cclr` - Resume most recent session
+  - `ccll` - List sessions (text output)
+  - `cclw` - Start web server
+- **`new` command** with `--mode` option (scratch, create, clone)
+- **`--continue` flag** on `sessions launch` to resume most recent session
+- **Uninstall scripts** (`uninstall.sh` and `uninstall.ps1`)
+
+---
+
 ## [2.1.0] - 2026-01-15 - Remote Web Server
 
 Access Claude Code from any device via web browser.

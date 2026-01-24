@@ -160,6 +160,43 @@ $AliasCmd = @"
 "@
 $AliasCmd | Out-File -FilePath "$BunBin\ccl.cmd" -Encoding ASCII
 
+# Create alias wrappers
+# ccln - New project (create wizard)
+@"
+@echo off
+"$BunExe" run "$InstallDir\src\index.ts" new --mode create %*
+"@ | Out-File -FilePath "$BunBin\ccln.cmd" -Encoding ASCII
+
+# ccls - Scratch session (quick question)
+@"
+@echo off
+"$BunExe" run "$InstallDir\src\index.ts" new --mode scratch %*
+"@ | Out-File -FilePath "$BunBin\ccls.cmd" -Encoding ASCII
+
+# cclc - Clone repo
+@"
+@echo off
+"$BunExe" run "$InstallDir\src\index.ts" new --mode clone %*
+"@ | Out-File -FilePath "$BunBin\cclc.cmd" -Encoding ASCII
+
+# cclr - Resume most recent session
+@"
+@echo off
+"$BunExe" run "$InstallDir\src\index.ts" sessions launch --continue %*
+"@ | Out-File -FilePath "$BunBin\cclr.cmd" -Encoding ASCII
+
+# ccll - List sessions (text, not TUI)
+@"
+@echo off
+"$BunExe" run "$InstallDir\src\index.ts" sessions list %*
+"@ | Out-File -FilePath "$BunBin\ccll.cmd" -Encoding ASCII
+
+# cclw - Web server
+@"
+@echo off
+"$BunExe" run "$InstallDir\src\index.ts" serve %*
+"@ | Out-File -FilePath "$BunBin\cclw.cmd" -Encoding ASCII
+
 # Add to PATH if not already there
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($UserPath -notlike "*$BunBin*") {
@@ -173,11 +210,16 @@ Write-Green "Installation complete!"
 Write-Host "Installed version: " -NoNewline
 Write-Cyan $Version
 Write-Host ""
-Write-Host "Run " -NoNewline
-Write-Cyan "claudectl" -NoNewline
-Write-Host " or " -NoNewline
-Write-Cyan "ccl" -NoNewline
-Write-Host " to get started."
+Write-Cyan "Commands:"
+Write-Host "  claudectl / ccl   Open session picker" -ForegroundColor Green
+Write-Host "  ccln              Create new project" -ForegroundColor Green
+Write-Host "  ccls              Start scratch session" -ForegroundColor Green
+Write-Host "  cclc              Clone from GitHub" -ForegroundColor Green
+Write-Host "  cclr              Resume last session" -ForegroundColor Green
+Write-Host "  ccll              List sessions" -ForegroundColor Green
+Write-Host "  cclw              Start web server" -ForegroundColor Green
+Write-Host ""
+Write-Yellow "Uninstall: irm https://raw.githubusercontent.com/shootdaj/claudectl/main/uninstall.ps1 | iex"
 Write-Host ""
 Write-Yellow "Note: You may need to restart your terminal for PATH changes to take effect."
 Write-Host ""

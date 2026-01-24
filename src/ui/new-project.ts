@@ -55,7 +55,7 @@ export async function showNewProjectWizard(options: NewProjectOptions = {}): Pro
 /**
  * Simple two-option menu: New (quick question) or Existing (clone)
  */
-async function showNewSessionMenu(options: NewProjectOptions): Promise<void> {
+export async function showNewSessionMenu(options: NewProjectOptions): Promise<void> {
   const screen = blessed.screen({
     smartCSR: true,
     title: "claudectl - New Session",
@@ -137,7 +137,7 @@ async function showNewSessionMenu(options: NewProjectOptions): Promise<void> {
 /**
  * Start a quick question session in scratch folder
  */
-async function startQuickQuestion(options: NewProjectOptions): Promise<void> {
+export async function startQuickQuestion(options: NewProjectOptions): Promise<void> {
   const scratchDir = getScratchDir();
 
   console.log(`\nStarting quick question session...`);
@@ -162,7 +162,7 @@ async function startQuickQuestion(options: NewProjectOptions): Promise<void> {
 /**
  * Create flow - create new GitHub repo and project
  */
-async function showCreateFlow(options: NewProjectOptions): Promise<void> {
+export async function showCreateFlow(options: NewProjectOptions): Promise<void> {
   const screen = blessed.screen({
     smartCSR: true,
     title: "claudectl - Create New Project",
@@ -580,7 +580,7 @@ export default {
 /**
  * Clone flow - select or enter a GitHub repo
  */
-async function showCloneFlow(options: NewProjectOptions): Promise<void> {
+export async function showCloneFlow(options: NewProjectOptions): Promise<void> {
   const screen = blessed.screen({
     smartCSR: true,
     title: "claudectl - Clone Repository",
