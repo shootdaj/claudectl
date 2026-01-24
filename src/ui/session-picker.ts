@@ -26,7 +26,7 @@ import { showMcpManager } from "./mcp-manager";
 import { showNewProjectWizard } from "./new-project";
 import { autoBackup, restoreSession as restoreSessionFromBackup } from "../core/backup";
 import { basename as pathBasename } from "../utils/paths";
-import { buildFooter, buildHelpContent } from "./keybindings";
+import { buildSessionFooter, buildHelpContent, type FooterContext } from "./keybindings";
 
 const isWindows = process.platform === "win32";
 
@@ -356,18 +356,16 @@ export async function showSessionPicker(
   });
 
   // Footer keybindings - generate dynamically using centralized keybindings config
-  const settingsState = () => ({ skipPermissions: settings.skipPermissions, autoAddAgentExpert: settings.autoAddAgentExpert });
-
-  function getDefaultFooter(): string {
-    return buildFooter(["launch", "new", "rename", "archive", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
+  function getFooterContext(session?: { workingDirectory: string }): FooterContext {
+    return {
+      isScratch: session ? isScratchPath(session.workingDirectory) : false,
+      isArchiveView: showArchived,
+      settings: { skipPermissions: settings.skipPermissions, autoAddAgentExpert: settings.autoAddAgentExpert },
+    };
   }
 
-  function getScratchFooter(): string {
-    return buildFooter(["launch", "promote", "new", "archive", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
-  }
-
-  function getArchiveFooter(): string {
-    return buildFooter(["launch", "restore", "search", "help", "skipPerms", "agentExpert", "quit"], settingsState());
+  function getFooter(session?: { workingDirectory: string }): string {
+    return buildSessionFooter(getFooterContext(session));
   }
 
   const footer = blessed.box({
@@ -376,24 +374,16 @@ export async function showSessionPicker(
     left: 0,
     width: "100%-2",
     height: 1,
-    content: showArchived ? getArchiveFooter() : getDefaultFooter(),
+    content: getFooter(),
     tags: true,
     style: { fg: "gray" },
   });
 
   // Update footer based on selected session and view mode
   function updateFooter() {
-    if (showArchived) {
-      footer.setContent(getArchiveFooter());
-      return;
-    }
     const idx = table.selected;
     const session = filteredSessions[idx];
-    if (session && isScratchPath(session.workingDirectory)) {
-      footer.setContent(getScratchFooter());
-    } else {
-      footer.setContent(getDefaultFooter());
-    }
+    footer.setContent(getFooter(session));
   }
 
   // Search box (hidden by default)

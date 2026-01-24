@@ -184,6 +184,13 @@ exec "$BUN" run "$INSTALL_DIR/src/index.ts" help "\$@"
 EOF
 chmod +x "$BUN_BIN/cclh"
 
+# cclu - Update
+cat > "$BUN_BIN/cclu" << EOF
+#!/bin/bash
+exec "$BUN" run "$INSTALL_DIR/src/index.ts" update "\$@"
+EOF
+chmod +x "$BUN_BIN/cclu"
+
 # Add to PATH in shell profiles
 for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile"; do
   [ -f "$profile" ] && ! grep -q 'BUN_INSTALL' "$profile" 2>/dev/null && {
@@ -203,6 +210,7 @@ echo -e "  ${GREEN}cclc${NC}              Clone from GitHub"
 echo -e "  ${GREEN}cclr${NC}              Resume last session"
 echo -e "  ${GREEN}ccll${NC}              List sessions"
 echo -e "  ${GREEN}cclw${NC}              Start web server"
+echo -e "  ${GREEN}cclu${NC}              Update claudectl"
 echo -e "  ${GREEN}cclh${NC}              Show help"
 echo ""
 echo -e "${YELLOW}Uninstall:${NC} curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/uninstall.sh | bash"
