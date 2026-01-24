@@ -355,9 +355,9 @@ export async function showSessionPicker(
   });
 
   // Footer keybindings
-  const defaultFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}a{/#ffff00-fg} Archive  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}A{/#aa88ff-fg} View  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
-  const scratchFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}p{/#ffff00-fg} Promote  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#ffff00-fg}a{/#ffff00-fg} Archive  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
-  const archiveFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ff00-fg}a{/#00ff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}A{/#aa88ff-fg} Back  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+  const defaultFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ffff-fg}n{/#00ffff-fg} New  {#ff00ff-fg}r{/#ff00ff-fg} Rename  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+  const scratchFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#ffff00-fg}p{/#ffff00-fg} Promote  {#00ffff-fg}n{/#00ffff-fg} New  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
+  const archiveFooter = " {#ff00ff-fg}↑↓{/#ff00ff-fg} Nav  {#00ff00-fg}↵{/#00ff00-fg} Launch  {#00ff00-fg}a{/#00ff00-fg} Restore  {#00ffff-fg}/{/#00ffff-fg} Search  {#aa88ff-fg}?{/#aa88ff-fg} Help  {#aa88ff-fg}q{/#aa88ff-fg} Quit";
 
   const footer = blessed.box({
     parent: mainBox,
@@ -1225,6 +1225,74 @@ export async function showSessionPicker(
       );
       screen.render();
     }
+  });
+
+  // Help popup
+  table.key(["?"], () => {
+    const helpBox = blessed.box({
+      parent: screen,
+      top: "center",
+      left: "center",
+      width: 60,
+      height: 24,
+      border: { type: "line" },
+      style: { border: { fg: theme.pink } },
+      label: ` {${theme.pink}-fg}Help{/${theme.pink}-fg} `,
+      tags: true,
+      keys: true,
+      scrollable: true,
+    });
+
+    const helpContent = `{bold}Keybindings{/bold}
+
+  {${theme.green}-fg}↵{/${theme.green}-fg} Enter      Launch session
+  {${theme.pink}-fg}↑↓{/${theme.pink}-fg} or {${theme.pink}-fg}jk{/${theme.pink}-fg}   Navigate sessions
+  {${theme.blue}-fg}n{/${theme.blue}-fg}            New session menu
+  {${theme.blue}-fg}p{/${theme.blue}-fg}            Promote scratch to project
+  {${theme.pink}-fg}r{/${theme.pink}-fg}            Rename session
+  {${theme.yellow}-fg}a{/${theme.yellow}-fg}            Archive/Restore session
+  {${theme.purple}-fg}A{/${theme.purple}-fg}            Toggle archive view
+  {${theme.blue}-fg}/{/${theme.blue}-fg}            Search sessions
+  {${theme.pink}-fg}c{/${theme.pink}-fg}            Copy session to clipboard
+  {${theme.purple}-fg}m{/${theme.purple}-fg}            MCP server manager
+  {${theme.yellow}-fg}d{/${theme.yellow}-fg}            Toggle skip permissions
+  {${theme.purple}-fg}u{/${theme.purple}-fg}            Check for updates
+  {${theme.muted}-fg}q{/${theme.muted}-fg}            Quit
+
+{bold}CLI Aliases{/bold}
+
+  {${theme.green}-fg}ccl{/${theme.green}-fg}          Open session picker (this)
+  {${theme.green}-fg}ccln{/${theme.green}-fg}         Create new project
+  {${theme.green}-fg}ccls{/${theme.green}-fg}         Start scratch session
+  {${theme.green}-fg}cclc{/${theme.green}-fg}         Clone from GitHub
+  {${theme.green}-fg}cclr{/${theme.green}-fg}         Resume last session
+  {${theme.green}-fg}ccll{/${theme.green}-fg}         List sessions (text)
+  {${theme.green}-fg}cclw{/${theme.green}-fg}         Start web server`;
+
+    blessed.text({
+      parent: helpBox,
+      top: 1,
+      left: 2,
+      content: helpContent,
+      tags: true,
+    });
+
+    blessed.text({
+      parent: helpBox,
+      bottom: 0,
+      left: 2,
+      content: `{${theme.muted}-fg}Press any key to close{/${theme.muted}-fg}`,
+      tags: true,
+    });
+
+    helpBox.focus();
+    screen.render();
+
+    helpBox.key(["escape", "q", "?", "enter", "space"], () => {
+      helpBox.destroy();
+      table.focus();
+      screen.render();
+    });
   });
 
   screen.key(["q", "C-c"], () => {
