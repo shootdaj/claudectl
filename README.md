@@ -68,11 +68,24 @@ This will install [Bun](https://bun.sh) if needed, then set up claudectl.
 claudectl          # Open interactive session picker
 ccl                # Short alias
 
+# Quick aliases
+ccln               # Create new project
+ccls               # Start scratch session (quick question)
+cclc               # Clone from GitHub
+cclr               # Resume most recent session
+ccll               # List sessions (text output)
+cclw               # Start web server
+
 # Commands
 ccl sessions list              # List all sessions
 ccl sessions launch <id>       # Launch specific session
+ccl sessions launch --continue # Resume most recent session
 ccl sessions search <query>    # Full-text search across sessions
 ccl sessions stats             # Usage statistics
+ccl new --mode scratch         # Start scratch session
+ccl new --mode create          # Create new project
+ccl new --mode clone           # Clone from GitHub
+ccl serve                      # Start web server for remote access
 ccl mcp list                   # List MCP servers
 ccl update                     # Update to latest version
 ccl backup                     # Backup all sessions
@@ -117,6 +130,28 @@ ccl config                     # Show config paths
 - **Data Preserved**: Settings, renames, backups, and search index persist across updates
 - **Cross-Platform**: macOS, Linux, and Windows (experimental)
 - **Fast**: Built with Bun for speed
+
+## Agent Expert
+
+claudectl integrates with [Agent Expert](https://github.com/shootdaj/agent-expert), a self-improving agent framework that makes Claude Code learn and get better over time.
+
+**What it does:**
+- Creates `experts/` files that document patterns, file locations, and project-specific knowledge
+- Claude reads expertise before starting work, applies learned knowledge
+- Automatically updates expertise after code changes
+- Knowledge persists across sessions, building a growing knowledge base
+
+**How to use:**
+1. Press `a` in claudectl to enable "Agent Expert auto-install"
+2. Start a new session - agent-expert is automatically installed
+3. Claude now reads and updates expertise files as you work
+
+Or install manually in any project:
+```bash
+curl -sL https://raw.githubusercontent.com/shootdaj/agent-expert/main/install.sh | bash
+```
+
+Learn more: [github.com/shootdaj/agent-expert](https://github.com/shootdaj/agent-expert)
 
 ## Requirements
 
