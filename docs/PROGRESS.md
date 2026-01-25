@@ -1,5 +1,33 @@
 # Progress
 
+## 2026-01-25 (Session 4)
+
+### Completed
+- **TUI Testing Infrastructure**: Implemented automated UI testing for blessed-based TUI
+  - Created `src/ui/create-screen.ts` - Screen factory with dependency injection
+  - Created `src/test-utils/` - Testing utilities:
+    - `blessed-harness.ts` - PassThrough stream wrapper for testing blessed screens
+    - `key-sequences.ts` - ANSI escape codes for all keybindings
+    - `screen-assertions.ts` - Fluent test assertion helpers
+  - Added 29 new TUI tests covering blessed components, keybindings, UI elements
+  - Modified `session-picker.ts` to accept optional screen parameter
+  - All tests run in CI without needing a real terminal
+
+### Technical Approach
+- **PassThrough streams instead of PTY**: Injects streams into blessed's screen constructor
+- **No test switches**: No conditional code paths for testing - just dependency injection
+- **CI-friendly**: Works in GitHub Actions without TTY requirements
+
+### PRs Merged
+- #19: feat: Add TUI testing infrastructure with BlessedHarness
+
+### Current State
+- All 235 tests passing
+- CI runs TUI tests automatically
+- v2.2.15 released
+
+---
+
 ## 2026-01-25 (Session 3)
 
 ### Completed

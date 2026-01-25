@@ -1,5 +1,72 @@
 # Learnings
 
+## 2026-01-25 (Session 4)
+
+### TUI Testing with PassThrough Streams (RECOMMENDED APPROACH)
+- **Problem**: Testing blessed TUI apps is hard - PTY timing flaky, CI has no TTY
+- **Solution**: Inject PassThrough streams into blessed's screen constructor
+
+```typescript
+import { PassThrough } from "stream";
+import blessed from "blessed";
+
+const input = new PassThrough();
+const output = new PassThrough();
+
+const screen = blessed.screen({
+  input,   // Receives keystrokes
+  output,  // Captures rendered output
+  terminal: "xterm-256color",
+});
+
+// Send keystrokes
+input.write("j");           // Move down
+input.write("\x1b[A");      // Arrow up (escape sequence)
+
+// Capture output
+let buffer = "";
+output.on("data", (chunk) => {
+  buffer += chunk.toString();
+});
+```
+
+**Why this works:**
+1. Tests blessed directly - no PTY abstraction layer
+2. Deterministic - no timing issues from process spawning
+3. Fast - no subprocess overhead
+4. CI-friendly - no TTY requirements
+
+### @types/blessed Bug: Swapped Input/Output Types
+- **Issue**: TypeScript types have input/output swapped (bug in @types/blessed)
+- **Workaround**: Cast the options object: `{...options} as blessed.Widgets.IScreenOptions`
+- Lines 994 and 1000 in node_modules/@types/blessed/index.d.ts have the bug
+
+### Key Escape Sequences for Testing
+```typescript
+export const Keys = {
+  UP: "\x1b[A",      // Arrow up
+  DOWN: "\x1b[B",    // Arrow down
+  ENTER: "\r",       // Enter/Return
+  ESCAPE: "\x1b",    // Escape
+  CTRL_C: "\x03",    // Ctrl+C
+  j: "j", k: "k",    // vim navigation
+  SHIFT_A: "A",      // Shift+A sends uppercase
+};
+```
+
+### Blessed Output Contains Escape Codes
+- Output buffer contains raw ANSI escape sequences, not plain text
+- Box content isn't directly in output - blessed uses cursor positioning
+- For content verification, use `box.getContent()` instead of checking output buffer
+- For output verification, check output length > 0 or look for escape sequences
+
+### Bun Test --ignore Flag Quirks
+- `bun test --ignore '**/*.tui.test.ts'` doesn't work as expected
+- The glob pattern isn't matched by bun's test runner
+- Simpler to just run all tests together: `bun test`
+
+---
+
 ## 2026-01-25 (Session 3)
 
 ### Centralized Keybindings Pattern
