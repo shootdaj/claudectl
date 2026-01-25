@@ -318,7 +318,6 @@ claudectl uses Bun's built-in test runner with comprehensive test coverage.
 
 ```bash
 bun test              # Run all tests
-bun test:unit         # Unit tests only (exclude TUI tests)
 bun test:tui          # TUI integration tests only
 bun test --watch      # Watch mode
 ```
