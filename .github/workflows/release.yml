@@ -32,8 +32,13 @@ jobs:
       - name: Type check
         run: bun run typecheck
 
-      - name: Run tests
-        run: bun test
+      - name: Run unit tests
+        run: bun run test:unit
+
+      - name: Run TUI tests
+        run: bun run test:tui
+        env:
+          TERM: xterm-256color
 
   release:
     name: Release

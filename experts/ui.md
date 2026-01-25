@@ -11,10 +11,12 @@
 |------|---------|----------------|
 | `src/ui/keybindings.ts` | Single source of truth for all keybindings | Adding/modifying keybindings |
 | `src/ui/session-picker.ts` | Main session picker with search | Layout changes, new features |
+| `src/ui/create-screen.ts` | Screen factory with DI support | Adding screen options |
 | `src/ui/new-project.ts` | New project wizard (create/clone) | Adding project creation options |
 | `src/ui/details-panel.ts` | Session details popup | Modifying session preview |
 | `src/ui/menu.ts` | Main menu | Adding top-level menu items |
 | `src/ui/list.ts` | Reusable list component | List behavior changes |
+| `src/test-utils/` | TUI testing infrastructure | Adding test utilities |
 
 ### Common Operations
 | Operation | How To |

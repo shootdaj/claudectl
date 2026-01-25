@@ -1,6 +1,7 @@
 import blessed, { Widgets } from "blessed";
 import { homedir } from "os";
 import { join } from "path";
+import { createScreen } from "./create-screen";
 import {
   discoverSessions,
   formatRelativeTime,
@@ -71,6 +72,7 @@ interface SessionPickerOptions {
   dryRun?: boolean;
   selectedIndex?: number;  // Restore selection when returning from Claude
   showArchived?: boolean;  // Show archived sessions view
+  screen?: blessed.Widgets.Screen;  // For testing - inject custom screen
 }
 
 // Neon color scheme
@@ -129,11 +131,8 @@ export async function showSessionPicker(
     return;
   }
 
-  const screen = blessed.screen({
-    smartCSR: true,
-    title: "claudectl",
-    fullUnicode: true,
-  });
+  // Use injected screen (for testing) or create one
+  const screen = options.screen ?? createScreen({ title: "claudectl" });
 
   // Main container with border
   const mainBox = blessed.box({
