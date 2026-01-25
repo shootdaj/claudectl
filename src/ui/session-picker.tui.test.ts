@@ -87,7 +87,7 @@ describe("Session Picker TUI Infrastructure", () => {
     await harness.waitForRender();
 
     // Verify list was created with items
-    expect(list.items.length).toBe(2);
+    expect((list as any).items.length).toBe(2);
     expect((list as any).selected).toBe(0);
   });
 
@@ -260,7 +260,7 @@ describe("Session Picker TUI Infrastructure", () => {
 
   test("enter key on list triggers action", async () => {
     harness = new BlessedHarness(120, 30);
-    let selectedItem: string | null = null;
+    let selectedItem = "";
 
     const list = blessed.list({
       parent: harness.screen,
