@@ -1,5 +1,35 @@
 # Progress
 
+## 2026-01-25 (Session 3)
+
+### Completed
+- **Footer Settings Indicators**: Added `d:skip` and `x:expert` to footer with state-based coloring
+- **Centralized Keybindings**: Created `src/ui/keybindings.ts` as single source of truth
+  - All keybindings defined in one place
+  - `buildSessionFooter()` generates footer based on context (scratch, archive view, settings)
+  - Help popup content generated from same source
+- **Added Missing Keybindings**: Added `mcp`, `update` to footer
+- **Added `cclu` Alias**: Quick update command in `install.sh`
+- **Comprehensive README Update**: Documented all features including hidden ones
+  - All CLI aliases and keybindings
+  - Backup & recovery commands
+  - Search index commands
+  - Deleted session recovery
+  - Settings toggles documentation
+  - File locations table
+
+### PRs Merged
+- #12: Branch protection test
+- #13: Footer settings indicators
+- #14: Footer spacing and keybindings centralization
+- #15: Missing keybindings, cclu alias, unified footer builder
+
+### Current State
+- All tests passing
+- Main branch protected (requires "Test" status check)
+
+---
+
 ## 2026-01-25 (Session 2)
 
 ### Completed
@@ -120,6 +150,19 @@ claudectl serve --tunnel
 ### Pending
 - Add proper PNG icons for full PWA compliance (currently using SVG)
 - Test on actual mobile devices
+
+---
+
+## Bugs - TODO
+
+### Session Renames Not Persisting
+- **Priority:** High
+- **Description:** Session renames revert to original auto-generated titles
+- **Root cause:** Likely related to sync() or rebuild() not preserving session_titles properly
+- **Notes:**
+  - session_titles is a separate table from files
+  - The LEFT JOIN in queries should work, but renames still getting lost
+  - Need to investigate when exactly the rename disappears (after update? sync? rebuild?)
 
 ---
 

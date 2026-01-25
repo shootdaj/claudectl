@@ -42,6 +42,7 @@ Claude Code sessions are organized by folder. If you're in `~/myapp`, you only s
 - **Scratch sessions** - Quick questions without creating a project
 - **Promote to project** - Turn that scratch session into a real repo when it grows
 - **Full-text search** - Find that session where you fixed the auth bug
+- **Deleted session recovery** - Accidentally delete a session? Restore it from backup
 - **Remote access** - Access your sessions from your phone via `cclw`
 
 ## Installation
@@ -73,6 +74,13 @@ VERSION=v2.1.0 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/m
 VERSION=main curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/install.sh | bash
 ```
 
+**Feature branch (prerelease):**
+```bash
+ccl update feature/my-branch
+# or
+ccl update --list  # see available prereleases
+```
+
 **Uninstall:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/shootdaj/claudectl/main/uninstall.sh | bash
@@ -93,103 +101,253 @@ Memorize these and you'll fly:
 | `cclc` | **C**lone from GitHub |
 | `ccll` | **L**ist sessions (text output) |
 | `cclw` | **W**eb server (remote access) |
+| `cclu` | **U**pdate claudectl |
 | `cclh` | **H**elp - show all commands |
-
-## Commands
-
-```bash
-# Session management
-ccl sessions list              # List all sessions
-ccl sessions launch <id>       # Launch specific session
-ccl sessions launch --continue # Resume most recent session
-ccl sessions search <query>    # Full-text search
-ccl sessions stats             # Usage statistics
-
-# New sessions
-ccl new                        # Interactive menu
-ccl new --mode scratch         # Scratch session
-ccl new --mode create          # Create project wizard
-ccl new --mode clone           # Clone from GitHub
-
-# Other
-ccl serve                      # Start web server
-ccl serve --tunnel             # With Cloudflare tunnel
-ccl mcp list                   # List MCP servers
-ccl backup                     # Backup sessions
-ccl update                     # Update claudectl
-ccl config                     # Show config paths
-ccl help                       # Show all keybindings & aliases
-```
 
 ## Keybindings
 
 | Key | Action |
 |-----|--------|
-| `↑` `↓` or `j` `k` | Navigate sessions |
+| `↑↓` or `jk` | Navigate sessions |
 | `Enter` | Launch session |
 | `n` | New session menu |
-| `p` | Promote scratch to project |
+| `p` | Promote scratch to project (or preview for non-scratch) |
 | `r` | Rename session |
-| `/` | Search sessions |
-| `a` | Archive session |
-| `A` | View archived sessions |
+| `/` | Search sessions (full-text) |
+| `a` | Archive session (or restore in archive view) |
+| `A` | Toggle archive view |
+| `R` | Restore deleted session from backup |
 | `c` | Copy session ID |
 | `m` | MCP server manager |
 | `d` | Toggle skip-permissions mode |
+| `x` | Toggle agent-expert auto-install |
 | `u` | Check for updates |
 | `?` | Show help popup |
 | `q` | Quit |
 
+**In search mode:**
+| Key | Action |
+|-----|--------|
+| `↑↓` | Navigate results while typing |
+| `Ctrl+↑↓` | Scroll match preview |
+| `Enter` | Exit search, keep results |
+| `Escape` | Clear search |
+
+## Commands
+
+### Session Management
+
+```bash
+# List all sessions
+ccl sessions list              # Table format
+ccl sessions list -j           # JSON format
+
+# Launch sessions
+ccl sessions launch <id>       # By ID or name
+ccl sessions launch -c         # Resume most recent (same as cclr)
+ccl sessions launch -d         # Dry run - show what would happen
+ccl sessions launch -p "prompt" # Resume with additional prompt
+
+# Search
+ccl sessions search <query>    # Full-text search across all messages
+ccl sessions search -c <query> # Case-sensitive
+ccl sessions search -j <query> # JSON output
+ccl sessions search -m 5 <query> # Max 5 matches per session
+
+# Rename
+ccl sessions rename <id> <title>
+
+# Statistics
+ccl sessions stats             # Token usage, costs, model breakdown
+```
+
+### New Sessions
+
+```bash
+ccl new                        # Interactive menu
+ccl new --mode scratch         # Quick question (scratch session)
+ccl new --mode create          # Create new GitHub repo + project
+ccl new --mode clone           # Clone existing repo
+ccl new --skip-permissions     # Start with skip-permissions enabled
+```
+
+### Backup & Recovery
+
+Sessions are automatically backed up every hour. Deleted sessions can be recovered.
+
+```bash
+ccl backup                     # Create backup now
+ccl backup status              # Show backup info
+ccl backup deleted             # List deleted sessions available for restore
+ccl backup restore <id>        # Restore specific session
+ccl backup restore --all       # Restore all deleted sessions
+```
+
+### Search Index
+
+claudectl maintains a SQLite index for fast search. Usually automatic, but can be managed manually.
+
+```bash
+ccl index stats                # Show index statistics
+ccl index sync                 # Incremental sync with filesystem
+ccl index rebuild              # Full rebuild (use if index corrupted)
+```
+
+### Updates
+
+```bash
+ccl update                     # Update to latest stable
+ccl update v2.1.0              # Install specific version
+ccl update feature/branch      # Install prerelease from branch
+ccl update --check             # Check without installing
+ccl update --list              # List available prereleases
+ccl update --force             # Force reinstall
+```
+
+### Web Server (Remote Access)
+
+Access your sessions from any device with a browser.
+
+```bash
+ccl serve                      # Start server (default port 3847)
+ccl serve start -p 8080        # Custom port
+ccl serve start -t             # With Cloudflare tunnel (public URL)
+ccl serve auth set             # Set password (interactive)
+ccl serve auth reset           # Remove password
+```
+
+### MCP Server Management
+
+```bash
+ccl mcp list                   # List all MCP servers
+# Or press 'm' in the session picker for interactive management
+```
+
+### Other
+
+```bash
+ccl config                     # Show all config paths
+ccl help                       # Show keybindings & aliases
+```
+
 ## Features
 
-**Session Management**
-- Global view of all Claude Code sessions
-- Full-text search with SQLite FTS5
-- Rename sessions with memorable names
-- Archive old sessions (hide without deleting)
-- Soft delete with restore capability
-- Auto-backup every hour
+### Session Management
+- **Global view** - See all sessions from every project in one place
+- **Full-text search** - Search across all conversation messages with SQLite FTS5
+- **Rename sessions** - Give sessions memorable names instead of auto-generated titles
+- **Archive sessions** - Hide old sessions without deleting (press `a`)
+- **Soft delete** - Deleted sessions are preserved in backup for recovery
+- **Auto-backup** - Sessions backed up automatically every hour
 
-**Workflow Shortcuts**
-- Scratch sessions for quick questions
-- Promote scratch to real project (creates git repo + GitHub)
-- Clone repos directly from picker
-- Session loop - returns to picker after Claude exits
+### Deleted Session Recovery
 
-**Remote Access**
-- Web server with terminal in browser (`ccl serve`)
+When a session is deleted (either by you or Claude Code), claudectl keeps a backup:
+
+1. Deleted sessions appear dimmed with `[DEL]` prefix in the list
+2. Press `R` (Shift+R) to restore from backup
+3. Or use CLI: `ccl backup deleted` to see what can be restored
+
+### Scratch Sessions
+
+Quick questions without creating a project:
+- `ccls` or press `n` then select "Quick question"
+- Sessions stored in `~/.claudectl/scratch/`
+- Press `p` on a scratch session to promote it to a real project
+
+### Search Features
+
+Press `/` to search:
+- Searches session titles, paths, and **full message content**
+- Real-time results as you type (150ms debounce)
+- Shows match context with highlighted terms
+- Navigate results with arrow keys while typing
+- `Ctrl+↑↓` scrolls the match preview panel
+
+### Session Details
+
+Each session in the list shows:
+- **Title** - Auto-generated or custom name
+- **Project** - Working directory (shortened)
+- **Time** - Relative time since last access
+- **Messages** - Total message count
+- **Tokens** - Input+output tokens (K/M format)
+- **Model** - opus/son/hai
+
+The details panel shows:
+- Full path and git branch
+- Creation and last access timestamps
+- Message breakdown (user/assistant)
+- Full model name
+
+### Settings Toggles
+
+**Skip Permissions** (`d` key):
+- When ON, launches use `--dangerously-skip-permissions`
+- Shown as orange `[SKIP PERMS]` badge in title bar
+- Footer shows `d skip` in orange when enabled
+
+**Agent Expert** (`x` key):
+- When ON, auto-installs [agent-expert](https://github.com/shootdaj/agent-expert) on new projects
+- Shown as green `[AGENT EXPERT]` badge in title bar
+- Footer shows `x expert` in green when enabled
+
+### Remote Access
+
+Start a web server to access sessions from any device:
+
+```bash
+cclw                    # Start server
+cclw start -t           # With Cloudflare tunnel for public access
+```
+
+Features:
+- Browser-based terminal
 - Works on mobile (PWA support)
-- Cloudflare tunnel for secure remote access
-- Password authentication with JWT
+- Password authentication
+- Multi-client WebSocket support
 
-**Developer Experience**
-- Skip-permissions mode for trusted projects
-- MCP server manager
-- Agent Expert integration
-- Cross-platform (macOS, Linux, Windows)
+### MCP Server Management
 
-## Agent Expert Integration
-
-claudectl works with [Agent Expert](https://github.com/shootdaj/agent-expert) - a framework that makes Claude learn and improve over time.
-
-Press `a` to enable auto-install, then every new session gets Agent Expert. Claude will:
-- Read expertise files before starting work
-- Update expertise after making changes
-- Build project-specific knowledge over time
-
-Learn more: [github.com/shootdaj/agent-expert](https://github.com/shootdaj/agent-expert)
+Press `m` to manage MCP servers:
+- View global servers (`~/.claude.json`)
+- View project servers (`.mcp.json`)
+- Add/edit/remove servers interactively
 
 ## How It Works
 
-claudectl reads from Claude Code's session directory (`~/.claude/projects/`), parses the JSONL transcript files, and provides a unified interface. When you launch a session, it `cd`s to the project directory before starting Claude.
+claudectl reads from Claude Code's session directory (`~/.claude/projects/`), parses the JSONL transcript files, and maintains a SQLite index for fast search. When you launch a session, it `cd`s to the project directory before starting Claude.
 
-Settings stored in `~/.claudectl/settings.json`:
+### File Locations
+
+| Path | Purpose |
+|------|---------|
+| `~/.claudectl/index.db` | SQLite search index |
+| `~/.claudectl/settings.json` | User settings |
+| `~/.claudectl/backup/` | Session backups |
+| `~/.claudectl/.version` | Installed version |
+| `~/.claude/projects/` | Claude Code sessions |
+| `~/.claude.json` | Global MCP servers |
+
+### Settings
+
 ```json
 {
   "skipPermissions": false,
   "autoAddAgentExpert": false
 }
 ```
+
+## Agent Expert Integration
+
+claudectl integrates with [Agent Expert](https://github.com/shootdaj/agent-expert) - a framework that helps Claude learn and improve over time.
+
+Press `x` to enable auto-install. When enabled, new projects get Agent Expert automatically. Claude will:
+- Read expertise files before starting work
+- Update expertise after making changes
+- Build project-specific knowledge over time
+
+Learn more: [github.com/shootdaj/agent-expert](https://github.com/shootdaj/agent-expert)
 
 ## Requirements
 
