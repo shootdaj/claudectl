@@ -1,7 +1,7 @@
 # UI Expert
 
 > Mental model for TUI (Terminal User Interface) operations in this codebase.
-> **Last Updated**: 2026-01-09
+> **Last Updated**: 2026-01-25
 > **Expertise Level**: intermediate
 
 ## Quick Reference
@@ -9,7 +9,8 @@
 ### Key Files
 | File | Purpose | When to Modify |
 |------|---------|----------------|
-| `src/ui/session-picker.ts` | Main session picker with search | Adding keybindings, changing layout |
+| `src/ui/keybindings.ts` | Single source of truth for all keybindings | Adding/modifying keybindings |
+| `src/ui/session-picker.ts` | Main session picker with search | Layout changes, new features |
 | `src/ui/new-project.ts` | New project wizard (create/clone) | Adding project creation options |
 | `src/ui/details-panel.ts` | Session details popup | Modifying session preview |
 | `src/ui/menu.ts` | Main menu | Adding top-level menu items |
@@ -18,9 +19,10 @@
 ### Common Operations
 | Operation | How To |
 |-----------|--------|
-| Add keybinding | Use `widget.key(['key'], handler)` in session-picker.ts |
+| Add keybinding | Define in `keybindings.ts`, use `widget.key(['key'], handler)` in session-picker.ts |
 | Show popup | Create blessed.box with `parent: screen` and high z-index |
 | Add wizard step | Increment step counter, hide/show appropriate widgets |
+| Modify footer | Update `keybindings.ts` - `keybindings` object and `buildSessionFooter()` |
 
 ---
 
@@ -343,6 +345,9 @@ UI components are split into:
 | 2026-01-25 | Added `--continue` flag to `sessions launch` for resuming last session | Feature |
 | 2026-01-25 | Exported startQuickQuestion, showCreateFlow, showCloneFlow from new-project.ts | Refactor |
 | 2026-01-25 | Added uninstall scripts (uninstall.sh, uninstall.ps1) | Feature |
+| 2026-01-25 | Created src/ui/keybindings.ts as single source of truth for all keybindings | Refactor |
+| 2026-01-25 | Added cclu alias for quick updates | Feature |
+| 2026-01-25 | Footer now uses buildSessionFooter() with FooterContext for context-aware generation | Refactor |
 
 ---
 

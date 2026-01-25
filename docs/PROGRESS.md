@@ -23,10 +23,15 @@
 - #13: Footer settings indicators
 - #14: Footer spacing and keybindings centralization
 - #15: Missing keybindings, cclu alias, unified footer builder
+- #16: Comprehensive README update
+- #17: Remove incomplete server feature from README, add In Progress section
+- #18: Fix README accuracy (settings.json → SQLite, backup command)
 
 ### Current State
 - All tests passing
 - Main branch protected (requires "Test" status check)
+- README fully accurate and comprehensive
+- v2.2.13 released
 
 ---
 

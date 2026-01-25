@@ -1,5 +1,46 @@
 # Learnings
 
+## 2026-01-25 (Session 3)
+
+### Centralized Keybindings Pattern
+- **Problem**: Keybindings defined in multiple places (footer, help popup, CLI help) leading to inconsistencies
+- **Solution**: Created `src/ui/keybindings.ts` as single source of truth
+
+```typescript
+// Define all keybindings once
+export const keybindings: Record<string, Keybinding> = {
+  launch: { key: "↵", label: "Launch", description: "Launch selected session", color: keyColors.action },
+  // ...
+};
+
+// Context-aware footer generation
+export function buildSessionFooter(context: FooterContext): string {
+  const keys: string[] = ["launch"];
+  if (context.isArchiveView) keys.push("restore");
+  else {
+    if (context.isScratch) keys.push("promote");
+    keys.push("new", "archive");
+  }
+  keys.push("rename", "search", "mcp", "update", "help", "skipPerms", "agentExpert", "quit");
+  return buildFooter(keys, context.settings);
+}
+```
+
+### Settings Migration: JSON → SQLite
+- claudectl settings moved from `~/.claudectl/settings.json` to `index.db` (settings table)
+- Schema v4 added `settings` table with key-value structure
+- `getClaudectlSettingsPath()` is deprecated
+- Always use `loadClaudectlSettings()` which reads from SQLite
+
+### README Accuracy Checklist
+When updating README, verify:
+1. CLI commands match actual implementation (`ccl backup now` not `ccl backup`)
+2. File paths are current (settings.json removed, now in SQLite)
+3. Features marked "In Progress" are actually incomplete
+4. Aliases listed match what installer creates
+
+---
+
 ## 2026-01-25 (Session 2)
 
 ### SQLite Data Preservation During Sync/Rebuild (CRITICAL)
