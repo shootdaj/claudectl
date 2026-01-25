@@ -174,7 +174,7 @@ ccl new --skip-permissions     # Start with skip-permissions enabled
 Sessions are automatically backed up every hour. Deleted sessions can be recovered.
 
 ```bash
-ccl backup                     # Create backup now
+ccl backup now                 # Create backup now
 ccl backup status              # Show backup info
 ccl backup deleted             # List deleted sessions available for restore
 ccl backup restore <id>        # Restore specific session
@@ -293,21 +293,11 @@ claudectl reads from Claude Code's session directory (`~/.claude/projects/`), pa
 
 | Path | Purpose |
 |------|---------|
-| `~/.claudectl/index.db` | SQLite search index |
-| `~/.claudectl/settings.json` | User settings |
+| `~/.claudectl/index.db` | SQLite index (search + settings) |
 | `~/.claudectl/backup/` | Session backups |
 | `~/.claudectl/.version` | Installed version |
 | `~/.claude/projects/` | Claude Code sessions |
 | `~/.claude.json` | Global MCP servers |
-
-### Settings
-
-```json
-{
-  "skipPermissions": false,
-  "autoAddAgentExpert": false
-}
-```
 
 ## Agent Expert Integration
 
