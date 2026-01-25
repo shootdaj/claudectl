@@ -43,7 +43,6 @@ Claude Code sessions are organized by folder. If you're in `~/myapp`, you only s
 - **Promote to project** - Turn that scratch session into a real repo when it grows
 - **Full-text search** - Find that session where you fixed the auth bug
 - **Deleted session recovery** - Accidentally delete a session? Restore it from backup
-- **Remote access** - Access your sessions from your phone via `cclw`
 
 ## Installation
 
@@ -100,7 +99,6 @@ Memorize these and you'll fly:
 | `ccln` | **N**ew project (create wizard) |
 | `cclc` | **C**lone from GitHub |
 | `ccll` | **L**ist sessions (text output) |
-| `cclw` | **W**eb server (remote access) |
 | `cclu` | **U**pdate claudectl |
 | `cclh` | **H**elp - show all commands |
 
@@ -204,18 +202,6 @@ ccl update --list              # List available prereleases
 ccl update --force             # Force reinstall
 ```
 
-### Web Server (Remote Access)
-
-Access your sessions from any device with a browser.
-
-```bash
-ccl serve                      # Start server (default port 3847)
-ccl serve start -p 8080        # Custom port
-ccl serve start -t             # With Cloudflare tunnel (public URL)
-ccl serve auth set             # Set password (interactive)
-ccl serve auth reset           # Remove password
-```
-
 ### MCP Server Management
 
 ```bash
@@ -292,21 +278,6 @@ The details panel shows:
 - Shown as green `[AGENT EXPERT]` badge in title bar
 - Footer shows `x expert` in green when enabled
 
-### Remote Access
-
-Start a web server to access sessions from any device:
-
-```bash
-cclw                    # Start server
-cclw start -t           # With Cloudflare tunnel for public access
-```
-
-Features:
-- Browser-based terminal
-- Works on mobile (PWA support)
-- Password authentication
-- Multi-client WebSocket support
-
 ### MCP Server Management
 
 Press `m` to manage MCP servers:
@@ -348,6 +319,13 @@ Press `x` to enable auto-install. When enabled, new projects get Agent Expert au
 - Build project-specific knowledge over time
 
 Learn more: [github.com/shootdaj/agent-expert](https://github.com/shootdaj/agent-expert)
+
+## In Progress
+
+Features being actively developed:
+
+- **Web Server (Remote Access)** - Access sessions from any device via browser
+- **Session Renames Persistence** - Bug fix for renames reverting to auto-generated titles
 
 ## Requirements
 
