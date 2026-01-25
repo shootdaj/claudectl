@@ -360,56 +360,89 @@ claude-team --max-revisions 3 "Fix the login bug"
 
 ---
 
-## Alternative: Claude Code Plugin
+## Implementation Options
 
-This could also be implemented as a Claude Code plugin instead of a standalone CLI.
+### Option 1: Claude Code Plugin
 
-### Plugin Structure
+A plugin that adds `/team` command and specialist agents.
 
+**Structure:**
 ```
 claude-team-plugin/
 ├── .claude-plugin/
-│   └── plugin.json           # Plugin metadata
+│   └── plugin.json
 ├── agents/
-│   ├── coordinator.md        # Coordinator system prompt
-│   ├── qa.md                 # QA agent (strict mode)
+│   ├── coordinator.md
+│   ├── qa.md
 │   ├── frontend.md
-│   ├── backend.md
-│   ├── database.md
-│   ├── security.md
-│   └── user.md               # End-user testing agent
+│   └── ...
 ├── commands/
-│   └── team.md               # /team slash command
-├── hooks/
-│   └── accountability.ts     # PreToolUse hook to enforce QA approval
-├── skills/
-│   └── review-loop/          # QA review workflow skill
-│       └── SKILL.md
-└── README.md
+│   └── team.md
+└── hooks/
+    └── accountability.ts
 ```
 
-### Plugin Capabilities Used
+**Plugin Limitations:**
+- ❌ Single-threaded (no true parallel execution)
+- ❌ Sandbox restrictions (can't write outside project)
+- ❌ Network isolation (approved domains only)
+- ❌ No persistent background processes
+- ❌ Hook can block but not modify tool calls
 
-| Feature | Purpose |
-|---------|---------|
-| **Slash commands** | `/team "add auth"` kicks off orchestration |
-| **Subagents** | Specialist agents spawned via Task tool |
-| **Hooks** | `PreToolUse` blocks commits until QA approves |
-| **Skills** | Reusable review/approval workflows |
+### Option 2: Claude Agent SDK (RECOMMENDED)
 
-### Pros vs Standalone CLI
+The SDK provides capabilities plugins lack:
 
-| Plugin | Standalone CLI |
-|--------|----------------|
-| Integrated into Claude Code | Separate tool |
-| Single `claude plugin add` | Separate install |
-| Uses existing Task tool | Full control over spawning |
-| Limited by plugin API | Unlimited flexibility |
-| Easier adoption | More complex but powerful |
+| Feature | Plugin | Agent SDK |
+|---------|--------|-----------|
+| **Parallel execution** | ❌ Single-threaded | ✅ Multiple concurrent subagents |
+| **Context isolation** | ❌ Shared context | ✅ Each agent has own context |
+| **Background agents** | ❌ No persistence | ✅ Spawn, get notified on completion |
+| **Task dependencies** | ❌ Manual | ✅ Built-in `blockedBy`/`blocks` |
+| **Orchestration** | ❌ DIY | ✅ "Conductor" pattern built-in |
+
+**SDK Pattern:**
+```typescript
+// Parallel subagent execution
+const [frontend, backend, db] = await Promise.all([
+  spawnSubagent("frontend", "Build login form"),
+  spawnSubagent("backend", "Create auth API"),
+  spawnSubagent("database", "Add users table"),
+]);
+
+// QA reviews all results with isolated context
+const qaResult = await spawnSubagent("qa", {
+  task: "Review implementation",
+  context: [frontend.result, backend.result, db.result],
+  requirements: lockedRequirements,
+});
+
+if (qaResult.verdict === "REJECT") {
+  // Loop back with specific feedback
+  await spawnSubagent("backend", {
+    task: "Fix issues",
+    feedback: qaResult.feedback,
+  });
+}
+```
+
+**SDK Advantages:**
+- True parallelism for faster execution
+- Built-in orchestration patterns ("Conductor")
+- Context isolation prevents token bloat
+- Background execution for long-running tasks
+- Task dependency graphs with automatic unblocking
 
 ### Recommendation
 
-**Start as plugin.** If limitations are hit, extract to standalone CLI.
+**Use Claude Agent SDK** for the accountability loop system:
+- Plugin is fine for simple sequential workflows
+- SDK is required for parallel specialists + QA gates
+- SDK provides the orchestration primitives we need
+
+Sources:
+- [Building agents with Claude Agent SDK](https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk)
+- [Subagents in the SDK](https://platform.claude.com/docs/en/agent-sdk/subagents)
 
 ---
 
