@@ -310,6 +310,53 @@ Press `x` to enable auto-install. When enabled, new projects get Agent Expert au
 
 Learn more: [github.com/shootdaj/agent-expert](https://github.com/shootdaj/agent-expert)
 
+## Development
+
+### Testing
+
+claudectl uses Bun's built-in test runner with comprehensive test coverage.
+
+```bash
+bun test              # Run all tests
+bun test:tui          # TUI integration tests only
+bun test --watch      # Watch mode
+```
+
+**Test Categories:**
+
+| Category | Files | Tests | Coverage |
+|----------|-------|-------|----------|
+| Unit Tests | `src/**/*.test.ts` | 220+ | Core logic, parsing, utilities |
+| TUI Tests | `src/**/*.tui.test.ts` | 29 | Blessed UI components, keybindings |
+
+**TUI Testing Infrastructure:**
+
+The TUI tests use a custom `BlessedHarness` that injects PassThrough streams into blessed screens, enabling automated testing without a real terminal:
+
+```typescript
+import { BlessedHarness, Keys } from "./test-utils";
+
+const harness = new BlessedHarness(120, 30);
+harness.sendKey("j");  // Navigate down
+harness.sendKey("SEARCH");  // Open search
+await harness.waitForRender();
+```
+
+Key files:
+- `src/test-utils/blessed-harness.ts` - PassThrough stream wrapper
+- `src/test-utils/key-sequences.ts` - ANSI key escape codes
+- `src/test-utils/screen-assertions.ts` - Test assertion helpers
+- `src/ui/create-screen.ts` - Screen factory with DI support
+
+### Building
+
+```bash
+bun run dev           # Run from source
+bun run typecheck     # Type check
+```
+
+> **Note:** `bun build --compile` doesn't work with blessed (dynamic require issues). Distribution is via source + install script.
+
 ## In Progress
 
 Features being actively developed:

@@ -34,6 +34,8 @@ jobs:
 
       - name: Run tests
         run: bun test
+        env:
+          TERM: xterm-256color
 
   release:
     name: Release
