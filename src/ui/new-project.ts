@@ -3,7 +3,7 @@ import { homedir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
 import { getScratchDir, getDefaultProjectsDir } from "../core/config";
-import { moveSession, type Session } from "../core/sessions";
+import { moveSession, launchClaude, type Session } from "../core/sessions";
 
 export interface NewProjectOptions {
   onComplete?: (projectPath?: string) => void;
@@ -146,22 +146,11 @@ export async function showNewSessionMenu(options: NewProjectOptions): Promise<vo
 export async function startQuickQuestion(options: NewProjectOptions): Promise<void> {
   const scratchDir = getScratchDir();
 
-  console.log(`\nStarting quick question session...`);
-  console.log(`Location: ${scratchDir}`);
-
-  const args = ["claude"];
-  if (options.skipPermissions) {
-    args.push("--dangerously-skip-permissions");
-    console.log(`Mode: --dangerously-skip-permissions`);
-  }
-  console.log("");
-
-  const claude = Bun.spawn(args, {
+  await launchClaude({
     cwd: scratchDir,
-    stdio: ["inherit", "inherit", "inherit"],
+    skipPermissions: options.skipPermissions,
   });
 
-  await claude.exited;
   options.onComplete?.();
 }
 
@@ -417,23 +406,11 @@ export async function showCreateFlow(options: NewProjectOptions): Promise<void> 
     screen.destroy();
 
     // Launch Claude in the new project
-    console.log(`\nStarting Claude in ${projectPath}...`);
-    if (options.skipPermissions) {
-      console.log(`Mode: --dangerously-skip-permissions`);
-    }
-    console.log("");
-
-    const args = ["claude"];
-    if (options.skipPermissions) {
-      args.push("--dangerously-skip-permissions");
-    }
-
-    const claude = Bun.spawn(args, {
+    await launchClaude({
       cwd: projectPath,
-      stdio: ["inherit", "inherit", "inherit"],
+      skipPermissions: options.skipPermissions,
     });
 
-    await claude.exited;
     options.onComplete?.(projectPath);
   }
 
@@ -747,14 +724,11 @@ async function cloneAndStart(repoUrl: string, projectName: string, options: NewP
     }
   }
 
-  console.log(`\nStarting Claude session in ${projectPath}...\n`);
-
-  const claude = Bun.spawn(["claude"], {
+  await launchClaude({
     cwd: projectPath,
-    stdio: ["inherit", "inherit", "inherit"],
+    skipPermissions: options.skipPermissions,
   });
 
-  await claude.exited;
   options.onComplete?.(projectPath);
 }
 
@@ -920,13 +894,11 @@ async function promoteSession(
   const movedSession = await moveSession(session, projectPath);
 
   // 5. Resume the session in new location
-  console.log(`\nResuming session in ${projectPath}...\n`);
-
-  const claude = Bun.spawn(["claude", "--resume", movedSession.id], {
+  await launchClaude({
     cwd: projectPath,
-    stdio: ["inherit", "inherit", "inherit"],
+    resumeSessionId: movedSession.id,
+    skipPermissions: options.skipPermissions,
   });
 
-  await claude.exited;
   options.onComplete?.(projectPath);
 }

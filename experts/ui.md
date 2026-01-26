@@ -118,7 +118,7 @@ const footer = blessed.box({
 
 ```typescript
 // In session-picker.ts - after launching Claude
-await launchSession(session, { skipPermissions: settings.skipPermissions });
+await launchSession(session, { skipPermissions: settings.skipPermissions, quiet: true });
 // Return to session picker after Claude exits
 await showSessionPicker(options);
 ```
@@ -127,6 +127,41 @@ await showSessionPicker(options);
 - `launchSession()` returns instead of calling `process.exit()`
 - SIGINT is ignored while Claude runs (so Ctrl+C only affects Claude)
 - After Claude exits (any method: Ctrl+C, /exit, normal exit), picker reappears
+
+### Pattern: Centralized Session Launch
+**Purpose**: ALL session launches go through a single pipeline for consistent flag handling
+**When to Use**: Any code that starts Claude
+
+```typescript
+// src/core/sessions.ts - launchClaude() is the central function
+import { launchClaude } from "../core/sessions";
+
+// For new sessions (no resume)
+await launchClaude({
+  cwd: projectPath,
+  skipPermissions: settings.skipPermissions,
+});
+
+// For resuming sessions
+await launchClaude({
+  cwd: session.workingDirectory,
+  resumeSessionId: session.id,
+  skipPermissions: settings.skipPermissions,
+  prompt: additionalPrompt,  // optional
+  quiet: true,               // suppress startup logs (for TUI)
+});
+
+// Helper for resuming sessions
+await launchSession(session, { skipPermissions, quiet: true });
+```
+
+**Key options:**
+- `cwd` (required): Working directory to run in
+- `resumeSessionId`: Session ID to resume (omit for new sessions)
+- `skipPermissions`: Passes `--dangerously-skip-permissions`
+- `prompt`: Additional prompt to send after resuming
+- `dryRun`: Just return what would happen
+- `quiet`: Suppress startup logs (use when caller already logs)
 
 ---
 
@@ -350,6 +385,9 @@ UI components are split into:
 | 2026-01-25 | Created src/ui/keybindings.ts as single source of truth for all keybindings | Refactor |
 | 2026-01-25 | Added cclu alias for quick updates | Feature |
 | 2026-01-25 | Footer now uses buildSessionFooter() with FooterContext for context-aware generation | Refactor |
+| 2026-01-27 | Added centralized `launchClaude()` function for all session launches | Refactor |
+| 2026-01-27 | CLI aliases now respect saved skipPermissions setting from SQLite | Bug fix |
+| 2026-01-27 | All launch paths (ccls, ccln, cclc, cclr, TUI) use same pipeline | Refactor |
 
 ---
 
@@ -423,6 +461,8 @@ claudectl serve auth reset   # Reset password
 ### Overview
 Short command aliases for common workflows, installed as wrapper scripts in `~/.bun/bin/`.
 
+**All aliases respect saved settings** (skip-permissions, auto-agent-expert) from SQLite database. The setting toggled with `d` in the TUI applies to all launch methods.
+
 ### Available Aliases
 | Alias | Command | Action |
 |-------|---------|--------|
@@ -433,6 +473,14 @@ Short command aliases for common workflows, installed as wrapper scripts in `~/.
 | `cclr` | `claudectl sessions launch --continue` | Resume most recent session |
 | `ccll` | `claudectl sessions list` | List sessions (text, not TUI) |
 | `cclw` | `claudectl serve` | Start web server |
+
+### CLI Override
+Use `-s` flag to override skip-permissions for a single command:
+```bash
+ccls -s          # Scratch with skip-perms (even if setting is off)
+ccln -s          # Create with skip-perms
+cclr -s          # Resume with skip-perms
+```
 
 ### Implementation
 Aliases are created as wrapper scripts by the installer:

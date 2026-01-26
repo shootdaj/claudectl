@@ -3,7 +3,7 @@ import { homedir } from "os";
 import { join } from "path";
 import { showSessionPicker } from "./ui/session-picker";
 import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions, syncIndex, rebuildIndex, getIndexStats } from "./core/sessions";
-import { getAllConfigPaths } from "./core/config";
+import { getAllConfigPaths, loadClaudectlSettings } from "./core/config";
 import { renameSession } from "./core/title-generator";
 import { backupSessions, getBackupInfo, getBackupDir, findDeletedSessions, restoreSession, restoreAllSessions } from "./core/backup";
 import pc from "picocolors";
@@ -98,8 +98,12 @@ program
   .action(async (options) => {
     const { startQuickQuestion, showCreateFlow, showCloneFlow } = await import("./ui/new-project");
 
+    // Load saved settings and merge with CLI flags (CLI flag takes precedence)
+    const settings = loadClaudectlSettings();
+    const skipPermissions = options.skipPermissions ?? settings.skipPermissions;
+
     const wizardOptions = {
-      skipPermissions: options.skipPermissions,
+      skipPermissions,
       onComplete: () => process.exit(0),
       onCancel: () => process.exit(0),
     };
@@ -183,7 +187,12 @@ sessions
   .option("-c, --continue", "Continue most recent session")
   .option("-d, --dry-run", "Show what would happen without launching")
   .option("-p, --prompt <prompt>", "Add a prompt when resuming")
+  .option("-s, --skip-permissions", "Use --dangerously-skip-permissions")
   .action(async (id, options) => {
+    // Load saved settings and merge with CLI flags
+    const settings = loadClaudectlSettings();
+    const skipPermissions = options.skipPermissions ?? settings.skipPermissions;
+
     if (options.continue) {
       // Continue most recent session
       const allSessions = await discoverSessions();
@@ -195,6 +204,7 @@ sessions
       const result = await launchSession(mostRecent, {
         dryRun: options.dryRun,
         prompt: options.prompt,
+        skipPermissions,
       });
       if (options.dryRun) {
         console.log("\n┌─ Dry Run ─────────────────────────────────┐");
@@ -221,6 +231,7 @@ sessions
     const result = await launchSession(session, {
       dryRun: options.dryRun,
       prompt: options.prompt,
+      skipPermissions,
     });
 
     if (options.dryRun) {

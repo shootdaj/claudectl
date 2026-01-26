@@ -712,7 +712,7 @@ export async function showSessionPicker(
         console.log(`Mode: --dangerously-skip-permissions`);
       }
       console.log();
-      await launchSession(session, { skipPermissions: settings.skipPermissions });
+      await launchSession(session, { skipPermissions: settings.skipPermissions, quiet: true });
       // Return to session picker after Claude exits, restoring the same row
       options.onLaunch?.(session);
       // Close the database connection to avoid stale connection errors

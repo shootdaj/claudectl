@@ -9,6 +9,95 @@ import { getSearchIndex, closeSearchIndex, type SearchResult as IndexSearchResul
 export { closeSearchIndex };
 
 /**
+ * Options for launching Claude
+ */
+export interface LaunchClaudeOptions {
+  /** Working directory to run in */
+  cwd: string;
+  /** Session ID to resume (if resuming) */
+  resumeSessionId?: string;
+  /** Additional prompt to send */
+  prompt?: string;
+  /** Use --dangerously-skip-permissions */
+  skipPermissions?: boolean;
+  /** Just return what would happen without actually launching */
+  dryRun?: boolean;
+  /** Suppress startup logs (for TUI launches) */
+  quiet?: boolean;
+}
+
+/**
+ * Centralized function to launch Claude.
+ * ALL session launches should go through this to ensure consistent flag handling.
+ */
+export async function launchClaude(
+  options: LaunchClaudeOptions
+): Promise<{ command: string; cwd: string; exitCode?: number }> {
+  const args: string[] = [];
+
+  // Skip permissions flag
+  if (options.skipPermissions) {
+    args.push("--dangerously-skip-permissions");
+  }
+
+  // Resume flag
+  if (options.resumeSessionId) {
+    args.push("--resume", options.resumeSessionId);
+  }
+
+  // Prompt (must be last)
+  if (options.prompt) {
+    args.push(options.prompt);
+  }
+
+  const command = `claude ${args.join(" ")}`;
+  const cwd = options.cwd;
+
+  if (options.dryRun) {
+    return { command, cwd };
+  }
+
+  // Log what we're doing (unless quiet mode)
+  if (!options.quiet) {
+    console.log(`\nStarting Claude in ${cwd}...`);
+    if (options.skipPermissions) {
+      console.log(`Mode: --dangerously-skip-permissions`);
+    }
+    if (options.resumeSessionId) {
+      console.log(`Resuming: ${options.resumeSessionId}`);
+    }
+    console.log("");
+  }
+
+  // Change to session directory so terminal title updates
+  process.chdir(cwd);
+
+  // Ignore SIGINT while Claude is running (so Ctrl+C only affects Claude)
+  const originalSigint = process.listeners("SIGINT");
+  process.removeAllListeners("SIGINT");
+  process.on("SIGINT", () => {
+    // Ignore - let Claude handle it
+  });
+
+  // Spawn Claude with full terminal control
+  const proc = Bun.spawn(["claude", ...args], {
+    cwd,
+    stdio: ["inherit", "inherit", "inherit"],
+  });
+
+  // Wait for Claude to exit
+  const exitCode = await proc.exited;
+
+  // Restore SIGINT handlers
+  process.removeAllListeners("SIGINT");
+  for (const listener of originalSigint) {
+    process.on("SIGINT", listener as () => void);
+  }
+
+  return { command, cwd, exitCode };
+}
+
+/**
  * Represents a Claude Code session
  */
 export interface Session {
@@ -326,58 +415,25 @@ export async function getSessionsForDirectory(
 /**
  * Launch a session in Claude Code
  * Returns after Claude exits (does not call process.exit)
+ *
+ * This is a convenience wrapper around launchClaude for resuming sessions.
  */
 export async function launchSession(
   session: Session,
-  options: { dryRun?: boolean; prompt?: string; skipPermissions?: boolean } = {}
+  options: { dryRun?: boolean; prompt?: string; skipPermissions?: boolean; quiet?: boolean } = {}
 ): Promise<{ command: string; cwd: string; exitCode?: number }> {
-  const args: string[] = [];
-
-  if (options.skipPermissions) {
-    args.push("--dangerously-skip-permissions");
-  }
-
-  args.push("--resume", session.id);
-
-  if (options.prompt) {
-    args.push(options.prompt);
-  }
-
-  const command = `claude ${args.join(" ")}`;
   // Re-decode from encodedPath to fix any legacy bugs in stored working directory
   // This ensures we always use the current (fixed) path decoding logic
   const cwd = session.encodedPath ? decodePath(session.encodedPath) : session.workingDirectory;
 
-  if (options.dryRun) {
-    return { command, cwd };
-  }
-
-  // Change to session directory so terminal title updates
-  process.chdir(cwd);
-
-  // Ignore SIGINT while Claude is running (so Ctrl+C only affects Claude)
-  const originalSigint = process.listeners("SIGINT");
-  process.removeAllListeners("SIGINT");
-  process.on("SIGINT", () => {
-    // Ignore - let Claude handle it
-  });
-
-  // Spawn Claude with full terminal control
-  const proc = Bun.spawn(["claude", ...args], {
+  return launchClaude({
     cwd,
-    stdio: ["inherit", "inherit", "inherit"],
+    resumeSessionId: session.id,
+    prompt: options.prompt,
+    skipPermissions: options.skipPermissions,
+    dryRun: options.dryRun,
+    quiet: options.quiet,
   });
-
-  // Wait for Claude to exit
-  const exitCode = await proc.exited;
-
-  // Restore SIGINT handlers
-  process.removeAllListeners("SIGINT");
-  for (const listener of originalSigint) {
-    process.on("SIGINT", listener as () => void);
-  }
-
-  return { command, cwd, exitCode };
 }
 
 /**
