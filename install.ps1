@@ -139,6 +139,55 @@ $Version | Out-File -FilePath "$InstallDir\.version" -NoNewline
 Write-Cyan "Installing dependencies..."
 Push-Location $InstallDir
 & $BunExe install --silent
+
+# Migrate old scratch sessions to isolated directories
+Write-Cyan "Running migrations..."
+$MigrateScript = @'
+const { homedir } = require("os");
+const { join } = require("path");
+const { existsSync, mkdirSync, readdirSync, renameSync, rmdirSync } = require("fs");
+const { encodePath } = require("./src/utils/paths");
+
+function generateShortId(length = 6) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  for (let i = 0; i < length; i++) {
+    result += chars[bytes[i] % chars.length];
+  }
+  return result;
+}
+
+const scratchBase = join(homedir(), ".claudectl", "scratch");
+const claudeDir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+const claudeProjectsDir = join(claudeDir, "projects");
+const oldEncodedPath = encodePath(scratchBase);
+const oldSessionsDir = join(claudeProjectsDir, oldEncodedPath);
+
+if (existsSync(oldSessionsDir)) {
+  const files = readdirSync(oldSessionsDir).filter(f => f.endsWith(".jsonl"));
+  let migrated = 0;
+  for (const jsonlFile of files) {
+    const uniqueDir = join(scratchBase, `scratch-${generateShortId(6)}`);
+    mkdirSync(uniqueDir, { recursive: true });
+    const newEncodedPath = encodePath(uniqueDir);
+    const newSessionsDir = join(claudeProjectsDir, newEncodedPath);
+    mkdirSync(newSessionsDir, { recursive: true });
+    try {
+      renameSync(join(oldSessionsDir, jsonlFile), join(newSessionsDir, jsonlFile));
+      migrated++;
+    } catch {}
+  }
+  if (migrated > 0) {
+    console.log(`Migrated ${migrated} scratch session(s) to isolated directories`);
+    try {
+      const remaining = readdirSync(oldSessionsDir);
+      if (remaining.length === 0) rmdirSync(oldSessionsDir);
+    } catch {}
+  }
+}
+'@
+try { & $BunExe -e $MigrateScript 2>$null } catch {}
 Pop-Location
 
 # Create wrapper scripts
