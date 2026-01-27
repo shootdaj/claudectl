@@ -188,7 +188,7 @@ await launchSession(session, { skipPermissions, quiet: true });
 - If current session is scratch, shows "Promote to Project" instead
 
 ### Options
-1. **Quick question** - Start in `~/.claudectl/scratch/` with no git
+1. **Quick question** - Start in unique `~/.claudectl/scratch/scratch-<id>/` folder (no git)
 2. **Clone repo** - Clone from GitHub
 
 ### Promote Flow (Scratch Sessions Only)
@@ -388,6 +388,8 @@ UI components are split into:
 | 2026-01-27 | Added centralized `launchClaude()` function for all session launches | Refactor |
 | 2026-01-27 | CLI aliases now respect saved skipPermissions setting from SQLite | Bug fix |
 | 2026-01-27 | All launch paths (ccls, ccln, cclc, cclr, TUI) use same pipeline | Refactor |
+| 2026-01-27 | Scratch sessions now create unique directories (`scratch-<id>`) for isolation | Feature |
+| 2026-01-27 | Added `s` shortcut in session picker to start scratch session directly | Feature |
 
 ---
 

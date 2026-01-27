@@ -24,7 +24,7 @@ import {
   type ClaudectlSettings,
 } from "../core/config";
 import { showMcpManager } from "./mcp-manager";
-import { showNewProjectWizard } from "./new-project";
+import { showNewProjectWizard, startQuickQuestion } from "./new-project";
 import { autoBackup, restoreSession as restoreSessionFromBackup } from "../core/backup";
 import { basename as pathBasename } from "../utils/paths";
 import { buildSessionFooter, buildHelpContent, type FooterContext } from "./keybindings";
@@ -1106,6 +1106,18 @@ export async function showSessionPicker(
     const code = await proc.exited;
     return code === 0;
   }
+
+  // Scratch session (s) - directly start a scratch session (skip new session menu)
+  table.key(["s"], async () => {
+    const idx = table.selected;
+
+    stopAnimations();
+    screen.destroy();
+    await startQuickQuestion({
+      onComplete: () => showSessionPicker({ ...options, selectedIndex: idx }),
+      skipPermissions: settings.skipPermissions,
+    });
+  });
 
   // New session (n) - always shows new session menu (Quick question / Clone repo)
   table.key(["n"], async () => {

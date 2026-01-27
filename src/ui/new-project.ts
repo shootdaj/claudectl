@@ -2,7 +2,7 @@ import blessed from "blessed";
 import { homedir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
-import { getScratchDir, getDefaultProjectsDir } from "../core/config";
+import { createScratchDir, getDefaultProjectsDir } from "../core/config";
 import { moveSession, launchClaude, type Session } from "../core/sessions";
 
 export interface NewProjectOptions {
@@ -141,10 +141,10 @@ export async function showNewSessionMenu(options: NewProjectOptions): Promise<vo
 }
 
 /**
- * Start a quick question session in scratch folder
+ * Start a quick question session in a unique scratch folder
  */
 export async function startQuickQuestion(options: NewProjectOptions): Promise<void> {
-  const scratchDir = getScratchDir();
+  const scratchDir = createScratchDir();
 
   await launchClaude({
     cwd: scratchDir,

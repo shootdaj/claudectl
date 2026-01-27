@@ -29,6 +29,7 @@ export const keybindings: Record<string, Keybinding> = {
   launch: { key: "↵", label: "Launch", description: "Launch selected session", color: keyColors.action },
   nav: { key: "↑↓", label: "Nav", description: "Navigate sessions", color: keyColors.nav },
   navVim: { key: "jk", label: "", description: "Navigate sessions (vim)", color: keyColors.nav },
+  scratch: { key: "s", label: "Scratch", description: "Quick scratch session", color: keyColors.create },
   new: { key: "n", label: "New", description: "New session menu", color: keyColors.create },
   promote: { key: "p", label: "Promote", description: "Promote scratch to project", color: keyColors.archive },
   rename: { key: "r", label: "Rename", description: "Rename session", color: keyColors.modify },
@@ -99,6 +100,7 @@ export function buildSessionFooter(context: FooterContext): string {
     if (context.isScratch) {
       keys.push("promote"); // 'p' promotes scratch sessions
     }
+    keys.push("scratch");  // 's' for quick scratch
     keys.push("new");      // 'n' for new session
     keys.push("archive");  // 'a' archives in normal view
   }
@@ -124,7 +126,7 @@ export const cliAliases = [
 
 // Help content order - keybindings shown in help popup
 export const helpKeybindingOrder = [
-  "launch", "nav", "navVim", "new", "promote", "rename",
+  "launch", "nav", "navVim", "scratch", "new", "promote", "rename",
   "archive", "archiveView", "search", "copy", "mcp",
   "skipPerms", "agentExpert", "update", "help", "quit",
 ];
