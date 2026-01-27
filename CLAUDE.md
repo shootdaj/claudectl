@@ -54,11 +54,19 @@ This limitation was discovered during v1.0.0 development and is why we switched 
 
 **MANDATORY: Every code change must include tests.** No PR or commit should modify code without corresponding test coverage.
 
+### Coverage Principle
+
+**All functionality must be tested via either unit tests OR E2E tests:**
+- **Pure functions / core logic** → Unit tests (fast, isolated)
+- **UI interactions / keybindings** → E2E tests with node-pty (real user simulation)
+- **No untested code paths** - if it can break, it needs a test
+
 ### Testing Rules
 1. **Before committing**: Run `bun test` and ensure all tests pass
 2. **New features**: Write tests first or alongside implementation
 3. **Bug fixes**: Add a test that reproduces the bug, then fix it
 4. **Refactors**: Ensure existing tests still pass, add new ones if behavior changes
+5. **UI features**: Add E2E test in `*.e2e.test.ts` that sends real keystrokes
 
 ### Testing Approach
 - Use Bun's built-in test runner (`bun test`)
