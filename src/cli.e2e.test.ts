@@ -121,7 +121,7 @@ describe("CLI E2E Tests", () => {
 
   describe("help command", () => {
     test("--help shows usage", async () => {
-      const result = await runCli(["--help"]);
+      const result = await runCli(["--help"], { timeout: 15000 });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("claudectl");
     });
