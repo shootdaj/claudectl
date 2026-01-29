@@ -6,6 +6,8 @@
  *
  * NOTE: node-pty callbacks don't fire correctly in Bun, so we spawn a Node
  * subprocess to run the PTY interaction. The claudectl app itself runs via bun.
+ *
+ * IMPORTANT: These tests require a TTY and are skipped in CI environments.
  */
 import { describe, test, expect, afterEach } from "bun:test";
 import { spawn, spawnSync } from "child_process";
@@ -17,6 +19,9 @@ const PROJECT_ROOT = join(import.meta.dir, "../..");
 // Check if node is available
 const nodeCheck = spawnSync("node", ["--version"]);
 const nodeAvailable = nodeCheck.status === 0;
+
+// Skip in CI - node-pty requires a real TTY which isn't available in GitHub Actions
+const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
 /**
  * Run a PTY test via Node subprocess
@@ -80,7 +85,7 @@ ${script}
 }
 
 describe("Session Picker E2E", () => {
-  test.skipIf(!nodeAvailable)("session picker loads and responds to 'q' to quit", async () => {
+  test.skipIf(!nodeAvailable || isCI)("session picker loads and responds to 'q' to quit", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 
@@ -121,7 +126,7 @@ setTimeout(() => {
     expect(output).toContain("HAS_CLAUDECTL:true");
   });
 
-  test.skipIf(!nodeAvailable)("'s' key triggers scratch session (screen changes)", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'s' key triggers scratch session (screen changes)", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 let outputAfterS = "";
@@ -177,7 +182,7 @@ setTimeout(() => {
     expect(exitCode).toBe(0);
   });
 
-  test.skipIf(!nodeAvailable)("'n' key shows new session menu", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'n' key shows new session menu", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 
@@ -230,7 +235,7 @@ setTimeout(() => {
     expect(output).toContain("HAS_MENU:true");
   });
 
-  test.skipIf(!nodeAvailable)("'?' key shows help", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'?' key shows help", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 
@@ -279,7 +284,7 @@ setTimeout(() => {
     expect(output).toContain("HAS_HELP:true");
   });
 
-  test.skipIf(!nodeAvailable)("j/k navigation doesn't crash", async () => {
+  test.skipIf(!nodeAvailable || isCI)("j/k navigation doesn't crash", async () => {
     const { output, exitCode } = await runPtyTest(`
 const term = pty.spawn(BUN, ["run", path.join(PROJECT_ROOT, "src/index.ts")], {
   name: "xterm-256color",
@@ -324,7 +329,7 @@ setTimeout(() => {
     expect(output).toContain("NAV_SUCCESS:true");
   });
 
-  test.skipIf(!nodeAvailable)("'/' key activates search mode", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'/' key activates search mode", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 
@@ -378,7 +383,7 @@ setTimeout(() => {
     expect(output).toContain("SEARCH_ACTIVE:true");
   });
 
-  test.skipIf(!nodeAvailable)("'A' key toggles archive view", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'A' key toggles archive view", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 let outputBeforeToggle = "";
@@ -430,7 +435,7 @@ setTimeout(() => {
     expect(output).toContain("VIEW_TOGGLED:true");
   });
 
-  test.skipIf(!nodeAvailable)("'d' key toggles skip permissions setting", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'d' key toggles skip permissions setting", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 let outputBeforeToggle = "";
@@ -480,7 +485,7 @@ setTimeout(() => {
     expect(output).toContain("SKIP_TOGGLE_WORKS:true");
   });
 
-  test.skipIf(!nodeAvailable)("'x' key toggles agent expert setting", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'x' key toggles agent expert setting", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 let outputBeforeToggle = "";
@@ -530,7 +535,7 @@ setTimeout(() => {
     expect(output).toContain("EXPERT_TOGGLE_WORKS:true");
   });
 
-  test.skipIf(!nodeAvailable)("'c' key shows search context in search mode", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'c' key shows search context in search mode", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 
@@ -592,7 +597,7 @@ setTimeout(() => {
     expect(output).toContain("CONTEXT_SHOWN:true");
   });
 
-  test.skipIf(!nodeAvailable)("'m' key opens MCP manager", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'m' key opens MCP manager", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 
@@ -640,7 +645,7 @@ setTimeout(() => {
     expect(output).toContain("MCP_OPENED:true");
   });
 
-  test.skipIf(!nodeAvailable)("'r' key shows rename dialog", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'r' key shows rename dialog", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 
@@ -688,7 +693,7 @@ setTimeout(() => {
     expect(output).toContain("RENAME_DIALOG:true");
   });
 
-  test.skipIf(!nodeAvailable)("'u' key triggers update check", async () => {
+  test.skipIf(!nodeAvailable || isCI)("'u' key triggers update check", async () => {
     const { output, exitCode } = await runPtyTest(`
 let capturedOutput = "";
 let outputBeforeUpdate = "";
@@ -736,7 +741,7 @@ setTimeout(() => {
     expect(output).toContain("UPDATE_TRIGGERED:true");
   });
 
-  test.skipIf(!nodeAvailable)("arrow keys work for navigation", async () => {
+  test.skipIf(!nodeAvailable || isCI)("arrow keys work for navigation", async () => {
     const { output, exitCode } = await runPtyTest(`
 const term = pty.spawn(BUN, ["run", path.join(PROJECT_ROOT, "src/index.ts")], {
   name: "xterm-256color",
