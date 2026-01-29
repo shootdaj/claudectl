@@ -1,39 +1,20 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
 
-// Mock better-sqlite3 to avoid "not supported in Bun" error
-// See: https://github.com/oven-sh/bun/issues/4290
+// Store for mock data
 const mockTitles = new Map<string, string>();
 
-class MockDatabase {
-  prepare(sql: string) {
-    return {
-      run: (...args: any[]) => {
-        // Handle setSessionTitle: INSERT OR REPLACE INTO session_titles
-        if (sql.includes("session_titles") && sql.includes("INSERT")) {
-          const [sessionId, title] = args;
-          mockTitles.set(sessionId, title);
-        }
-        return { lastInsertRowid: 1 };
-      },
-      get: (...args: any[]) => {
-        // Handle getSessionTitle: SELECT title FROM session_titles
-        if (sql.includes("session_titles") && sql.includes("SELECT")) {
-          const [sessionId] = args;
-          const title = mockTitles.get(sessionId);
-          return title ? { title } : null;
-        }
-        return null;
-      },
-      all: () => [],
-    };
-  }
-  exec() {}
-  close() {}
-  transaction(fn: Function) { return fn; }
-}
-
-mock.module("better-sqlite3", () => ({
-  default: MockDatabase,
+// Mock the getSearchIndex function directly instead of mocking better-sqlite3
+// This avoids conflicts when other tests have already loaded the real database
+mock.module("./search-index", () => ({
+  getSearchIndex: () => ({
+    setSessionTitle: (sessionId: string, title: string) => {
+      mockTitles.set(sessionId, title);
+    },
+    getSessionTitle: (sessionId: string) => {
+      return mockTitles.get(sessionId);
+    },
+  }),
+  closeSearchIndex: () => {},
 }));
 
 // Import after mocking

@@ -87,6 +87,34 @@ export function getScratchDir(): string {
 }
 
 /**
+ * Generate a short random ID (alphanumeric).
+ * @param length Number of characters (default: 6)
+ */
+export function generateShortId(length = 6): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  for (let i = 0; i < length; i++) {
+    result += chars[bytes[i] % chars.length];
+  }
+  return result;
+}
+
+/**
+ * Create a new unique scratch directory for a quick question session.
+ * Returns path like ~/.claudectl/scratch/scratch-k8f3x2/
+ */
+export function createScratchDir(): string {
+  const baseDir = join(getClaudectlDir(), "scratch");
+  if (!existsSync(baseDir)) {
+    mkdirSync(baseDir, { recursive: true });
+  }
+  const uniqueDir = join(baseDir, `scratch-${generateShortId(6)}`);
+  mkdirSync(uniqueDir, { recursive: true });
+  return uniqueDir;
+}
+
+/**
  * Get the default projects directory (~/Code).
  * Creates the directory if it doesn't exist.
  */
