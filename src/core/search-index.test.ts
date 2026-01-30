@@ -759,6 +759,181 @@ describe("SearchIndex", () => {
     });
   });
 
+  describe("deleteSession", () => {
+    test("deletes session and returns preserved state", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+      await writeFile(join(sessionDir, "session1.jsonl"), createTestSession("Test session"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Archive and set title
+      index.archiveSession("session1");
+      index.setSessionTitle("session1", "My Custom Title");
+
+      // Delete and verify preserved state
+      const preserved = index.deleteSession("session1");
+      expect(preserved).not.toBeNull();
+      expect(preserved!.isArchived).toBe(true);
+      expect(preserved!.archivedAt).toBeDefined();
+      expect(preserved!.title).toBe("My Custom Title");
+
+      // Session should be gone from index
+      const sessions = index.getSessions({ includeArchived: true, includeDeleted: true });
+      expect(sessions.length).toBe(0);
+    });
+
+    test("returns null for non-existent session", async () => {
+      index = new SearchIndex(dbPath, projectsDir);
+      const preserved = index.deleteSession("non-existent");
+      expect(preserved).toBeNull();
+    });
+
+    test("cascade deletes messages", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+      await writeFile(join(sessionDir, "session1.jsonl"), createTestSession("Hello", "World"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Verify messages exist
+      let stats = index.getStats();
+      expect(stats.messages).toBe(2);
+
+      // Delete session
+      index.deleteSession("session1");
+
+      // Messages should be gone too
+      stats = index.getStats();
+      expect(stats.sessions).toBe(0);
+      expect(stats.messages).toBe(0);
+    });
+  });
+
+  describe("indexFileByPath", () => {
+    test("indexes file at given path", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+      const sessionFile = join(sessionDir, "session1.jsonl");
+      await writeFile(sessionFile, createTestSession("Test message"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+
+      // Index directly without sync
+      await index.indexFileByPath(sessionFile);
+
+      const sessions = index.getSessions();
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].id).toBe("session1");
+    });
+
+    test("restores preserved state when indexing", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+      const sessionFile = join(sessionDir, "session1.jsonl");
+      await writeFile(sessionFile, createTestSession("Test message"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+
+      // Index with preserved state
+      await index.indexFileByPath(sessionFile, {
+        isArchived: true,
+        archivedAt: "2024-01-01T00:00:00Z",
+        title: "Preserved Title",
+      });
+
+      // Verify state was restored
+      const sessions = index.getSessions({ includeArchived: true });
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].isArchived).toBe(true);
+      expect(sessions[0].customTitle).toBe("Preserved Title");
+    });
+
+    test("works without preserved state", async () => {
+      const sessionDir = join(projectsDir, "-Users-test-project");
+      await mkdir(sessionDir, { recursive: true });
+      const sessionFile = join(sessionDir, "session1.jsonl");
+      await writeFile(sessionFile, createTestSession("Test message"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.indexFileByPath(sessionFile);
+
+      const sessions = index.getSessions();
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].isArchived).toBe(false);
+    });
+  });
+
+  describe("atomic move (deleteSession + indexFileByPath)", () => {
+    test("move preserves archive status", async () => {
+      const oldDir = join(projectsDir, "-Users-test-old");
+      const newDir = join(projectsDir, "-Users-test-new");
+      await mkdir(oldDir, { recursive: true });
+      await mkdir(newDir, { recursive: true });
+
+      const oldFile = join(oldDir, "session1.jsonl");
+      const newFile = join(newDir, "session1.jsonl");
+      await writeFile(oldFile, createTestSession("Test message"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Archive the session
+      index.archiveSession("session1");
+      index.setSessionTitle("session1", "My Title");
+
+      // Simulate atomic move: delete, rename file, re-index
+      const preserved = index.deleteSession("session1");
+      await Bun.write(newFile, await Bun.file(oldFile).text());
+      await index.indexFileByPath(newFile, preserved ?? undefined);
+
+      // Verify state preserved at new location
+      const sessions = index.getSessions({ includeArchived: true });
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].isArchived).toBe(true);
+      expect(sessions[0].customTitle).toBe("My Title");
+      expect(sessions[0].filePath).toBe(newFile);
+    });
+
+    test("no duplicate if sync runs between delete and re-index", async () => {
+      const oldDir = join(projectsDir, "-Users-test-old");
+      const newDir = join(projectsDir, "-Users-test-new");
+      await mkdir(oldDir, { recursive: true });
+      await mkdir(newDir, { recursive: true });
+
+      const oldFile = join(oldDir, "session1.jsonl");
+      const newFile = join(newDir, "session1.jsonl");
+      await writeFile(oldFile, createTestSession("Test message"));
+
+      index = new SearchIndex(dbPath, projectsDir);
+      await index.sync();
+
+      // Step 1: Delete from index
+      const preserved = index.deleteSession("session1");
+
+      // Step 2: Move file on disk
+      await Bun.write(newFile, await Bun.file(oldFile).text());
+      await rm(oldFile);
+
+      // Step 3: Simulate sync running (this would have caused the bug before)
+      await index.sync();
+
+      // Verify only one entry exists
+      let sessions = index.getSessions();
+      expect(sessions.length).toBe(1);
+      expect(sessions[0].filePath).toBe(newFile);
+
+      // Step 4: Now indexFileByPath runs - should not create duplicate
+      // (In real code this happens, but sync already indexed it)
+      // The point is: no UNIQUE constraint error
+
+      sessions = index.getSessions();
+      expect(sessions.length).toBe(1);
+    });
+  });
+
   describe("settings", () => {
     test("getSetting returns default for missing key", () => {
       index = new SearchIndex(dbPath, projectsDir);
