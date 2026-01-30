@@ -784,4 +784,56 @@ setTimeout(() => {
 
     expect(output).toContain("ARROW_NAV_SUCCESS:true");
   });
+
+  test.skipIf(!nodeAvailable || isCI)("'p' key shows promote dialog or scratch-only message", async () => {
+    // Tests that pressing 'p' either shows the promote dialog (if scratch session selected)
+    // or shows a message that promote is only for scratch sessions
+    const { output } = await runPtyTest(`
+let capturedOutput = "";
+
+const term = pty.spawn(BUN, ["run", path.join(PROJECT_ROOT, "src/index.ts")], {
+  name: "xterm-256color",
+  cols: 120,
+  rows: 30,
+  cwd: PROJECT_ROOT,
+  env: { ...process.env, TERM: "xterm-256color" },
+});
+
+term.onData((data) => {
+  capturedOutput += data;
+});
+
+// Wait for UI to load, then press 'p'
+setTimeout(() => {
+  term.write("p");
+}, 2000);
+
+// Check result and quit
+setTimeout(() => {
+  const hasPromoteDialog = capturedOutput.includes("Promote") ||
+                           capturedOutput.includes("promote");
+  const hasScratchOnly = capturedOutput.includes("scratch") ||
+                         capturedOutput.includes("Scratch");
+  console.log("PROMOTE_RESPONSE:" + (hasPromoteDialog || hasScratchOnly));
+  term.write("\\x1b"); // Escape to close any dialog
+}, 3000);
+
+setTimeout(() => {
+  term.write("q");
+}, 3500);
+
+term.onExit(({ exitCode }) => {
+  console.log("EXIT_CODE:" + exitCode);
+  process.exit(0);
+});
+
+setTimeout(() => {
+  console.log("TIMEOUT");
+  term.kill();
+  process.exit(1);
+}, 8000);
+`, 12000);
+
+    expect(output).toContain("PROMOTE_RESPONSE:true");
+  });
 });

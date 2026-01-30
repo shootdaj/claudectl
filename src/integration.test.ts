@@ -106,6 +106,48 @@ describe("Promote Flow", () => {
       rmSync(backup, { force: true });
     }
   });
+
+  test("moveSession is atomic - syncIndex after move doesn't create duplicates", async () => {
+    const { discoverSessions, moveSession, syncIndex } = await import("./core/sessions");
+    const { existsSync, rmSync, mkdirSync, cpSync } = await import("fs");
+
+    const sessions = await discoverSessions();
+    const scratchSession = sessions.find(s => s.workingDirectory.includes(".claudectl/scratch"));
+
+    if (!scratchSession) {
+      console.log("No scratch session to test atomic move");
+      return;
+    }
+
+    const testDir = "/tmp/test-atomic-move-integration";
+    if (existsSync(testDir)) rmSync(testDir, { recursive: true });
+    mkdirSync(testDir, { recursive: true });
+
+    // Backup original file
+    const backup = "/tmp/atomic-move-backup.jsonl";
+    cpSync(scratchSession.filePath, backup);
+    const originalId = scratchSession.id;
+
+    try {
+      // Move session
+      const moved = await moveSession(scratchSession, testDir);
+
+      // Run syncIndex - this used to create duplicates before the fix
+      await syncIndex();
+
+      // Verify only ONE session with this ID exists
+      const allSessions = await discoverSessions();
+      const matches = allSessions.filter(s => s.id === originalId);
+      expect(matches.length).toBe(1);
+      expect(matches[0].workingDirectory).toBe(testDir);
+
+      // Move back
+      await moveSession(moved, scratchSession.workingDirectory);
+    } finally {
+      rmSync(testDir, { recursive: true, force: true });
+      rmSync(backup, { force: true });
+    }
+  });
 });
 
 // Test rename
