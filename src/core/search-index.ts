@@ -697,23 +697,67 @@ export class SearchIndex {
   }
 
   /**
-   * Update session path after moving to a new directory
+   * Delete a session from the index entirely.
+   * Messages are cascade-deleted automatically.
+   * Returns the preserved state (archive status, title) for re-indexing.
    */
-  updateSessionPath(
-    sessionId: string,
-    newFilePath: string,
-    newWorkingDirectory: string,
-    newShortPath: string,
-    newEncodedPath: string
-  ): void {
-    this.db.prepare(`
-      UPDATE files SET
-        file_path = ?,
-        working_directory = ?,
-        short_path = ?,
-        encoded_path = ?
-      WHERE session_id = ?
-    `).run(newFilePath, newWorkingDirectory, newShortPath, newEncodedPath, sessionId);
+  deleteSession(sessionId: string): { isArchived: boolean; archivedAt: string | null; title: string | null } | null {
+    const existing = this.db.prepare(`
+      SELECT is_archived, archived_at FROM files WHERE session_id = ?
+    `).get(sessionId) as { is_archived: number; archived_at: string | null } | undefined;
+
+    if (!existing) {
+      return null;
+    }
+
+    const title = this.getSessionTitle(sessionId) ?? null;
+
+    // Delete the session (messages cascade)
+    this.db.prepare("DELETE FROM files WHERE session_id = ?").run(sessionId);
+
+    return {
+      isArchived: existing.is_archived === 1,
+      archivedAt: existing.archived_at,
+      title,
+    };
+  }
+
+  /**
+   * Index a single file by path.
+   * Use this after moving a session file to re-index it at the new location.
+   */
+  async indexFileByPath(
+    filePath: string,
+    preserveState?: { isArchived: boolean; archivedAt: string | null; title: string | null }
+  ): Promise<void> {
+    const fileStat = await stat(filePath);
+
+    // Extract sessionId from filename (e.g., "abc123.jsonl" -> "abc123")
+    const fileName = filePath.split("/").pop() || "";
+    const sessionId = fileName.replace(".jsonl", "");
+
+    // Extract encodedPath from parent directory
+    // Path format: .../projects/{encodedPath}/{sessionId}.jsonl
+    const parts = filePath.split("/");
+    const encodedPath = parts.length >= 2 ? parts[parts.length - 2] : "";
+
+    const fileInfo: FileInfo = {
+      filePath,
+      mtimeMs: Math.floor(fileStat.mtimeMs),
+      sizeBytes: fileStat.size,
+      sessionId,
+      encodedPath,
+    };
+
+    await this.indexFile(fileInfo, preserveState ? {
+      isArchived: preserveState.isArchived,
+      archivedAt: preserveState.archivedAt,
+    } : undefined);
+
+    // Restore title if it was set
+    if (preserveState?.title) {
+      this.setSessionTitle(sessionId, preserveState.title);
+    }
   }
 
   /**

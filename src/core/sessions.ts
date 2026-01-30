@@ -438,7 +438,12 @@ export async function launchSession(
 
 /**
  * Move a session to a new working directory.
- * Moves the JSONL file and updates the SQLite index.
+ * Moves the JSONL file and updates the SQLite index atomically.
+ *
+ * The operation is atomic to prevent race conditions with syncIndex():
+ * 1. Delete old index entry (preserving user metadata like archive status, title)
+ * 2. Rename the file on disk
+ * 3. Re-index at the new location (restoring preserved metadata)
  */
 export async function moveSession(
   session: Session,
@@ -455,14 +460,18 @@ export async function moveSession(
   // Create new directory if needed
   await mkdir(newDirPath, { recursive: true });
 
-  // Move JSONL file
   const oldFilePath = session.filePath;
   const newFilePath = join(newDirPath, `${session.id}.jsonl`);
+
+  // Step 1: Delete old index entry, preserving user metadata
+  const index = getSearchIndex();
+  const preservedState = index.deleteSession(session.id);
+
+  // Step 2: Move JSONL file
   await rename(oldFilePath, newFilePath);
 
-  // Update SQLite index
-  const index = getSearchIndex();
-  index.updateSessionPath(session.id, newFilePath, newWorkingDirectory, newShortPath, newEncodedPath);
+  // Step 3: Re-index at new location with preserved metadata
+  await index.indexFileByPath(newFilePath, preservedState ?? undefined);
 
   return {
     ...session,
