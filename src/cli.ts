@@ -454,8 +454,15 @@ program
       console.log(pc.cyan("\nAvailable prereleases:\n"));
       try {
         const response = await fetch("https://api.github.com/repos/shootdaj/claudectl/releases?per_page=20");
-        const releases = await response.json() as Array<{ tag_name: string; prerelease: boolean; published_at: string }>;
-        const prereleases = releases.filter(r => r.prerelease);
+        const releases = await response.json() as Array<{ tag_name: string; prerelease: boolean; published_at: string; message?: string }>;
+
+        // Check for rate limit
+        if ((releases as unknown as { message?: string }).message?.includes("rate limit")) {
+          console.log(pc.yellow("GitHub API rate limit reached. Try again later.\n"));
+          return;
+        }
+
+        const prereleases = (Array.isArray(releases) ? releases : []).filter(r => r.prerelease);
         if (prereleases.length === 0) {
           console.log(pc.dim("  No prereleases available.\n"));
         } else {
@@ -487,45 +494,78 @@ program
       // Check if it's a full version tag or a branch name
       if (version.startsWith("v")) {
         targetVersion = version;
+      } else if (version === "main" || version === "latest") {
+        targetVersion = version;
       } else {
         // It's a branch name - find matching prerelease
         console.log(pc.cyan(`\nLooking for prerelease matching "${version}"...`));
         try {
           const response = await fetch("https://api.github.com/repos/shootdaj/claudectl/releases?per_page=50");
-          const releases = await response.json() as Array<{ tag_name: string; prerelease: boolean }>;
-          const match = releases.find(r => r.prerelease && r.tag_name.endsWith(`-${version}`));
-          if (match) {
-            targetVersion = match.tag_name;
-            console.log(pc.green(`Found: ${targetVersion}`));
+          const releases = await response.json() as Array<{ tag_name: string; prerelease: boolean; message?: string }>;
+
+          // Check for rate limit - fall back to main
+          if ((releases as unknown as { message?: string }).message?.includes("rate limit")) {
+            console.log(pc.yellow("GitHub API rate limit reached. Installing from main branch instead..."));
+            targetVersion = "main";
           } else {
-            console.log(pc.red(`No prerelease found for branch "${version}"`));
-            console.log(pc.dim(`Run ${pc.cyan("ccl update --list")} to see available prereleases.\n`));
-            process.exit(1);
+            const match = (Array.isArray(releases) ? releases : []).find(r => r.prerelease && r.tag_name.endsWith(`-${version}`));
+            if (match) {
+              targetVersion = match.tag_name;
+              console.log(pc.green(`Found: ${targetVersion}`));
+            } else {
+              console.log(pc.red(`No prerelease found for branch "${version}"`));
+              console.log(pc.dim(`Run ${pc.cyan("ccl update --list")} to see available prereleases.\n`));
+              process.exit(1);
+            }
           }
         } catch {
-          console.log(pc.red("Failed to fetch releases."));
-          process.exit(1);
+          console.log(pc.yellow("Failed to fetch releases. Installing from main branch..."));
+          targetVersion = "main";
         }
       }
     }
 
-    // Fetch latest version from GitHub (for comparison)
+    // Fetch latest version from GitHub
     console.log(pc.cyan("\nChecking versions..."));
 
     let latestVersion = "unknown";
     try {
+      // Try API first
       const response = await fetch("https://api.github.com/repos/shootdaj/claudectl/releases/latest");
-      const data = await response.json() as { tag_name: string };
-      latestVersion = data.tag_name;
-    } catch (error) {
-      console.log(pc.red("Failed to check for updates. Check your internet connection."));
-      process.exit(1);
+      const data = await response.json() as { tag_name?: string; message?: string };
+      if (data.tag_name) {
+        latestVersion = data.tag_name;
+      } else {
+        throw new Error("No tag_name");
+      }
+    } catch {
+      // API failed or rate limited - use redirect trick (not rate limited)
+      try {
+        const response = await fetch("https://github.com/shootdaj/claudectl/releases/latest", {
+          redirect: "manual",
+        });
+        const location = response.headers.get("location");
+        // Location looks like: https://github.com/shootdaj/claudectl/releases/tag/v2.2.24
+        if (location) {
+          const match = location.match(/\/tag\/(v[\d.]+)/);
+          if (match) {
+            latestVersion = match[1];
+          }
+        }
+      } catch {
+        // Both methods failed - continue with unknown
+      }
     }
 
     console.log(`Current version: ${pc.yellow(currentVersion)}`);
     if (targetVersion === "latest") {
-      console.log(`Latest version:  ${pc.green(latestVersion)}`);
-      targetVersion = latestVersion;
+      if (latestVersion === "unknown") {
+        console.log(pc.yellow("Could not determine latest version. Installing from main branch..."));
+        targetVersion = "main";
+      } else {
+        console.log(`Latest version:  ${pc.green(latestVersion)}`);
+        targetVersion = latestVersion;
+      }
     } else {
       console.log(`Target version:  ${pc.magenta(targetVersion)} ${pc.dim("(prerelease)")}`);
       console.log(`Latest stable:   ${pc.dim(latestVersion)}`);
