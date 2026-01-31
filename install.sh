@@ -77,8 +77,8 @@ if [ -f "$INDEX_DB" ]; then
   mkdir -p "$INSTALL_DIR/db-backups"
   BACKUP_NAME="index.db.$(date +%Y%m%d_%H%M%S)"
   cp "$INDEX_DB" "$INSTALL_DIR/db-backups/$BACKUP_NAME"
-  # Keep only the 5 most recent backups
-  ls -t "$INSTALL_DIR/db-backups"/index.db.* 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null || true
+  # Keep only the 20 most recent backups
+  ls -t "$INSTALL_DIR/db-backups"/index.db.* 2>/dev/null | tail -n +21 | xargs rm -f 2>/dev/null || true
   echo -e "${CYAN}Backed up index.db to db-backups/$BACKUP_NAME${NC}"
 fi
 

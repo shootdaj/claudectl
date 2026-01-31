@@ -1,6 +1,6 @@
 import { readdir, stat, mkdir, rename } from "fs/promises";
 import { join } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, statSync, readFileSync, writeFileSync } from "fs";
 import { getProjectsDir, getClaudeDir, isScratchPath } from "./config";
 import { decodePath, shortenPath, encodePath } from "../utils/paths";
 import { parseSessionMetadata, parseJsonl, getMessageContent, type SessionMetadata } from "../utils/jsonl";
@@ -41,6 +41,122 @@ export function repairOrphanedSessions(): { repaired: number; unfixable: number 
   }
 
   return { repaired, unfixable };
+}
+
+/**
+ * Repair sessions that have mismatched cwd in their JSONL file.
+ * This happens when sessions are promoted/moved but the internal cwd wasn't updated.
+ */
+export function repairSessionCwd(): { repaired: number; errors: number } {
+  const claudeDir = getClaudeDir();
+  const projectsDir = join(claudeDir, "projects");
+
+  let repaired = 0;
+  let errors = 0;
+
+  if (!existsSync(projectsDir)) {
+    return { repaired, errors };
+  }
+
+  const encodedDirs = readdirSync(projectsDir);
+
+  for (const encodedDir of encodedDirs) {
+    const dirPath = join(projectsDir, encodedDir);
+    const stat = statSync(dirPath);
+    if (!stat.isDirectory()) continue;
+
+    const expectedCwd = decodePath(encodedDir);
+    const files = readdirSync(dirPath).filter((f) => f.endsWith(".jsonl"));
+
+    for (const file of files) {
+      const filePath = join(dirPath, file);
+      try {
+        const content = readFileSync(filePath, "utf-8");
+        const lines = content.split("\n");
+        let needsRepair = false;
+
+        // Check if any line has wrong cwd
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const obj = JSON.parse(line);
+            if (obj.cwd && obj.cwd !== expectedCwd) {
+              needsRepair = true;
+              break;
+            }
+          } catch {
+            // Skip malformed lines
+          }
+        }
+
+        if (needsRepair) {
+          // Update all cwd fields
+          const updatedLines = lines.map((line) => {
+            if (!line.trim()) return line;
+            try {
+              const obj = JSON.parse(line);
+              if (obj.cwd && obj.cwd !== expectedCwd) {
+                obj.cwd = expectedCwd;
+                return JSON.stringify(obj);
+              }
+              return line;
+            } catch {
+              return line;
+            }
+          });
+          writeFileSync(filePath, updatedLines.join("\n"));
+          repaired++;
+        }
+      } catch {
+        errors++;
+      }
+    }
+  }
+
+  return { repaired, errors };
+}
+
+/**
+ * Reindex sessions that exist on disk but are missing from the index.
+ */
+export function reindexMissingSessions(): { added: number; errors: number } {
+  const claudeDir = getClaudeDir();
+  const projectsDir = join(claudeDir, "projects");
+  const index = getSearchIndex();
+
+  let added = 0;
+  let errors = 0;
+
+  if (!existsSync(projectsDir)) {
+    return { added, errors };
+  }
+
+  const encodedDirs = readdirSync(projectsDir);
+
+  for (const encodedDir of encodedDirs) {
+    const dirPath = join(projectsDir, encodedDir);
+    const dirStat = statSync(dirPath);
+    if (!dirStat.isDirectory()) continue;
+
+    const files = readdirSync(dirPath).filter((f) => f.endsWith(".jsonl"));
+
+    for (const file of files) {
+      const filePath = join(dirPath, file);
+
+      // Check directly in DB if this file path exists
+      if (index.hasFilePath(filePath)) continue;
+
+      // Session exists on disk but not in index - add it
+      try {
+        index.indexFileByPath(filePath);
+        added++;
+      } catch {
+        errors++;
+      }
+    }
+  }
+
+  return { added, errors };
 }
 
 /**

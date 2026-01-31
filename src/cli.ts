@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { homedir } from "os";
 import { join } from "path";
 import { showSessionPicker } from "./ui/session-picker";
-import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions, syncIndex, rebuildIndex, getIndexStats, repairOrphanedSessions } from "./core/sessions";
+import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions, syncIndex, rebuildIndex, getIndexStats, repairOrphanedSessions, repairSessionCwd, reindexMissingSessions } from "./core/sessions";
 import { getAllConfigPaths, loadClaudectlSettings } from "./core/config";
 import { renameSession } from "./core/title-generator";
 import { backupSessions, getBackupInfo, getBackupDir, findDeletedSessions, restoreSession, restoreAllSessions } from "./core/backup";
@@ -795,25 +795,51 @@ serve
 // Repair command - fixes orphaned sessions (called during install)
 program
   .command("repair")
-  .description("Repair orphaned sessions with missing directories")
+  .description("Repair orphaned sessions, fix metadata, and reindex missing sessions")
   .option("-q, --quiet", "Only output if repairs were made")
   .action((options) => {
-    const result = repairOrphanedSessions();
+    // Repair orphaned sessions (missing directories)
+    const orphanResult = repairOrphanedSessions();
+    // Repair sessions with mismatched cwd in JSONL files
+    const cwdResult = repairSessionCwd();
+    // Reindex sessions that exist on disk but not in index
+    const reindexResult = reindexMissingSessions();
+
+    const totalRepaired = orphanResult.repaired + cwdResult.repaired + reindexResult.added;
 
     if (options.quiet) {
       // Only output if something was repaired
-      if (result.repaired > 0) {
-        console.log(`Repaired ${result.repaired} orphaned session(s)`);
+      if (totalRepaired > 0) {
+        const parts: string[] = [];
+        if (orphanResult.repaired > 0) parts.push(`${orphanResult.repaired} orphaned`);
+        if (cwdResult.repaired > 0) parts.push(`${cwdResult.repaired} cwd mismatch`);
+        if (reindexResult.added > 0) parts.push(`${reindexResult.added} reindexed`);
+        console.log(`Repaired ${parts.join(", ")} session(s)`);
       }
     } else {
-      if (result.repaired === 0 && result.unfixable === 0) {
+      const allOk = orphanResult.repaired === 0 && orphanResult.unfixable === 0 &&
+                    cwdResult.repaired === 0 && cwdResult.errors === 0 &&
+                    reindexResult.added === 0 && reindexResult.errors === 0;
+      if (allOk) {
         console.log(pc.green("✓ All sessions OK"));
       } else {
-        if (result.repaired > 0) {
-          console.log(pc.green(`✓ Repaired ${result.repaired} scratch session(s)`));
+        if (orphanResult.repaired > 0) {
+          console.log(pc.green(`✓ Repaired ${orphanResult.repaired} orphaned scratch session(s)`));
         }
-        if (result.unfixable > 0) {
-          console.log(pc.yellow(`⚠ ${result.unfixable} project session(s) have missing directories`));
+        if (cwdResult.repaired > 0) {
+          console.log(pc.green(`✓ Fixed ${cwdResult.repaired} session(s) with mismatched cwd`));
+        }
+        if (reindexResult.added > 0) {
+          console.log(pc.green(`✓ Reindexed ${reindexResult.added} missing session(s)`));
+        }
+        if (orphanResult.unfixable > 0) {
+          console.log(pc.yellow(`⚠ ${orphanResult.unfixable} project session(s) have missing directories`));
+        }
+        if (cwdResult.errors > 0) {
+          console.log(pc.yellow(`⚠ ${cwdResult.errors} session(s) could not be repaired`));
+        }
+        if (reindexResult.errors > 0) {
+          console.log(pc.yellow(`⚠ ${reindexResult.errors} session(s) could not be indexed`));
         }
       }
     }
