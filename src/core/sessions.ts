@@ -681,10 +681,24 @@ export async function moveSession(
 }
 
 /**
- * Clean a title by removing newlines and excess whitespace (no truncation)
+ * Clean a title by removing system tags and excess whitespace (no truncation)
+ * Strips Claude Code system tags like <local-command-caveat>, <system-reminder>, etc.
  */
 function cleanTitle(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
+  // Remove XML-like system tags (e.g., <local-command-caveat>...</local-command-caveat>)
+  let cleaned = text;
+
+  // Keep removing system tags from the start until we find real content
+  const tagPattern = /^<([a-z-]+)>[\s\S]*?<\/\1>\s*/i;
+  while (tagPattern.test(cleaned)) {
+    cleaned = cleaned.replace(tagPattern, "");
+  }
+
+  // Also strip standalone opening tags that might not have closing tags
+  cleaned = cleaned.replace(/^<[a-z-]+>\s*/gi, "");
+
+  // Clean up whitespace
+  return cleaned.replace(/\s+/g, " ").trim();
 }
 
 /**
