@@ -269,7 +269,7 @@ export class SearchIndex {
   }
 
   /**
-   * Migrate settings from legacy JSON file to SQLite
+   * Migrate settings from legacy JSON file to SQLite, then delete the JSON file
    */
   private migrateSettingsFromJson(): void {
     const jsonPath = join(CLAUDECTL_DIR, "settings.json");
@@ -287,9 +287,20 @@ export class SearchIndex {
       for (const [key, value] of Object.entries(settings)) {
         insertSetting.run(key, JSON.stringify(value));
       }
+
+      // Delete the legacy JSON file after successful migration
+      require("fs").unlinkSync(jsonPath);
     } catch {
       // Ignore migration errors - settings will use defaults
     }
+  }
+
+  /**
+   * Check if a file path exists in the index
+   */
+  hasFilePath(filePath: string): boolean {
+    const row = this.db.prepare("SELECT 1 FROM files WHERE file_path = ?").get(filePath);
+    return row !== null && row !== undefined;
   }
 
   /**
