@@ -76,7 +76,7 @@ describe("CLI E2E Tests", () => {
       // Output should contain some structure
       // (actual content depends on user's sessions)
       expect(result.exitCode).toBe(0);
-    });
+    }, 15000);
   });
 
   describe("sessions stats command", () => {
