@@ -173,6 +173,9 @@ if (existsSync(oldSessionsDir)) {
 }
 ' 2>/dev/null || true
 
+# Repair orphaned sessions (recreate missing scratch directories)
+"$BUN" run "$INSTALL_DIR/src/index.ts" repair --quiet 2>/dev/null || true
+
 # Create wrapper script
 mkdir -p "$BUN_BIN"
 cat > "$BUN_BIN/claudectl" << EOF

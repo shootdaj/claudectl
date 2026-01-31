@@ -60,11 +60,13 @@ export function getAllConfigPaths() {
 export interface ClaudectlSettings {
   skipPermissions: boolean;
   autoAddAgentExpert: boolean;
+  defaultProjectDir: string | null;
 }
 
 const DEFAULT_SETTINGS: ClaudectlSettings = {
   skipPermissions: false,
   autoAddAgentExpert: true,
+  defaultProjectDir: null,
 };
 
 /**
@@ -115,15 +117,38 @@ export function createScratchDir(): string {
 }
 
 /**
- * Get the default projects directory (~/Code).
- * Creates the directory if it doesn't exist.
+ * Get the fallback projects directory (~/Code).
+ * This is the default when no custom directory is configured.
+ */
+export function getFallbackProjectsDir(): string {
+  return join(homedir(), "Code");
+}
+
+/**
+ * Get the configured projects directory.
+ * Returns the user-configured directory or the fallback (~/Code).
+ * Does NOT create the directory - caller should do that if needed.
  */
 export function getDefaultProjectsDir(): string {
-  const dir = join(homedir(), "Code");
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-  return dir;
+  const settings = loadClaudectlSettings();
+  return settings.defaultProjectDir || getFallbackProjectsDir();
+}
+
+/**
+ * Check if the user has configured a default project directory.
+ */
+export function hasConfiguredProjectDir(): boolean {
+  const settings = loadClaudectlSettings();
+  return settings.defaultProjectDir !== null;
+}
+
+/**
+ * Set the default projects directory.
+ */
+export function setDefaultProjectDir(dir: string): void {
+  const { getSearchIndex } = require("./search-index");
+  const index = getSearchIndex();
+  index.setSetting("defaultProjectDir", dir);
 }
 
 /**
@@ -153,6 +178,7 @@ export function loadClaudectlSettings(): ClaudectlSettings {
   return {
     skipPermissions: index.getSetting("skipPermissions", DEFAULT_SETTINGS.skipPermissions),
     autoAddAgentExpert: index.getSetting("autoAddAgentExpert", DEFAULT_SETTINGS.autoAddAgentExpert),
+    defaultProjectDir: index.getSetting("defaultProjectDir", DEFAULT_SETTINGS.defaultProjectDir),
   };
 }
 

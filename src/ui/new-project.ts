@@ -2,7 +2,7 @@ import blessed from "blessed";
 import { homedir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
-import { createScratchDir, getDefaultProjectsDir } from "../core/config";
+import { createScratchDir, getDefaultProjectsDir, hasConfiguredProjectDir, setDefaultProjectDir, getFallbackProjectsDir } from "../core/config";
 import { moveSession, launchClaude, type Session } from "../core/sessions";
 
 export interface NewProjectOptions {
@@ -41,6 +41,112 @@ const theme = {
   selectedBg: "#333333",
   selectedFg: "#00ff00",
 };
+
+/**
+ * Prompt user to confirm or override the projects directory.
+ * - First time: asks where to create projects, saves as default
+ * - After that: shows default with option to override (not saved)
+ * Returns the selected directory path, or null if cancelled.
+ */
+export async function promptProjectsDir(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const isFirstTime = !hasConfiguredProjectDir();
+    const currentDefault = getDefaultProjectsDir();
+
+    const screen = blessed.screen({
+      smartCSR: true,
+      title: "claudectl - Project Location",
+      fullUnicode: true,
+    });
+
+    const mainBox = blessed.box({
+      parent: screen,
+      top: "center",
+      left: "center",
+      width: 70,
+      height: 9,
+      border: { type: "line" },
+      style: { border: { fg: theme.pink } },
+      label: isFirstTime ? ` {${theme.pink}-fg}Set Default Location{/${theme.pink}-fg} ` : ` {${theme.pink}-fg}Project Location{/${theme.pink}-fg} `,
+      tags: true,
+    });
+
+    const promptText = blessed.text({
+      parent: mainBox,
+      top: 1,
+      left: 2,
+      content: isFirstTime
+        ? `{${theme.yellow}-fg}Where do you want to create projects?{/${theme.yellow}-fg}`
+        : `{${theme.muted}-fg}Creating in:{/${theme.muted}-fg} {${theme.blue}-fg}${currentDefault}{/${theme.blue}-fg}`,
+      tags: true,
+    });
+
+    const hintText = blessed.text({
+      parent: mainBox,
+      top: 3,
+      left: 2,
+      content: isFirstTime
+        ? `{${theme.muted}-fg}Press Enter for default (${getFallbackProjectsDir()}), or type a path:{/${theme.muted}-fg}`
+        : `{${theme.muted}-fg}Press Enter to confirm, or type a different path:{/${theme.muted}-fg}`,
+      tags: true,
+    });
+
+    const pathInput = blessed.textbox({
+      parent: mainBox,
+      top: 5,
+      left: 2,
+      width: "100%-6",
+      height: 1,
+      inputOnFocus: true,
+      style: {
+        fg: "white",
+        bg: "#333333",
+        focus: { bg: "#444444" },
+      },
+    });
+
+    pathInput.on("submit", (value: string) => {
+      const trimmed = value?.trim() || "";
+      let selectedDir: string;
+
+      if (trimmed === "") {
+        // Use current default
+        selectedDir = currentDefault;
+      } else {
+        // Expand ~ to home directory
+        selectedDir = trimmed.startsWith("~")
+          ? join(homedir(), trimmed.slice(1))
+          : trimmed;
+      }
+
+      // Save as default if first time OR if they typed a new path
+      if (isFirstTime || (trimmed !== "" && selectedDir !== currentDefault)) {
+        setDefaultProjectDir(selectedDir);
+      }
+
+      // Ensure directory exists
+      if (!existsSync(selectedDir)) {
+        mkdirSync(selectedDir, { recursive: true });
+      }
+
+      screen.destroy();
+      resolve(selectedDir);
+    });
+
+    pathInput.key(["escape"], () => {
+      screen.destroy();
+      resolve(null);
+    });
+
+    screen.key(["q", "C-c"], () => {
+      screen.destroy();
+      resolve(null);
+    });
+
+    pathInput.focus();
+    screen.render();
+  });
+}
 
 export async function showNewProjectWizard(options: NewProjectOptions = {}): Promise<void> {
   // If coming from a scratch session, show promote flow
@@ -158,6 +264,19 @@ export async function startQuickQuestion(options: NewProjectOptions): Promise<vo
  * Create flow - create new GitHub repo and project
  */
 export async function showCreateFlow(options: NewProjectOptions): Promise<void> {
+  // Prompt for projects directory if not configured
+  let projectsDir: string;
+  if (!hasConfiguredProjectDir()) {
+    const selected = await promptProjectsDir();
+    if (!selected) {
+      options.onCancel?.();
+      return;
+    }
+    projectsDir = selected;
+  } else {
+    projectsDir = getDefaultProjectsDir();
+  }
+
   const screen = blessed.screen({
     smartCSR: true,
     title: "claudectl - Create New Project",
@@ -366,7 +485,6 @@ export async function showCreateFlow(options: NewProjectOptions): Promise<void> 
   async function createProject(projectName: string) {
     const description = descInput.getValue().trim();
     const template = templates[templateIdx].value;
-    const projectsDir = getDefaultProjectsDir();
 
     statusBox.setContent(`{${theme.yellow}-fg}Creating GitHub repo...{/${theme.yellow}-fg}`);
     screen.render();
@@ -699,7 +817,18 @@ export async function showCloneFlow(options: NewProjectOptions): Promise<void> {
  * Clone a repo and start Claude
  */
 async function cloneAndStart(repoUrl: string, projectName: string, options: NewProjectOptions): Promise<void> {
-  const projectsDir = getDefaultProjectsDir();
+  // Prompt for projects directory if not configured
+  let projectsDir: string;
+  if (!hasConfiguredProjectDir()) {
+    const selected = await promptProjectsDir();
+    if (!selected) {
+      options.onCancel?.();
+      return;
+    }
+    projectsDir = selected;
+  } else {
+    projectsDir = getDefaultProjectsDir();
+  }
   const projectPath = join(projectsDir, projectName);
 
   console.log(`\nCloning: ${repoUrl}`);
@@ -736,6 +865,19 @@ async function cloneAndStart(repoUrl: string, projectName: string, options: NewP
  * Promote flow - move scratch session to a real project
  */
 async function showPromoteFlow(session: Session, options: NewProjectOptions): Promise<void> {
+  // Prompt for projects directory if not configured
+  let projectsDir: string;
+  if (!hasConfiguredProjectDir()) {
+    const selected = await promptProjectsDir();
+    if (!selected) {
+      options.onCancel?.();
+      return;
+    }
+    projectsDir = selected;
+  } else {
+    projectsDir = getDefaultProjectsDir();
+  }
+
   const screen = blessed.screen({
     smartCSR: true,
     title: "claudectl - Promote to Project",
@@ -802,7 +944,7 @@ async function showPromoteFlow(session: Session, options: NewProjectOptions): Pr
   function updateInfo() {
     const name = nameInput.getValue().trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     if (name) {
-      const projectPath = join(getDefaultProjectsDir(), name);
+      const projectPath = join(projectsDir, name);
       infoText.setContent(
         `{${theme.muted}-fg}Creates:{/${theme.muted}-fg} {${theme.blue}-fg}${projectPath}{/${theme.blue}-fg}\n` +
         `{${theme.muted}-fg}•{/${theme.muted}-fg} git init\n` +
@@ -822,7 +964,7 @@ async function showPromoteFlow(session: Session, options: NewProjectOptions): Pr
     if (!value || !value.trim()) return;
 
     const projectName = value.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const projectPath = join(getDefaultProjectsDir(), projectName);
+    const projectPath = join(projectsDir, projectName);
 
     if (existsSync(projectPath)) {
       infoText.setContent(`{#ff0000-fg}Error: ${projectPath} already exists{/#ff0000-fg}`);
