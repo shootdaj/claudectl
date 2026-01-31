@@ -250,6 +250,15 @@ export async function showNewSessionMenu(options: NewProjectOptions): Promise<vo
  * Start a quick question session in a unique scratch folder
  */
 export async function startQuickQuestion(options: NewProjectOptions): Promise<void> {
+  // Prompt for projects directory if not configured (first time setup)
+  if (!hasConfiguredProjectDir()) {
+    const selected = await promptProjectsDir();
+    if (!selected) {
+      options.onCancel?.();
+      return;
+    }
+  }
+
   const scratchDir = createScratchDir();
 
   await launchClaude({
