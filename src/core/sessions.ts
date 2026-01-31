@@ -1,12 +1,47 @@
 import { readdir, stat, mkdir, rename } from "fs/promises";
 import { join } from "path";
-import { getProjectsDir, getClaudeDir } from "./config";
+import { existsSync, mkdirSync } from "fs";
+import { getProjectsDir, getClaudeDir, isScratchPath } from "./config";
 import { decodePath, shortenPath, encodePath } from "../utils/paths";
 import { parseSessionMetadata, parseJsonl, getMessageContent, type SessionMetadata } from "../utils/jsonl";
 import { getRenamedTitle } from "./title-generator";
 import { getSearchIndex, closeSearchIndex, type SearchResult as IndexSearchResult, type IndexedSession } from "./search-index";
 
 export { closeSearchIndex };
+
+/**
+ * Repair sessions with missing working directories.
+ * For scratch sessions: recreates the directory.
+ * For project sessions: marks them but doesn't delete.
+ * Returns count of repaired sessions.
+ */
+export function repairOrphanedSessions(): { repaired: number; unfixable: number } {
+  const index = getSearchIndex();
+  const allSessions = index.getSessions({ includeArchived: true });
+
+  let repaired = 0;
+  let unfixable = 0;
+
+  for (const session of allSessions) {
+    if (!existsSync(session.workingDirectory)) {
+      // Directory is missing - try to recreate it
+      if (isScratchPath(session.workingDirectory)) {
+        // Scratch session - recreate the directory
+        try {
+          mkdirSync(session.workingDirectory, { recursive: true });
+          repaired++;
+        } catch {
+          unfixable++;
+        }
+      } else {
+        // Project session - can't recreate project folders
+        unfixable++;
+      }
+    }
+  }
+
+  return { repaired, unfixable };
+}
 
 /**
  * Options for launching Claude
@@ -55,6 +90,18 @@ export async function launchClaude(
 
   if (options.dryRun) {
     return { command, cwd };
+  }
+
+  // Verify directory exists before proceeding
+  const { existsSync, mkdirSync } = await import("fs");
+  if (!existsSync(cwd)) {
+    // For scratch sessions, we can recreate the directory
+    // For other sessions, the project might have been deleted
+    if (cwd.includes(".claudectl/scratch")) {
+      mkdirSync(cwd, { recursive: true });
+    } else {
+      throw new Error(`Session directory no longer exists: ${cwd}`);
+    }
   }
 
   // Log what we're doing (unless quiet mode)
@@ -165,6 +212,8 @@ export interface DiscoverOptions {
   includeArchived?: boolean;
   /** Only show archived sessions. Default: false */
   archivedOnly?: boolean;
+  /** Filter out sessions with non-existent working directories. Default: false */
+  validatePaths?: boolean;
 }
 
 /**
@@ -198,6 +247,7 @@ function discoverSessionsFromIndex(options: DiscoverOptions = {}): Session[] {
   const includeAgents = options.includeAgents ?? false;
   const includeArchived = options.includeArchived ?? false;
   const archivedOnly = options.archivedOnly ?? false;
+  const validatePaths = options.validatePaths ?? false;
 
   const indexedSessions = index.getSessions({
     minMessages: includeEmpty ? 0 : minMessages,
@@ -207,7 +257,7 @@ function discoverSessionsFromIndex(options: DiscoverOptions = {}): Session[] {
   });
 
   // Convert IndexedSession to Session
-  const sessions: Session[] = indexedSessions.map(s => ({
+  let sessions: Session[] = indexedSessions.map(s => ({
     id: s.id,
     title: s.customTitle || (s.firstUserMessage ? cleanTitle(s.firstUserMessage) : null) || s.slug || s.id.slice(0, 8),
     slug: s.slug,
@@ -233,7 +283,14 @@ function discoverSessionsFromIndex(options: DiscoverOptions = {}): Session[] {
 
   // Filter agents if needed
   if (!includeAgents) {
-    return sessions.filter(s => !s.id.startsWith("agent-"));
+    sessions = sessions.filter(s => !s.id.startsWith("agent-"));
+  }
+
+  // Optionally filter out sessions with non-existent working directories
+  // This is slower but prevents showing orphaned sessions
+  if (validatePaths) {
+    const { existsSync } = require("fs");
+    sessions = sessions.filter(s => existsSync(s.workingDirectory));
   }
 
   return sessions;
@@ -451,6 +508,12 @@ export async function moveSession(
 ): Promise<Session> {
   const claudeDir = getClaudeDir();
   const projectsDir = join(claudeDir, "projects");
+
+  // Verify source session file exists
+  const { existsSync } = await import("fs");
+  if (!existsSync(session.filePath)) {
+    throw new Error(`Session file no longer exists: ${session.filePath}`);
+  }
 
   // Encode new path
   const newEncodedPath = encodePath(newWorkingDirectory);

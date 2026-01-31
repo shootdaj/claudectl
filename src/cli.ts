@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { homedir } from "os";
 import { join } from "path";
 import { showSessionPicker } from "./ui/session-picker";
-import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions, syncIndex, rebuildIndex, getIndexStats } from "./core/sessions";
+import { discoverSessions, findSession, launchSession, formatRelativeTime, searchSessions, syncIndex, rebuildIndex, getIndexStats, repairOrphanedSessions } from "./core/sessions";
 import { getAllConfigPaths, loadClaudectlSettings } from "./core/config";
 import { renameSession } from "./core/title-generator";
 import { backupSessions, getBackupInfo, getBackupDir, findDeletedSessions, restoreSession, restoreAllSessions } from "./core/backup";
@@ -750,6 +750,33 @@ serve
     }
 
     await interactivePasswordSetup();
+  });
+
+// Repair command - fixes orphaned sessions (called during install)
+program
+  .command("repair")
+  .description("Repair orphaned sessions with missing directories")
+  .option("-q, --quiet", "Only output if repairs were made")
+  .action((options) => {
+    const result = repairOrphanedSessions();
+
+    if (options.quiet) {
+      // Only output if something was repaired
+      if (result.repaired > 0) {
+        console.log(`Repaired ${result.repaired} orphaned session(s)`);
+      }
+    } else {
+      if (result.repaired === 0 && result.unfixable === 0) {
+        console.log(pc.green("✓ All sessions OK"));
+      } else {
+        if (result.repaired > 0) {
+          console.log(pc.green(`✓ Repaired ${result.repaired} scratch session(s)`));
+        }
+        if (result.unfixable > 0) {
+          console.log(pc.yellow(`⚠ ${result.unfixable} project session(s) have missing directories`));
+        }
+      }
+    }
   });
 
 export { program };

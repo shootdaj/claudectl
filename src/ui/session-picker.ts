@@ -712,9 +712,14 @@ export async function showSessionPicker(
         console.log(`Mode: --dangerously-skip-permissions`);
       }
       console.log();
-      await launchSession(session, { skipPermissions: settings.skipPermissions, quiet: true });
-      // Return to session picker after Claude exits, restoring the same row
-      options.onLaunch?.(session);
+      try {
+        await launchSession(session, { skipPermissions: settings.skipPermissions, quiet: true });
+        // Return to session picker after Claude exits, restoring the same row
+        options.onLaunch?.(session);
+      } catch (error) {
+        console.error(`\nError launching session: ${error instanceof Error ? error.message : error}`);
+        console.log("The session directory may have been deleted.\n");
+      }
       // Close the database connection to avoid stale connection errors
       closeSearchIndex();
       await showSessionPicker({ ...options, selectedIndex: idx });

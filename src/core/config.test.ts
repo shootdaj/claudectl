@@ -156,4 +156,15 @@ describe("config", () => {
       expect(dirname.length).toBe("scratch-".length + 6);
     });
   });
+
+  describe("defaultProjectDir", () => {
+    // Note: The set/load functions use lazy require() for search-index,
+    // which conflicts with mocked modules in other tests.
+    // We test pure functions only here; integration is tested in E2E tests.
+
+    test("getFallbackProjectsDir returns ~/Code", async () => {
+      const { getFallbackProjectsDir } = await import("./config");
+      expect(getFallbackProjectsDir()).toBe(join(homedir(), "Code"));
+    });
+  });
 });
