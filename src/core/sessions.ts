@@ -510,7 +510,7 @@ export async function moveSession(
   const projectsDir = join(claudeDir, "projects");
 
   // Verify source session file exists
-  const { existsSync } = await import("fs");
+  const { existsSync, readFileSync, writeFileSync } = await import("fs");
   if (!existsSync(session.filePath)) {
     throw new Error(`Session file no longer exists: ${session.filePath}`);
   }
@@ -530,10 +530,29 @@ export async function moveSession(
   const index = getSearchIndex();
   const preservedState = index.deleteSession(session.id);
 
-  // Step 2: Move JSONL file
+  // Step 2: Update cwd field in JSONL file before moving
+  // Claude Code checks this field to verify the session belongs to the directory
+  const content = readFileSync(oldFilePath, "utf-8");
+  const lines = content.split("\n");
+  const updatedLines = lines.map((line) => {
+    if (!line.trim()) return line;
+    try {
+      const obj = JSON.parse(line);
+      if (obj.cwd && obj.cwd !== newWorkingDirectory) {
+        obj.cwd = newWorkingDirectory;
+        return JSON.stringify(obj);
+      }
+      return line;
+    } catch {
+      return line;
+    }
+  });
+  writeFileSync(oldFilePath, updatedLines.join("\n"));
+
+  // Step 3: Move JSONL file
   await rename(oldFilePath, newFilePath);
 
-  // Step 3: Re-index at new location with preserved metadata
+  // Step 4: Re-index at new location with preserved metadata
   await index.indexFileByPath(newFilePath, preservedState ?? undefined);
 
   return {
