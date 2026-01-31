@@ -150,6 +150,138 @@ describe("Promote Flow", () => {
   });
 });
 
+// Test configurable scratch folder location
+describe("Scratch Folder Configuration", () => {
+  test("getScratchDir uses defaultProjectDir when configured", async () => {
+    const { getSearchIndex } = await import("./core/search-index");
+    const { getScratchDir, getClaudectlDir } = await import("./core/config");
+    const { join } = await import("path");
+    const { existsSync, rmSync, mkdirSync } = await import("fs");
+
+    const index = getSearchIndex();
+    const originalValue = index.getSetting<string | null>("defaultProjectDir", null);
+
+    // Create temp directory for test
+    const testProjectDir = "/tmp/test-scratch-config";
+    if (existsSync(testProjectDir)) rmSync(testProjectDir, { recursive: true });
+    mkdirSync(testProjectDir, { recursive: true });
+
+    try {
+      // Set defaultProjectDir
+      index.setSetting("defaultProjectDir", testProjectDir);
+
+      // Get scratch dir - should be under testProjectDir
+      const scratchDir = getScratchDir();
+      expect(scratchDir).toBe(join(testProjectDir, "scratch"));
+      expect(existsSync(scratchDir)).toBe(true);
+    } finally {
+      // Restore original setting
+      if (originalValue === null) {
+        index.setSetting("defaultProjectDir", null);
+      } else {
+        index.setSetting("defaultProjectDir", originalValue);
+      }
+      // Cleanup
+      rmSync(testProjectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("getScratchDir falls back to ~/.claudectl/scratch when not configured", async () => {
+    const { getSearchIndex } = await import("./core/search-index");
+    const { getScratchDir, getClaudectlDir } = await import("./core/config");
+    const { join } = await import("path");
+
+    const index = getSearchIndex();
+    const originalValue = index.getSetting<string | null>("defaultProjectDir", null);
+
+    try {
+      // Clear defaultProjectDir
+      index.setSetting("defaultProjectDir", null);
+
+      // Get scratch dir - should be under claudectl dir
+      const scratchDir = getScratchDir();
+      expect(scratchDir).toBe(join(getClaudectlDir(), "scratch"));
+    } finally {
+      // Restore original setting
+      if (originalValue !== null) {
+        index.setSetting("defaultProjectDir", originalValue);
+      }
+    }
+  });
+
+  test("isScratchPath detects both old and new locations", async () => {
+    const { getSearchIndex } = await import("./core/search-index");
+    const { isScratchPath, getClaudectlDir } = await import("./core/config");
+    const { join } = await import("path");
+
+    const index = getSearchIndex();
+    const originalValue = index.getSetting<string | null>("defaultProjectDir", null);
+
+    try {
+      // Set up test project dir
+      const testProjectDir = "/tmp/test-scratch-detect";
+      index.setSetting("defaultProjectDir", testProjectDir);
+
+      // Old location should be detected
+      const oldPath = join(getClaudectlDir(), "scratch", "scratch-abc123");
+      expect(isScratchPath(oldPath)).toBe(true);
+
+      // New location should be detected
+      const newPath = join(testProjectDir, "scratch", "scratch-xyz789");
+      expect(isScratchPath(newPath)).toBe(true);
+
+      // Non-scratch paths should not be detected
+      expect(isScratchPath("/Users/test/projects/myapp")).toBe(false);
+    } finally {
+      // Restore original setting
+      if (originalValue === null) {
+        index.setSetting("defaultProjectDir", null);
+      } else {
+        index.setSetting("defaultProjectDir", originalValue);
+      }
+    }
+  });
+
+  test("createScratchDir creates in configured location", async () => {
+    const { getSearchIndex } = await import("./core/search-index");
+    const { createScratchDir } = await import("./core/config");
+    const { existsSync, rmSync, mkdirSync } = await import("fs");
+
+    const index = getSearchIndex();
+    const originalValue = index.getSetting<string | null>("defaultProjectDir", null);
+
+    // Create temp directory for test
+    const testProjectDir = "/tmp/test-create-scratch";
+    if (existsSync(testProjectDir)) rmSync(testProjectDir, { recursive: true });
+    mkdirSync(testProjectDir, { recursive: true });
+
+    try {
+      // Set defaultProjectDir
+      index.setSetting("defaultProjectDir", testProjectDir);
+
+      // Create scratch dir
+      const scratchDir = createScratchDir();
+
+      // Should be under testProjectDir/scratch/
+      expect(scratchDir.startsWith(testProjectDir + "/scratch/")).toBe(true);
+      expect(existsSync(scratchDir)).toBe(true);
+
+      // Should have scratch- prefix
+      const dirname = scratchDir.split("/").pop()!;
+      expect(dirname.startsWith("scratch-")).toBe(true);
+    } finally {
+      // Restore original setting
+      if (originalValue === null) {
+        index.setSetting("defaultProjectDir", null);
+      } else {
+        index.setSetting("defaultProjectDir", originalValue);
+      }
+      // Cleanup
+      rmSync(testProjectDir, { recursive: true, force: true });
+    }
+  });
+});
+
 // Test rename
 describe("Rename Flow", () => {
   test("renameSession works", async () => {

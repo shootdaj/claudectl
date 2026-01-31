@@ -78,10 +78,26 @@ export function getClaudectlDir(): string {
 
 /**
  * Get the scratch directory for quick questions (no git).
+ * If user has configured a default project directory, uses {projectDir}/scratch/
+ * Otherwise falls back to ~/.claudectl/scratch/
  * Creates the directory if it doesn't exist.
+ *
+ * TODO: Add migration function to move existing scratch sessions from
+ * ~/.claudectl/scratch/ to the new configured location. This would use
+ * moveSession() for each session. One session (X1aBzG) has subagents
+ * that would need special handling.
  */
 export function getScratchDir(): string {
-  const dir = join(getClaudectlDir(), "scratch");
+  let defaultProjectDir: string | null = null;
+  try {
+    const settings = loadClaudectlSettings();
+    defaultProjectDir = settings.defaultProjectDir;
+  } catch {
+    // Ignore errors (e.g., during tests when DB isn't available)
+  }
+  const dir = defaultProjectDir
+    ? join(defaultProjectDir, "scratch")
+    : join(getClaudectlDir(), "scratch");
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
@@ -104,13 +120,11 @@ export function generateShortId(length = 6): string {
 
 /**
  * Create a new unique scratch directory for a quick question session.
- * Returns path like ~/.claudectl/scratch/scratch-k8f3x2/
+ * If user has configured a default project directory, creates in {projectDir}/scratch/scratch-{id}/
+ * Otherwise creates in ~/.claudectl/scratch/scratch-{id}/
  */
 export function createScratchDir(): string {
-  const baseDir = join(getClaudectlDir(), "scratch");
-  if (!existsSync(baseDir)) {
-    mkdirSync(baseDir, { recursive: true });
-  }
+  const baseDir = getScratchDir();
   const uniqueDir = join(baseDir, `scratch-${generateShortId(6)}`);
   mkdirSync(uniqueDir, { recursive: true });
   return uniqueDir;
@@ -153,10 +167,29 @@ export function setDefaultProjectDir(dir: string): void {
 
 /**
  * Check if a path is a scratch session path.
+ * Handles both old location (~/.claudectl/scratch/) and new location ({projectDir}/scratch/)
  */
 export function isScratchPath(path: string): boolean {
-  const scratchDir = join(getClaudectlDir(), "scratch");
-  return path === scratchDir || path.startsWith(scratchDir + "/") || path.startsWith(scratchDir + "\\");
+  // Check old location: ~/.claudectl/scratch/
+  const oldScratchDir = join(getClaudectlDir(), "scratch");
+  if (path === oldScratchDir || path.startsWith(oldScratchDir + "/") || path.startsWith(oldScratchDir + "\\")) {
+    return true;
+  }
+
+  // Check new location: {projectDir}/scratch/
+  try {
+    const settings = loadClaudectlSettings();
+    if (settings.defaultProjectDir) {
+      const newScratchDir = join(settings.defaultProjectDir, "scratch");
+      if (path === newScratchDir || path.startsWith(newScratchDir + "/") || path.startsWith(newScratchDir + "\\")) {
+        return true;
+      }
+    }
+  } catch {
+    // Ignore errors (e.g., during tests when DB isn't available)
+  }
+
+  return false;
 }
 
 /**
