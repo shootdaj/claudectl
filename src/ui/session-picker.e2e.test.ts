@@ -595,7 +595,7 @@ setTimeout(() => {
 `, 15000);
 
     expect(output).toContain("CONTEXT_SHOWN:true");
-  });
+  }, 20000);
 
   test.skipIf(!nodeAvailable || isCI)("'m' key opens MCP manager", async () => {
     const { output, exitCode } = await runPtyTest(`
@@ -739,7 +739,7 @@ setTimeout(() => {
 `, 12000);
 
     expect(output).toContain("UPDATE_TRIGGERED:true");
-  });
+  }, 20000);
 
   test.skipIf(!nodeAvailable || isCI)("arrow keys work for navigation", async () => {
     const { output, exitCode } = await runPtyTest(`
