@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 1 of 5 (Docker Foundation)
-Plan: 0 of 1 in current phase
-Status: Ready to plan
-Last activity: 2026-02-04 — Roadmap created with 5 phases covering 17 requirements
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-03 — Completed 01-01-PLAN.md (Docker container with sandbox isolation)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: N/A
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 3 minutes
+- Total execution time: 0.05 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1 - Docker Foundation | 1/1 | 3 min | 3 min |
 
 **Recent Trend:**
-- No plans completed yet
-- Trend: N/A
+- Last completed: 01-01 (3 min)
+- Trend: First plan baseline established
 
 *Updated after each plan completion*
 
@@ -46,6 +46,14 @@ Recent decisions affecting current work:
 - Fixture-based sample data: Reproducible test scenarios
 - Entrypoint auto-sync: First-run experience handles empty index
 
+**New decisions from 01-01:**
+
+| Decision | Context | Choice |
+|----------|---------|--------|
+| USE_OVEN_BUN_IMAGE | Base image selection | Use oven/bun:latest instead of node + bun install |
+| INSTALL_BUILD_DEPS | node-pty compilation | Install Python3 + make + g++ in container |
+| ENV_VAR_REDIRECT | Sandbox isolation method | Use CLAUDE_CONFIG_DIR and CLAUDECTL_HOME env vars |
+
 ### Pending Todos
 
 None yet.
@@ -56,6 +64,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-04 (roadmap creation)
-Stopped at: Roadmap and STATE.md initialized, ready for Phase 1 planning
+Last session: 2026-02-03 22:22 UTC
+Stopped at: Completed 01-01-PLAN.md - Phase 1 Docker Foundation complete
 Resume file: None
+Next phase: Phase 2 (Test Fixtures) - Create sample session data
