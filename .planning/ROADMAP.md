@@ -52,10 +52,10 @@ Plans:
   3. Developer can run sandbox-shell service and get bash prompt in container
   4. Index auto-syncs on first run when starting from empty or fixture data
   5. Docker Compose services defined for all three modes
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md - Create Docker Compose services and entrypoint script
 
 ### Phase 4: Test Integration
 **Goal**: E2E tests run in isolated Docker environment via test service
@@ -91,8 +91,8 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Docker Foundation | 1/1 | Complete ✓ | 2026-02-04 |
-| 2. Test Fixtures | 1/1 | Complete ✓ | 2026-02-04 |
-| 3. Docker Services | 0/1 | Not started | - |
+| 1. Docker Foundation | 1/1 | Complete | 2026-02-04 |
+| 2. Test Fixtures | 1/1 | Complete | 2026-02-04 |
+| 3. Docker Services | 0/1 | Planned | - |
 | 4. Test Integration | 0/1 | Not started | - |
 | 5. CI Integration | 0/1 | Not started | - |
