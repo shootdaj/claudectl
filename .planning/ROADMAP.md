@@ -7,7 +7,7 @@ Transform claudectl testing from filesystem-dependent to fully isolated Docker-b
 ## Phases
 
 - [x] **Phase 1: Docker Foundation** - Container builds with Bun and isolated sandbox paths
-- [ ] **Phase 2: Test Fixtures** - Realistic sample session data and config files
+- [x] **Phase 2: Test Fixtures** - Realistic sample session data and config files
 - [ ] **Phase 3: Docker Services** - Multiple sandbox modes with auto-sync
 - [ ] **Phase 4: Test Integration** - E2E tests running in Docker isolation
 - [ ] **Phase 5: CI Integration** - CI uses Docker for test consistency with local scripts
@@ -40,7 +40,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 02-01-PLAN.md - Create sandbox fixtures with sample sessions and MCP config
+- [x] 02-01-PLAN.md - Create sandbox fixtures with sample sessions and MCP config
 
 ### Phase 3: Docker Services
 **Goal**: Multiple sandbox modes work via docker compose (pre-populated, clean slate, shell access)
@@ -91,8 +91,8 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Docker Foundation | 1/1 | Complete | 2026-02-04 |
-| 2. Test Fixtures | 0/1 | Planned | - |
+| 1. Docker Foundation | 1/1 | Complete ✓ | 2026-02-04 |
+| 2. Test Fixtures | 1/1 | Complete ✓ | 2026-02-04 |
 | 3. Docker Services | 0/1 | Not started | - |
 | 4. Test Integration | 0/1 | Not started | - |
 | 5. CI Integration | 0/1 | Not started | - |

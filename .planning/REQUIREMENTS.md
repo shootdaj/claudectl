@@ -20,9 +20,9 @@
 
 ### Fixtures
 
-- [ ] **FIX-01**: Sample session files with realistic JSONL data
-- [ ] **FIX-02**: Mock `.claude.json` config file
-- [ ] **FIX-03**: At least 2 sample projects with different session types
+- [x] **FIX-01**: Sample session files with realistic JSONL data
+- [x] **FIX-02**: Mock `.claude.json` config file
+- [x] **FIX-03**: At least 2 sample projects with different session types
 
 ### Developer Experience
 
@@ -57,9 +57,9 @@
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
-| FIX-01 | Phase 2 | Pending |
-| FIX-02 | Phase 2 | Pending |
-| FIX-03 | Phase 2 | Pending |
+| FIX-01 | Phase 2 | Complete |
+| FIX-02 | Phase 2 | Complete |
+| FIX-03 | Phase 2 | Complete |
 | SVC-01 | Phase 3 | Pending |
 | SVC-02 | Phase 3 | Pending |
 | SVC-03 | Phase 3 | Pending |
@@ -79,4 +79,4 @@
 
 ---
 *Requirements defined: 2026-02-04*
-*Last updated: 2026-02-04 after Phase 1 completion*
+*Last updated: 2026-02-04 after Phase 2 completion*
