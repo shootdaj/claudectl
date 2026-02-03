@@ -1,0 +1,35 @@
+# Dependencies (will be installed fresh)
+node_modules/
+
+# Build artifacts
+dist/
+
+# Planning docs (not needed in container)
+.planning/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Local env files
+.env
+.env.local
+*.local
+
+# Experts knowledge base (development only)
+experts/
+
+# Temporary files
+*.log
+*.tmp
