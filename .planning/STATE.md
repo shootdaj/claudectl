@@ -10,28 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 2 of 5 (Test Fixtures)
-Plan: 0 of 1 in current phase
-Status: Ready to plan
-Last activity: 2026-02-04 — Completed Phase 1 (Docker Foundation) with verified goal achievement
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-03 — Completed 02-01-PLAN.md (Test Fixtures)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
+- Total plans completed: 2
 - Average duration: 3 minutes
-- Total execution time: 0.05 hours
+- Total execution time: 0.10 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 - Docker Foundation | 1/1 | 3 min | 3 min |
+| 2 - Test Fixtures | 1/1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last completed: 01-01 (3 min)
-- Trend: First plan baseline established
+- Last completed: 02-01 (3 min)
+- Trend: Consistent 3-minute execution time
 
 *Updated after each plan completion*
 
@@ -54,6 +55,14 @@ Recent decisions affecting current work:
 | INSTALL_BUILD_DEPS | node-pty compilation | Install Python3 + make + g++ in container |
 | ENV_VAR_REDIRECT | Sandbox isolation method | Use CLAUDE_CONFIG_DIR and CLAUDECTL_HOME env vars |
 
+**New decisions from 02-01:**
+
+| Decision | Context | Choice |
+|----------|---------|--------|
+| REALISTIC_TOKEN_COSTS | Fixture pricing | Use actual Claude Opus/Sonnet pricing for realistic cost testing |
+| PATH_ENCODING_DIVERSITY | Test coverage | Create sessions in different paths (-sandbox vs -Users-dev) |
+| TOOL_USE_INCLUSION | Session features | Include Read/Write tool_use in project session for comprehensive testing |
+
 ### Pending Todos
 
 None yet.
@@ -64,7 +73,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-04
-Stopped at: Phase 1 verified and complete, ready for Phase 2
+Last session: 2026-02-03
+Stopped at: Completed 02-01-PLAN.md - Phase 2 complete
 Resume file: None
-Next phase: Phase 2 (Test Fixtures) - Create sample session data
+Next phase: Phase 3 (Docker Sandbox E2E) - Integration tests with Docker container
