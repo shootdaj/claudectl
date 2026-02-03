@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 3 of 5 (Docker Services)
-Plan: 0 of 1 in current phase
-Status: Ready to plan
-Last activity: 2026-02-04 — Completed Phase 2 (Test Fixtures) with verified goal achievement
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-04 — Completed 03-01-PLAN.md
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 3 minutes
-- Total execution time: 0.10 hours
+- Total plans completed: 3
+- Average duration: 2 minutes
+- Total execution time: 0.12 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [████░░░░░░] 40%
 |-------|-------|-------|----------|
 | 1 - Docker Foundation | 1/1 | 3 min | 3 min |
 | 2 - Test Fixtures | 1/1 | 3 min | 3 min |
+| 3 - Docker Services | 1/1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last completed: 02-01 (3 min)
-- Trend: Consistent 3-minute execution time
+- Last completed: 03-01 (1 min)
+- Trend: Improving velocity (3 min → 1 min)
 
 *Updated after each plan completion*
 
@@ -63,6 +64,14 @@ Recent decisions affecting current work:
 | PATH_ENCODING_DIVERSITY | Test coverage | Create sessions in different paths (-sandbox vs -Users-dev) |
 | TOOL_USE_INCLUSION | Session features | Include Read/Write tool_use in project session for comprehensive testing |
 
+**New decisions from 03-01:**
+
+| Decision | Context | Choice |
+|----------|---------|--------|
+| SANDBOX_MODE_ENV_VAR | Mode switching | Single entrypoint with SANDBOX_MODE env var (tui/shell/test) |
+| FIXTURES_READ_WRITE | Index creation | Mount fixtures read-write to allow index generation alongside data |
+| TMPFS_CLEAN_MODE | Ephemeral testing | Use tmpfs for sandbox-clean (guaranteed empty on each run) |
+
 ### Pending Todos
 
 None yet.
@@ -74,6 +83,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Phase 2 verified and complete, ready for Phase 3
+Stopped at: Phase 3 complete, ready for Phase 4
 Resume file: None
-Next phase: Phase 3 (Docker Services) - Multiple sandbox modes with auto-sync
+Next phase: Phase 4 (Session Discovery) - Core session parsing and indexing logic
