@@ -74,7 +74,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- **Web Remote Access (Future milestone):** Enable remote access to claudectl TUI via web browser or terminal using ttyd/xterm.js. Users can "remote into" the Docker container running claudectl from anywhere. Concept: expose web terminal that connects to the TUI running inside Docker.
 
 ### Blockers/Concerns
 
