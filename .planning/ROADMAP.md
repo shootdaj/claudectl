@@ -23,10 +23,10 @@ Transform claudectl testing from filesystem-dependent to fully isolated Docker-b
   2. Container has isolated /sandbox/.claude/ directory (not touching ~/.claude/)
   3. Container has isolated /sandbox/.claudectl/ directory
   4. Environment variables (CLAUDE_CONFIG_DIR, CLAUDECTL_HOME) redirect to sandbox paths
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: TBD
+- [ ] 01-01-PLAN.md - Create Dockerfile with Bun runtime and sandbox isolation
 
 ### Phase 2: Test Fixtures
 **Goal**: Repository contains realistic sample data for testing various scenarios
@@ -91,7 +91,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Docker Foundation | 0/1 | Not started | - |
+| 1. Docker Foundation | 0/1 | Planned | - |
 | 2. Test Fixtures | 0/1 | Not started | - |
 | 3. Docker Services | 0/1 | Not started | - |
 | 4. Test Integration | 0/1 | Not started | - |
