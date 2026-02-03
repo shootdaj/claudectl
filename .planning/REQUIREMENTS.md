@@ -7,9 +7,9 @@
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Dockerfile builds successfully with Bun + all dependencies
-- [ ] **INFRA-02**: Container has isolated `/sandbox/.claude/` and `/sandbox/.claudectl/`
-- [ ] **INFRA-03**: Environment variables redirect paths to sandbox
+- [x] **INFRA-01**: Dockerfile builds successfully with Bun + all dependencies
+- [x] **INFRA-02**: Container has isolated `/sandbox/.claude/` and `/sandbox/.claudectl/`
+- [x] **INFRA-03**: Environment variables redirect paths to sandbox
 
 ### Services
 
@@ -54,9 +54,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Complete |
+| INFRA-02 | Phase 1 | Complete |
+| INFRA-03 | Phase 1 | Complete |
 | FIX-01 | Phase 2 | Pending |
 | FIX-02 | Phase 2 | Pending |
 | FIX-03 | Phase 2 | Pending |
@@ -79,4 +79,4 @@
 
 ---
 *Requirements defined: 2026-02-04*
-*Last updated: 2026-02-04 after roadmap creation*
+*Last updated: 2026-02-04 after Phase 1 completion*
