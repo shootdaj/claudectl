@@ -37,10 +37,10 @@ Plans:
   2. Mock .claude.json exists with sample MCP server configurations
   3. At least 2 sample projects with different session characteristics (scratch session, project session)
   4. Fixtures cover edge cases (empty sessions, multi-day conversations, high cost sessions)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md - Create sandbox fixtures with sample sessions and MCP config
 
 ### Phase 3: Docker Services
 **Goal**: Multiple sandbox modes work via docker compose (pre-populated, clean slate, shell access)
@@ -91,8 +91,8 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Docker Foundation | 1/1 | Complete ✓ | 2026-02-04 |
-| 2. Test Fixtures | 0/1 | Not started | - |
+| 1. Docker Foundation | 1/1 | Complete | 2026-02-04 |
+| 2. Test Fixtures | 0/1 | Planned | - |
 | 3. Docker Services | 0/1 | Not started | - |
 | 4. Test Integration | 0/1 | Not started | - |
 | 5. CI Integration | 0/1 | Not started | - |
