@@ -54,6 +54,28 @@ Users can find and resume any Claude Code session from anywhere, without losing 
 - **Distribution:** Source via install script (not compiled binary)
 - **Docker base:** oven/bun image for consistency
 
+## Future Ideas
+
+### Web Remote Access
+
+**Problem:** Currently, claudectl TUI requires direct terminal access. Users can't access their session manager from a different machine or a web browser.
+
+**Concept:** Run claudectl inside Docker and expose it via a web terminal, so users can "remote into" the TUI from anywhere — a browser tab, a phone, or another machine's terminal.
+
+**Approaches explored:**
+
+1. **ttyd** — Lightweight C-based tool that wraps any CLI command in a web terminal. Attach it to the claudectl TUI process inside Docker, expose a port, connect from browser. Minimal setup, battle-tested.
+
+2. **gotty** — Similar to ttyd but Go-based. Slightly heavier but has auth built-in and read-only mode.
+
+3. **xterm.js + custom server** — Full control approach. Build a Node/Bun WebSocket server that spawns a PTY running claudectl, pipe I/O to xterm.js in the browser. More work but fully customizable (could integrate with the existing `claudectl serve` web UI).
+
+**Docker integration:** Add a `sandbox-web` service to docker-compose that runs ttyd/gotty wrapping the claudectl TUI, with port mapping (e.g., `3848:7681`). Users hit `localhost:3848` in their browser to get a full interactive terminal.
+
+**Relationship to `serve` command:** The existing `claudectl serve` provides a web UI for session browsing. Web Remote Access would complement it by providing actual terminal interaction — users could browse sessions in the web UI, then launch one in a web terminal.
+
+**When:** After Docker Test Sandbox milestone is complete.
+
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
