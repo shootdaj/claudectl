@@ -43,3 +43,18 @@ services:
       - /sandbox/.claudectl
     stdin_open: true
     tty: true
+
+  test-report:
+    build: .
+    entrypoint: /app/sandbox/entrypoint.sh
+    command: ["sh", "-c", "bun test 2>&1 | bun scripts/test-reporter.ts"]
+    environment:
+      - SANDBOX_MODE=test
+      - CI=true
+    volumes:
+      - ./sandbox/fixtures/.claude:/sandbox/.claude:ro
+      - ./test-reports:/app/test-reports
+    tmpfs:
+      - /sandbox/.claudectl
+    stdin_open: true
+    tty: true

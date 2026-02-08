@@ -3,4 +3,5 @@ firebase-debug.log
 *.last-run.json
 .claude/settings.local.json
 test-results/
+test-reports/
 .grepai/

@@ -12,7 +12,10 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "test:tui": "bun test src/**/*.tui.test.ts --timeout 30000"
+    "test:tui": "bun test src/**/*.tui.test.ts --timeout 30000",
+    "test:report": "bun test 2>&1 | bun scripts/test-reporter.ts",
+    "test:docker": "docker compose run --rm test",
+    "test:docker:report": "docker compose run --rm test-report"
   },
   "dependencies": {
     "@clack/prompts": "^0.9.1",
