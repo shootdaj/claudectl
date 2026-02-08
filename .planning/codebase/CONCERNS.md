@@ -343,21 +343,20 @@ Input written to the PTY never reaches the underlying process (Claude).
 
 **Not a Priority:** Architecture is solid, solves hard constraints
 
-### 2. Session File Duplication During Promote
+### 2. Session File Move During Promote
 
-**Status:** Works but inelegant
+**Status:** Working with atomic rename
 **File:** `src/ui/new-project.ts` + `src/core/sessions.ts`
 **Details:**
-- When promoting scratch → project:
-  1. Copy JSONL file to new directory
-  2. Update SQLite index
-  3. Update `session_titles` table
+- When promoting scratch → project, uses `moveSession()` which:
+  1. Deletes old index entry (preserving metadata like archive status, title)
+  2. Updates cwd field in JSONL file
+  3. Atomically renames JSONL file to new location via `rename()`
+  4. Re-indexes at new location with preserved metadata
 
-**Potential Issue:** If step 2 fails, old copy remains
+**Current Safeguard:** Atomic `rename()` prevents partial state; try/catch with error logging
 
-**Current Safeguard:** Try/catch with error logging
-
-**Recommendation:** Implement transaction-like behavior for promote operation
+**Note:** `rename()` is atomic on the same filesystem. Cross-filesystem moves would fail (not expected in practice).
 
 ### 3. Web Push Subscription Storage
 
