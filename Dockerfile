@@ -1,11 +1,15 @@
 # Use official Bun runtime as base image
 FROM oven/bun:latest
 
-# Install build dependencies for native modules (node-pty)
+# Install build dependencies for native modules (node-pty) and Node.js for E2E tests
+# Node is needed because node-pty callbacks don't work correctly in Bun
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

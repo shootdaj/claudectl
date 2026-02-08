@@ -37,7 +37,8 @@ const pty = require("node-pty");
 const path = require("path");
 
 const PROJECT_ROOT = ${JSON.stringify(PROJECT_ROOT)};
-const BUN = process.env.HOME + "/.bun/bin/bun";
+// Use bun from PATH, fallback to common locations
+const BUN = require("child_process").execSync("which bun").toString().trim() || "/usr/local/bin/bun";
 
 ${script}
 `;

@@ -36,7 +36,6 @@ services:
     command: ["bun", "test"]
     environment:
       - SANDBOX_MODE=test
-      - CI=true
     volumes:
       - ./sandbox/fixtures/.claude:/sandbox/.claude:ro
     tmpfs:
@@ -50,7 +49,6 @@ services:
     command: ["sh", "-c", "bun test 2>&1 | bun scripts/test-reporter.ts"]
     environment:
       - SANDBOX_MODE=test
-      - CI=true
     volumes:
       - ./sandbox/fixtures/.claude:/sandbox/.claude:ro
       - ./test-reports:/app/test-reports
