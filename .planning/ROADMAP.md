@@ -82,10 +82,10 @@ Plans:
   3. bun run sandbox:clean starts clean sandbox (npm script)
   4. bun run sandbox:shell opens bash in container (npm script)
   5. CI and local developer experience are identical (same Docker setup)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md - Update CI workflow and add npm scripts for Docker parity
 
 ## Progress
 
