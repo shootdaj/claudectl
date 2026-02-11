@@ -10,7 +10,7 @@ Transform claudectl testing from filesystem-dependent to fully isolated Docker-b
 - [x] **Phase 2: Test Fixtures** - Realistic sample session data and config files
 - [x] **Phase 3: Docker Services** - Multiple sandbox modes with auto-sync
 - [x] **Phase 4: Test Integration** - E2E tests running in Docker isolation
-- [ ] **Phase 5: CI Integration** - CI uses Docker for test consistency with local scripts
+- [x] **Phase 5: CI Integration** - CI uses Docker for test consistency with local scripts
 
 ## Phase Details
 
@@ -85,7 +85,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md - Update CI workflow and add npm scripts for Docker parity
+- [x] 05-01-PLAN.md - Update CI workflow and add npm scripts for Docker parity
 
 ## Progress
 
@@ -95,4 +95,4 @@ Plans:
 | 2. Test Fixtures | 1/1 | Complete | 2026-02-04 |
 | 3. Docker Services | 1/1 | Complete | 2026-02-08 |
 | 4. Test Integration | 1/1 | Complete | 2026-02-08 |
-| 5. CI Integration | 0/1 | Not started | - |
+| 5. CI Integration | 1/1 | Complete | 2026-02-11 |
