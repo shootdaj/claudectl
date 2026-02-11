@@ -15,7 +15,11 @@
     "test:tui": "bun test src/**/*.tui.test.ts --timeout 30000",
     "test:report": "bun test 2>&1 | bun scripts/test-reporter.ts",
     "test:docker": "docker compose run --rm test",
-    "test:docker:report": "docker compose run --rm test-report"
+    "test:docker:report": "docker compose run --rm test-report",
+    "record:demo": "docker compose run --rm record-demo",
+    "sandbox": "docker compose run --rm sandbox",
+    "sandbox:clean": "docker compose run --rm sandbox-clean",
+    "sandbox:shell": "docker compose run --rm sandbox-shell"
   },
   "dependencies": {
     "@clack/prompts": "^0.9.1",
