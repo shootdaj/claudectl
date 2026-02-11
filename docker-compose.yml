@@ -1,0 +1,74 @@
+services:
+  sandbox:
+    build: .
+    entrypoint: /app/sandbox/entrypoint.sh
+    environment:
+      - SANDBOX_MODE=tui
+    volumes:
+      - ./sandbox/fixtures/.claude:/sandbox/.claude
+    stdin_open: true
+    tty: true
+
+  sandbox-clean:
+    build: .
+    entrypoint: /app/sandbox/entrypoint.sh
+    environment:
+      - SANDBOX_MODE=tui
+    tmpfs:
+      - /sandbox/.claude
+      - /sandbox/.claudectl
+    stdin_open: true
+    tty: true
+
+  sandbox-shell:
+    build: .
+    entrypoint: /app/sandbox/entrypoint.sh
+    environment:
+      - SANDBOX_MODE=shell
+    volumes:
+      - ./sandbox/fixtures/.claude:/sandbox/.claude
+    stdin_open: true
+    tty: true
+
+  test:
+    build: .
+    entrypoint: /app/sandbox/entrypoint.sh
+    command: ["bun", "test"]
+    environment:
+      - SANDBOX_MODE=test
+      - CI=true
+    volumes:
+      - ./sandbox/fixtures/.claude:/sandbox/.claude:ro
+    tmpfs:
+      - /sandbox/.claudectl
+    stdin_open: true
+    tty: true
+
+  test-report:
+    build: .
+    entrypoint: /app/sandbox/entrypoint.sh
+    command: ["sh", "-c", "bun test 2>&1 | bun scripts/test-reporter.ts"]
+    environment:
+      - SANDBOX_MODE=test
+      - CI=true
+    volumes:
+      - ./sandbox/fixtures/.claude:/sandbox/.claude:ro
+      - ./test-reports:/app/test-reports
+    tmpfs:
+      - /sandbox/.claudectl
+    stdin_open: true
+    tty: true
+
+  record-demo:
+    build: .
+    entrypoint: /app/sandbox/entrypoint.sh
+    command: ["sh", "/app/scripts/docker-record-demos.sh"]
+    environment:
+      - SANDBOX_MODE=test
+    volumes:
+      - ./sandbox/fixtures/.claude:/sandbox/.claude:ro
+      - ./test-reports:/app/test-reports
+    tmpfs:
+      - /sandbox/.claudectl
+    stdin_open: true
+    tty: true
